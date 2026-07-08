@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-steel: #4682B4;
+  --color-steelDeep: #2F5D85;
+  --color-steelIce: #A9C6E0;
+  --color-mist: #E8F0F7;
+  --color-graphite: rgba(16, 24, 32, 0.85);
+  --color-success: #5FB49C;
+}
+
+@layer base {
+  body {
+    background-color: transparent;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+}
