@@ -173,7 +173,7 @@ export function PreferencesView() {
             <button
               onClick={() => update({ autostart: !settings.autostart })}
               className={cn(
-                "w-10 h-5 rounded-full transition-colors relative",
+                "w-10 h-5 rounded-full transition-all relative hover:ring-2 hover:ring-steelIce/50 hover:ring-offset-2 hover:ring-offset-background",
                 settings.autostart ? "bg-steelIce" : "bg-white/10"
               )}
             >

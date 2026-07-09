@@ -182,6 +182,8 @@ fn main() {
             commands::get_stats,
             commands::get_history,
             commands::clear_history,
+            commands::delete_history_record,
+            commands::update_history_record,
             commands::cancel_dictation,
             commands::open_dashboard
         ])

@@ -107,6 +107,16 @@ pub fn clear_history(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+pub fn delete_history_record(app: tauri::AppHandle, id: String) -> Result<bool, String> {
+    Ok(db::Db::new(&app).delete_record(&id))
+}
+
+#[tauri::command]
+pub fn update_history_record(app: tauri::AppHandle, id: String, text: String) -> Result<bool, String> {
+    Ok(db::Db::new(&app).update_record_text(&id, &text))
+}
+
+#[tauri::command]
 pub fn is_recording(app: tauri::AppHandle) -> bool {
     app.state::<AppState>().is_recording.load(Ordering::SeqCst)
 }

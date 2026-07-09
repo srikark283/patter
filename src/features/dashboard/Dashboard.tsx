@@ -151,7 +151,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="relative z-10 flex-1 overflow-y-auto">
         <div className="px-10 py-9 max-w-5xl mx-auto">
-          {activeTab === "dashboard" && <DashboardView stats={stats} history={history} />}
+          {activeTab === "dashboard" && <DashboardView stats={stats} history={history} onViewAll={() => setActiveTab("history")} />}
           {activeTab === "history" && <HistoryView history={history} setHistory={setHistory} />}
           {activeTab === "dictionary" && <DictionaryView />}
           {activeTab === "models" && (

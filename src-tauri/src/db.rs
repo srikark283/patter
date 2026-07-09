@@ -143,4 +143,29 @@ impl Db {
         self.save_history(&[]);
         // Keep stats untouched, just clear history log
     }
+
+    pub fn delete_record(&self, id: &str) -> bool {
+        let mut history = self.get_history();
+        let initial_len = history.len();
+        history.retain(|r| r.id != id);
+        if history.len() != initial_len {
+            self.save_history(&history);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn update_record_text(&self, id: &str, new_text: &str) -> bool {
+        let mut history = self.get_history();
+        if let Some(record) = history.iter_mut().find(|r| r.id == id) {
+            record.text = new_text.to_string();
+            // Optional: Re-calculate words if we want, but keeping it simple for now
+            // record.words = new_text.split_whitespace().count() as u32;
+            self.save_history(&history);
+            true
+        } else {
+            false
+        }
+    }
 }

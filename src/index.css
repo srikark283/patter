@@ -31,6 +31,15 @@
   html {
     @apply font-sans;
   }
+  button {
+    @apply cursor-pointer transition-all duration-200 active:scale-[0.97];
+  }
+  button:not(:disabled):hover {
+    filter: brightness(1.15);
+  }
+  button:disabled {
+    @apply cursor-not-allowed;
+  }
 }
 
 @theme inline {

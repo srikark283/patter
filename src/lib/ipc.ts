@@ -20,8 +20,16 @@ export function getHistory() {
   return invoke<TranscriptionRecord[]>("get_history");
 }
 
-export function clearHistory() {
-  return invoke<void>("clear_history");
+export async function clearHistory(): Promise<void> {
+  return invoke("clear_history");
+}
+
+export async function deleteHistoryRecord(id: string): Promise<boolean> {
+  return invoke("delete_history_record", { id });
+}
+
+export async function updateHistoryRecord(id: string, text: string): Promise<boolean> {
+  return invoke("update_history_record", { id, text });
 }
 
 export function isRecording() {
