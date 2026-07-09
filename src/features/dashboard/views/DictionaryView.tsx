@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { setCustomPrompt as setCustomPromptIpc } from "../../../lib/ipc";
+import { updateSettings, getSettings, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Search, Plus, ArrowUpDown, Settings as SettingsIcon, Trash2, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Props {
-  customPrompt: string;
-  setCustomPrompt: (prompt: string) => void;
-}
-
-export function DictionaryView({ customPrompt, setCustomPrompt }: Props) {
+export function DictionaryView() {
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [terms, setTerms] = useState<string[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newTerm, setNewTerm] = useState("");
@@ -34,20 +30,28 @@ export function DictionaryView({ customPrompt, setCustomPrompt }: Props) {
   }, []);
 
   useEffect(() => {
-    const raw = customPrompt || "";
-    const parsed = raw.split(",").map(t => t.trim()).filter(Boolean);
-    setTerms(parsed);
-  }, [customPrompt]);
+    getSettings().then(s => {
+      setSettings(s);
+      const raw = s.custom_prompt || "";
+      const parsed = raw.split(",").map(t => t.trim()).filter(Boolean);
+      setTerms(parsed);
+    }).catch(console.error);
+  }, []);
 
   const save = async (newTerms: string[]) => {
     setTerms(newTerms);
     const value = newTerms.join(", ");
+    if (!settings) return;
+    
+    const newSettings = { ...settings, custom_prompt: value };
+    setSettings(newSettings);
+    
     try {
-      await setCustomPromptIpc(value);
-      setCustomPrompt(value);
+      await updateSettings(newSettings);
     } catch (e) {
       console.error(e);
       toast.error("Failed to save term: " + e);
+      setSettings(settings); // revert
     }
   };
 

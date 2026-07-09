@@ -25,8 +25,6 @@ export default function Dashboard() {
 
   // Settings State
   const [activeEngine, setActiveEngine] = useState<string | null>(null);
-  const [outputMode, setOutputMode] = useState("paste");
-  const [customPrompt, setCustomPrompt] = useState("");
 
   // Download State
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -155,7 +153,7 @@ export default function Dashboard() {
         <div className="px-10 py-9 max-w-5xl mx-auto">
           {activeTab === "dashboard" && <DashboardView stats={stats} history={history} />}
           {activeTab === "history" && <HistoryView history={history} setHistory={setHistory} />}
-          {activeTab === "dictionary" && <DictionaryView customPrompt={customPrompt} setCustomPrompt={setCustomPrompt} />}
+          {activeTab === "dictionary" && <DictionaryView />}
           {activeTab === "models" && (
             <ModelsView
               activeEngine={activeEngine}
@@ -168,7 +166,7 @@ export default function Dashboard() {
               onModelDeleted={refreshModelStatus}
             />
           )}
-          {activeTab === "preferences" && <PreferencesView outputMode={outputMode} setOutputMode={setOutputMode} />}
+          {activeTab === "preferences" && <PreferencesView />}
         </div>
       </main>
     </div>

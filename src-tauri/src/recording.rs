@@ -14,15 +14,24 @@ const WHISPER_SAMPLE_RATE: u32 = 16_000;
 pub fn start_recording(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     println!("🔴 recording...");
-    state.captured.lock().unwrap().clear();
-    state.is_recording.store(true, Ordering::SeqCst);
+    
+    let settings = state.settings.lock().unwrap().clone();
 
+    // Reinitialize the buffer for a new recording
+    *state.captured.lock().unwrap() = Vec::new();
+    let target = state.captured.clone();
+
+    if state.audio_tx.send(AudioCommand::Start(target, settings.microphone)).is_ok() {
+        state.is_recording.store(true, Ordering::SeqCst);
+    }
+    
     let _ = app.emit("patter://state", "Listening...");
-    let _ = state.audio_tx.send(AudioCommand::Start(state.captured.clone()));
 
     let app_handle = app.clone();
     let is_rec = state.is_recording.clone();
     let captured = state.captured.clone();
+
+    let max_silence_frames = (settings.silence_timeout_ms / 33).max(15); // min 0.5s
 
     thread::spawn(move || {
         let mut planner = FftPlanner::new();
@@ -56,7 +65,7 @@ pub fn start_recording(app: &tauri::AppHandle) {
                 silence_frames = 0;
             } else if speech_detected {
                 silence_frames += 1;
-                if silence_frames > 45 {
+                if silence_frames > max_silence_frames {
                     stop_and_transcribe(&app_handle);
                     break;
                 }
@@ -118,11 +127,14 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
              return;
         }
 
-        let prompt = app_handle.state::<AppState>().custom_prompt.lock().unwrap().clone();
+        let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
+        let prompt = settings.custom_prompt;
+        let language = settings.language;
+        
         let text = {
             let mut lock = engine_arc.lock().unwrap();
             if let Some(engine) = lock.as_mut() {
-                match engine.transcribe(&audio, if prompt.is_empty() { None } else { Some(&prompt) }) {
+                match engine.transcribe(&audio, if prompt.is_empty() { None } else { Some(&prompt) }, Some(&language)) {
                     Ok(t) => t,
                     Err(e) => {
                         eprintln!("Inference failed: {}", e);
@@ -162,7 +174,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
 
         let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
 
-        let mode = app_handle.state::<AppState>().output_mode.lock().unwrap().clone();
+        let mode = settings.output_mode;
 
         let _ = app_handle.run_on_main_thread(move || {
             paste::paste_text(&mode, &text);

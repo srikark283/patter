@@ -14,13 +14,19 @@ impl WhisperEngine {
 }
 
 impl ASREngine for WhisperEngine {
-    fn transcribe(&mut self, audio: &[f32], prompt: Option<&str>) -> Result<String> {
+    fn transcribe(&mut self, audio: &[f32], prompt: Option<&str>, language: Option<&str>) -> Result<String> {
         let mut state = self.ctx.create_state()?;
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-        params.set_language(Some("en"));
         params.set_print_progress(false);
         params.set_print_special(false);
         params.set_print_realtime(false);
+        params.set_print_timestamps(false);
+
+        if let Some(l) = language {
+            if l != "auto" {
+                params.set_language(Some(l));
+            }
+        }
         params.set_print_timestamps(false);
         if let Some(p) = prompt {
             if !p.is_empty() {

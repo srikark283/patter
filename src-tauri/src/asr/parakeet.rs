@@ -22,7 +22,7 @@ impl ParakeetEngine {
 }
 
 impl ASREngine for ParakeetEngine {
-    fn transcribe(&mut self, audio: &[f32], _prompt: Option<&str>) -> Result<String> {
+    fn transcribe(&mut self, audio: &[f32], _prompt: Option<&str>, _language: Option<&str>) -> Result<String> {
         let mut stream = self.recognizer.create_stream();
         stream.accept_waveform(16000, audio);
         self.recognizer.decode(&stream);

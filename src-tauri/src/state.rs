@@ -3,7 +3,7 @@ use crate::models;
 use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc, Mutex};
 
 pub enum AudioCommand {
-    Start(Arc<Mutex<Vec<f32>>>),
+    Start(Arc<Mutex<Vec<f32>>>, Option<String>),
     Stop,
     Reconnect(Arc<Mutex<Vec<f32>>>),
 }
@@ -16,6 +16,5 @@ pub struct AppState {
     pub engine: Arc<Mutex<Option<Box<dyn ASREngine>>>>,
     pub active_engine_id: Arc<Mutex<Option<String>>>,
     pub model_manager: models::registry::ModelManager,
-    pub output_mode: Arc<Mutex<String>>,
-    pub custom_prompt: Arc<Mutex<String>>,
+    pub settings: Arc<Mutex<crate::db::Settings>>,
 }

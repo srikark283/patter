@@ -2,6 +2,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AppStats, TranscriptionRecord } from "../types";
 
+export interface Settings {
+  hotkey: string;
+  microphone: string | null;
+  output_mode: string;
+  custom_prompt: string;
+  autostart: boolean;
+  language: string;
+  silence_timeout_ms: number;
+}
+
 export function getStats() {
   return invoke<AppStats>("get_stats");
 }
@@ -34,12 +44,16 @@ export function getActiveEngine() {
   return invoke<string | null>("get_active_engine");
 }
 
-export function setOutputMode(mode: string) {
-  return invoke<void>("set_output_mode", { mode });
+export function getSettings() {
+  return invoke<Settings>("get_settings");
 }
 
-export function setCustomPrompt(prompt: string) {
-  return invoke<void>("set_custom_prompt", { prompt });
+export function updateSettings(settings: Settings) {
+  return invoke<void>("update_settings", { settings });
+}
+
+export function getMicrophones() {
+  return invoke<string[]>("get_microphones");
 }
 
 export function onDownloadProgress(callback: (id: string, pct: number) => void) {

@@ -82,17 +82,27 @@ pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamCon
         let mut stream: Option<cpal::Stream> = None;
         for cmd in rx {
             match cmd {
-                AudioCommand::Start(captured) => {
-                    if stream.is_none() {
-                        let host = cpal::default_host();
-                        if let Some(dev) = host.default_input_device() {
-                            if let Ok(cfg) = dev.default_input_config() {
-                                *thread_config.lock().unwrap() = cfg.clone();
-                                if let Ok(s) = create_stream(&dev, &cfg, captured, tx_for_audio.clone()) {
-                                    s.play().unwrap();
-                                    stream = Some(s);
+                AudioCommand::Start(captured, mic_name) => {
+                    if stream.is_some() {
+                        stream = None;
+                    }
+                    let host = cpal::default_host();
+                    let mut device = host.default_input_device().expect("no default input device");
+                    if let Some(name) = mic_name {
+                        if let Ok(devices) = host.input_devices() {
+                            for d in devices {
+                                if d.name().unwrap_or_default() == name {
+                                    device = d;
+                                    break;
                                 }
                             }
+                        }
+                    }
+                    if let Ok(cfg) = device.default_input_config() {
+                        *thread_config.lock().unwrap() = cfg.clone();
+                        if let Ok(s) = create_stream(&device, &cfg, captured, tx_for_audio.clone()) {
+                            s.play().unwrap();
+                            stream = Some(s);
                         }
                     }
                 }

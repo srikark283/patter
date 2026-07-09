@@ -12,6 +12,7 @@ mod state;
 use state::AppState;
 use std::sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex};
 use tauri::{Manager, WebviewUrl};
+use tauri_plugin_autostart::ManagerExt;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri_nspanel::{tauri_panel, PanelBuilder, PanelLevel};
@@ -30,6 +31,7 @@ fn main() {
     let (tx, shared_config) = audio::capture::init_audio();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_nspanel::init())
         .setup(move |app| {
             #[cfg(target_os = "macos")]
@@ -55,16 +57,53 @@ fn main() {
                 .build(app)?;
 
             let model_manager = models::registry::ModelManager::new(app.handle())?;
+            let db_instance = db::Db::new(app.handle());
+            let settings = db_instance.get_settings();
+
             let mut initial_engine: Option<Box<dyn asr::ASREngine>> = None;
             let mut initial_engine_id: Option<String> = None;
 
-            // Try loading whisper-base on startup if already downloaded to the app data dir
-            if let Some(whisper_path) = model_manager.variant_file_path("whisper-base") {
-                if let Ok(whisper) = asr::whisper::WhisperEngine::new(&whisper_path.to_string_lossy()) {
-                    initial_engine = Some(Box::new(whisper));
-                    initial_engine_id = Some("whisper-base".to_string());
+            if let Some(ref engine_id) = settings.active_engine_id {
+                if model_manager.is_downloaded(engine_id) {
+                    if let Some(kind) = model_manager.get_engine_kind(engine_id) {
+                        match kind {
+                            models::registry::EngineKind::Whisper => {
+                                if let Some(path) = model_manager.variant_file_path(engine_id) {
+                                    if let Ok(whisper) = asr::whisper::WhisperEngine::new(&path.to_string_lossy()) {
+                                        initial_engine = Some(Box::new(whisper));
+                                        initial_engine_id = Some(engine_id.clone());
+                                    }
+                                }
+                            }
+                            models::registry::EngineKind::Parakeet => {
+                                if let Some(path) = model_manager.variant_dir(engine_id) {
+                                    if let Ok(parakeet) = asr::parakeet::ParakeetEngine::new(&path.to_string_lossy()) {
+                                        initial_engine = Some(Box::new(parakeet));
+                                        initial_engine_id = Some(engine_id.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if model_manager.is_downloaded("whisper-base") {
+                if let Some(whisper_path) = model_manager.variant_file_path("whisper-base") {
+                    if let Ok(whisper) = asr::whisper::WhisperEngine::new(&whisper_path.to_string_lossy()) {
+                        initial_engine = Some(Box::new(whisper));
+                        initial_engine_id = Some("whisper-base".to_string());
+                    }
                 }
             }
+            
+            // Apply autostart preference
+            let autolaunch = app.autolaunch();
+            if settings.autostart {
+                let _ = autolaunch.enable();
+            } else {
+                let _ = autolaunch.disable();
+            }
+
+            let hotkey_str = settings.hotkey.clone();
 
             let app_state = AppState {
                 captured: Arc::new(Mutex::new(Vec::new())),
@@ -74,14 +113,14 @@ fn main() {
                 engine: Arc::new(Mutex::new(initial_engine)),
                 active_engine_id: Arc::new(Mutex::new(initial_engine_id)),
                 model_manager,
-                output_mode: Arc::new(Mutex::new("paste".to_string())),
-                custom_prompt: Arc::new(Mutex::new(String::new())),
+                settings: Arc::new(Mutex::new(settings)),
             };
 
             app.manage(app_state);
 
-            app.global_shortcut()
-                .register("Alt+Space".parse::<tauri_plugin_global_shortcut::Shortcut>().unwrap())?;
+            let shortcut = hotkey_str.parse::<tauri_plugin_global_shortcut::Shortcut>()
+                .unwrap_or_else(|_| "Alt+Space".parse().unwrap());
+            let _ = app.global_shortcut().register(shortcut);
 
             let panel = PanelBuilder::<_, HUDPanel>::new(app.handle(), "main")
                 .url(WebviewUrl::App("hud.html".into()))
@@ -137,8 +176,9 @@ fn main() {
             commands::is_model_downloaded,
             commands::set_engine,
             commands::get_active_engine,
-            commands::set_output_mode,
-            commands::set_custom_prompt,
+            commands::get_settings,
+            commands::update_settings,
+            commands::get_microphones,
             commands::get_stats,
             commands::get_history,
             commands::clear_history,

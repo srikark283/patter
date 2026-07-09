@@ -34,17 +34,61 @@ pub fn delete_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn set_output_mode(app: tauri::AppHandle, mode: String) -> Result<(), String> {
+pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
+    app.state::<AppState>().settings.lock().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<(), String> {
     let state = app.state::<AppState>();
-    *state.output_mode.lock().unwrap() = mode;
+    
+    let mut current_settings = state.settings.lock().unwrap();
+    let old_hotkey = current_settings.hotkey.clone();
+    
+    // Apply autostart if changed
+    if settings.autostart != current_settings.autostart {
+        use tauri_plugin_autostart::ManagerExt;
+        let autolaunch = app.autolaunch();
+        if settings.autostart {
+            let _ = autolaunch.enable();
+        } else {
+            let _ = autolaunch.disable();
+        }
+    }
+    
+    *current_settings = settings.clone();
+    db::Db::new(&app).save_settings(&settings);
+    
+    // If hotkey changed, update global shortcut
+    if old_hotkey != settings.hotkey {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        
+        let manager = app.global_shortcut();
+        if let Ok(old_shortcut) = old_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            let _ = manager.unregister(old_shortcut);
+        }
+        
+        if let Ok(new_shortcut) = settings.hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+            let _ = manager.register(new_shortcut);
+        }
+    }
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn set_custom_prompt(app: tauri::AppHandle, prompt: String) -> Result<(), String> {
-    let state = app.state::<AppState>();
-    *state.custom_prompt.lock().unwrap() = prompt;
-    Ok(())
+pub fn get_microphones() -> Result<Vec<String>, String> {
+    use cpal::traits::{DeviceTrait, HostTrait};
+    let host = cpal::default_host();
+    let devices = host.input_devices().map_err(|e| e.to_string())?;
+    
+    let mut names = Vec::new();
+    for device in devices {
+        if let Ok(name) = device.name() {
+            names.push(name);
+        }
+    }
+    Ok(names)
 }
 
 #[tauri::command]
@@ -90,7 +134,12 @@ pub fn set_engine(app: tauri::AppHandle, id: String) -> Result<(), String> {
     };
 
     *state.engine.lock().unwrap() = Some(engine);
-    *state.active_engine_id.lock().unwrap() = Some(id);
+    *state.active_engine_id.lock().unwrap() = Some(id.clone());
+
+    let mut settings = state.settings.lock().unwrap();
+    settings.active_engine_id = Some(id);
+    crate::db::Db::new(&app).save_settings(&settings);
+
     Ok(())
 }
 

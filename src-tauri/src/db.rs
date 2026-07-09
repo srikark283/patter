@@ -4,6 +4,33 @@ use std::fs;
 use tauri::Manager;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Settings {
+    pub hotkey: String,
+    pub microphone: Option<String>,
+    pub output_mode: String,
+    pub custom_prompt: String,
+    pub autostart: bool,
+    pub language: String,
+    pub silence_timeout_ms: u32,
+    pub active_engine_id: Option<String>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            hotkey: "Alt+Space".to_string(),
+            microphone: None,
+            output_mode: "type".to_string(),
+            custom_prompt: "".to_string(),
+            autostart: true, // Default to true for system tray utilities
+            language: "auto".to_string(),
+            silence_timeout_ms: 1000,
+            active_engine_id: None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct AppStats {
     pub total_words: u32,
@@ -31,6 +58,22 @@ impl Db {
             let _ = fs::create_dir_all(&data_dir);
         }
         Self { data_dir }
+    }
+
+    pub fn get_settings(&self) -> Settings {
+        let path = self.data_dir.join("settings.json");
+        if let Ok(content) = fs::read_to_string(path) {
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            Settings::default()
+        }
+    }
+
+    pub fn save_settings(&self, settings: &Settings) {
+        let path = self.data_dir.join("settings.json");
+        if let Ok(content) = serde_json::to_string_pretty(settings) {
+            let _ = fs::write(path, content);
+        }
     }
 
     pub fn get_stats(&self) -> AppStats {
