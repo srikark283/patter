@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, Download, Loader2 } from "lucide-react";
-import { downloadModel, setEngine } from "../../../lib/ipc";
+import { Check, Download, Loader2, Trash2 } from "lucide-react";
+import { downloadModel, setEngine, deleteModel } from "../../../lib/ipc";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "../components/PageHeader";
@@ -64,6 +64,7 @@ interface Props {
   downloadingId: string | null;
   setDownloadingId: (id: string | null) => void;
   downloadProgress: number;
+  onModelDeleted?: () => void;
 }
 
 export function ModelsView({
@@ -74,14 +75,18 @@ export function ModelsView({
   downloadingId,
   setDownloadingId,
   downloadProgress,
+  onModelDeleted,
 }: Props) {
   const [settingEngineId, setSettingEngineId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDownload = async (id: string, name: string) => {
     setDownloadingId(id);
     try {
       await downloadModel(id);
       toast.success(`${name} downloaded`);
+      setDownloadingId(null);
+      onModelDeleted?.(); // Reuse this callback to trigger refreshModelStatus in Dashboard
     } catch (e) {
       console.error(e);
       toast.error(`Failed to download ${name}: ${e}`);
@@ -100,6 +105,20 @@ export function ModelsView({
       toast.error(`Failed to set ${name} active: ${e}`);
     } finally {
       setSettingEngineId(null);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    setDeletingId(id);
+    try {
+      await deleteModel(id);
+      toast.success(`${name} deleted`);
+      onModelDeleted?.();
+    } catch (e) {
+      console.error(e);
+      toast.error(`Failed to delete ${name}: ${e}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -140,6 +159,7 @@ export function ModelsView({
                   const isActive = activeEngine === model.id;
                   const isDownloading = downloadingId === model.id;
                   const isSettingActive = settingEngineId === model.id;
+                  const isDeleting = deletingId === model.id;
 
                   return (
                     <div
@@ -180,14 +200,24 @@ export function ModelsView({
                             <span>Active</span>
                           </div>
                         ) : isDownloaded ? (
-                          <button
-                            onClick={() => handleSetEngine(model.id, model.name)}
-                            disabled={isSettingActive}
-                            className="flex items-center gap-1.5 text-[13px] font-medium bg-white/5 hover:bg-white/10 text-foreground/80 hover:text-foreground px-4 py-1.5 rounded-full border border-white/5 hover:border-white/10 transition-all opacity-60 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
-                          >
-                            {isSettingActive && <Loader2 size={13} className="animate-spin" />}
-                            Use Model
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleSetEngine(model.id, model.name)}
+                              disabled={isSettingActive || isDeleting}
+                              className="flex items-center gap-1.5 text-[13px] font-medium bg-white/5 hover:bg-white/10 text-foreground/80 hover:text-foreground px-4 py-1.5 rounded-full border border-white/5 hover:border-white/10 transition-all opacity-60 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
+                            >
+                              {isSettingActive && <Loader2 size={13} className="animate-spin" />}
+                              Use Model
+                            </button>
+                            <button
+                              onClick={() => handleDelete(model.id, model.name)}
+                              disabled={isDeleting}
+                              className="p-1.5 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
+                              title="Delete model"
+                            >
+                              {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                            </button>
+                          </div>
                         ) : isDownloading ? (
                           <div className="flex flex-col items-end gap-1.5 w-32 bg-black/20 p-2.5 rounded-xl border border-white/5">
                             <div className="flex items-center justify-between w-full">

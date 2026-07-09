@@ -29,6 +29,11 @@ pub fn is_model_downloaded(app: tauri::AppHandle, id: String) -> bool {
 }
 
 #[tauri::command]
+pub fn delete_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    app.state::<AppState>().model_manager.delete_variant(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn set_output_mode(app: tauri::AppHandle, mode: String) -> Result<(), String> {
     let state = app.state::<AppState>();
     *state.output_mode.lock().unwrap() = mode;

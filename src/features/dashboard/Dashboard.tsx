@@ -165,6 +165,7 @@ export default function Dashboard() {
               downloadingId={downloadingId}
               setDownloadingId={setDownloadingId}
               downloadProgress={downloadProgress}
+              onModelDeleted={refreshModelStatus}
             />
           )}
           {activeTab === "preferences" && <PreferencesView outputMode={outputMode} setOutputMode={setOutputMode} />}

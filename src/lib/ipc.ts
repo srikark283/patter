@@ -22,6 +22,10 @@ export function downloadModel(id: string) {
   return invoke<void>("download_model", { id });
 }
 
+export function deleteModel(id: string) {
+  return invoke<void>("delete_model", { id });
+}
+
 export function setEngine(id: string) {
   return invoke<void>("set_engine", { id });
 }

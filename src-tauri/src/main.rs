@@ -133,6 +133,7 @@ fn main() {
         )
         .invoke_handler(tauri::generate_handler![
             commands::download_model,
+            commands::delete_model,
             commands::is_model_downloaded,
             commands::set_engine,
             commands::get_active_engine,

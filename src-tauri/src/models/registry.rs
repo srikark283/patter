@@ -130,7 +130,10 @@ impl ModelManager {
         match find_variant(id) {
             Some(variant) => {
                 let dir = self.models_dir.join(variant.dest_subdir);
-                variant.files.iter().all(|f| dir.join(f.name).exists())
+                variant.files.iter().all(|f| {
+                    let path = dir.join(f.name);
+                    path.exists() && std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) == f.size
+                })
             }
             None => false,
         }
@@ -145,14 +148,14 @@ impl ModelManager {
         std::fs::create_dir_all(&dir)?;
 
         let client = Client::new();
-        let total_bytes: f32 = variant.files.iter().map(|f| f.size as f32).sum();
-        let mut overall_downloaded = 0f32;
-        let mut last_emitted_pct = -1.0f32;
+        let total_bytes: f64 = variant.files.iter().map(|f| f.size as f64).sum();
+        let mut overall_downloaded = 0f64;
+        let mut last_emitted_pct = -1.0f64;
 
         for file in variant.files {
             let dest_path = dir.join(file.name);
-            if dest_path.exists() {
-                overall_downloaded += file.size as f32;
+            if dest_path.exists() && std::fs::metadata(&dest_path).map(|m| m.len()).unwrap_or(0) == file.size {
+                overall_downloaded += file.size as f64;
                 continue;
             }
 
@@ -168,17 +171,31 @@ impl ModelManager {
             while let Some(item) = stream.next().await {
                 let chunk = item?;
                 out.write_all(&chunk)?;
-                overall_downloaded += chunk.len() as f32;
+                overall_downloaded += chunk.len() as f64;
 
                 let pct = (overall_downloaded / total_bytes).min(0.99);
                 if pct - last_emitted_pct >= 0.01 {
-                    progress_callback(pct);
+                    progress_callback(pct as f32);
                     last_emitted_pct = pct;
                 }
             }
         }
 
         progress_callback(1.0);
+        Ok(())
+    }
+
+    pub fn delete_variant(&self, id: &str) -> Result<()> {
+        let variant = find_variant(id).ok_or_else(|| anyhow::anyhow!("Unknown model: {id}"))?;
+        let dir = self.models_dir.join(variant.dest_subdir);
+        for file in variant.files {
+            let path = dir.join(file.name);
+            if path.exists() {
+                std::fs::remove_file(path)?;
+            }
+        }
+        // Attempt to remove the directory if empty (safe to ignore error if other files exist)
+        let _ = std::fs::remove_dir(dir);
         Ok(())
     }
 }
