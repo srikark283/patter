@@ -1,66 +1,135 @@
-import { TranscriptionRecord } from "../types";
-import { Trash2, Copy } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
+import { toast } from "sonner";
+import { TranscriptionRecord } from "../../../types";
+import { Trash2, Copy, Loader2, MicOff } from "lucide-react";
+import { clearHistory } from "../../../lib/ipc";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "../components/PageHeader";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Props {
-  history: TranscriptionRecord[];
+  history: TranscriptionRecord[] | null;
   setHistory: (h: TranscriptionRecord[]) => void;
 }
 
 export function HistoryView({ history, setHistory }: Props) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
   const handleClearHistory = async () => {
-    if (confirm("Are you sure you want to clear your transcription history? Stats will be preserved.")) {
-      try {
-        await invoke("clear_history");
-        setHistory([]);
-      } catch(e) {
-        console.error(e);
-      }
+    setClearing(true);
+    try {
+      await clearHistory();
+      setHistory([]);
+      toast.success("History cleared");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to clear history: " + e);
+    } finally {
+      setClearing(false);
+      setConfirmOpen(false);
     }
   };
 
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
+
+  const formatStamp = (ms: number) =>
+    new Date(ms).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">History</h2>
-        <button 
-          onClick={handleClearHistory}
-          className="flex items-center space-x-2 text-sm text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded bg-red-400/10 hover:bg-red-400/20 cursor-pointer"
-        >
-          <Trash2 size={16} />
-          <span>Clear History</span>
-        </button>
-      </div>
+      <PageHeader
+        title="History"
+        description="Every transcription Patter has pasted for you."
+        action={
+          <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)} disabled={!history?.length}>
+            <Trash2 size={16} />
+            <span>Clear History</span>
+          </Button>
+        }
+      />
 
-      <div className="space-y-4">
-        {history.length === 0 ? (
-          <p className="text-gray-500 text-center py-12">No dictation history yet.</p>
-        ) : (
-          history.map((record) => (
-            <div key={record.id} className="bg-[#1a1a1a] p-5 rounded-xl border border-[#2a2a2a] group">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-medium text-gray-500">
-                  {new Date(record.timestamp_ms).toLocaleString()}
-                </span>
-                <div className="flex space-x-3 text-xs text-gray-500">
-                  <span>{record.words} words</span>
-                  <span>{record.duration_seconds.toFixed(1)}s audio</span>
-                </div>
-              </div>
-              <p className="text-gray-200 text-sm leading-relaxed">{record.text}</p>
-              <div className="mt-4 pt-4 border-t border-[#2a2a2a] opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => navigator.clipboard.writeText(record.text)}
-                  className="flex items-center space-x-2 text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
-                >
-                  <Copy size={14} />
-                  <span>Copy Text</span>
-                </button>
-              </div>
+      {history === null ? (
+        <div className="space-y-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : history.length === 0 ? (
+        <Card className="py-14">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.04] ring-1 ring-border">
+              <MicOff size={16} className="text-muted-foreground" strokeWidth={1.8} />
             </div>
-          ))
-        )}
-      </div>
+            <div>
+              <p className="text-sm font-medium">No dictation yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">Hold your shortcut and speak — transcripts land here.</p>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card className="py-0">
+          <div className="divide-y divide-border">
+            {history.map((record) => (
+              <div key={record.id} className="group relative px-5 py-4 transition-colors hover:bg-white/[0.02]">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-mono text-[11px] text-steelIce/70">{formatStamp(record.timestamp_ms)}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                      {record.words}w · {record.duration_seconds.toFixed(1)}s
+                    </span>
+                    <button
+                      onClick={() => handleCopy(record.text)}
+                      title="Copy text"
+                      className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground opacity-0 ring-1 ring-transparent transition-all group-hover:opacity-100 hover:text-steelIce hover:ring-border hover:bg-white/[0.04] cursor-pointer"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2 text-[13px] leading-relaxed text-foreground/90">{record.text}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear transcription history?</DialogTitle>
+            <DialogDescription>
+              This deletes your transcript log. Stats (time saved, total words, transcription count) are preserved.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={clearing}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleClearHistory} disabled={clearing}>
+              {clearing && <Loader2 size={14} className="animate-spin" />}
+              Clear History
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,4 +1,23 @@
-import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { Zap, Keyboard } from "lucide-react";
+import { setOutputMode as setOutputModeIpc } from "../../../lib/ipc";
+import { PageHeader } from "../components/PageHeader";
+import { cn } from "@/lib/utils";
+
+const MODES = [
+  {
+    id: "paste",
+    icon: Zap,
+    label: "Instant Paste",
+    detail: "Copies to clipboard and simulates Cmd+V — fastest",
+  },
+  {
+    id: "type",
+    icon: Keyboard,
+    label: "Simulate Typing",
+    detail: "Injects keystrokes sequentially — best for remote desktop",
+  },
+];
 
 interface Props {
   outputMode: string;
@@ -8,57 +27,55 @@ interface Props {
 export function PreferencesView({ outputMode, setOutputMode }: Props) {
   const handleSetOutputMode = async (mode: string) => {
     try {
-      await invoke("set_output_mode", { mode });
+      await setOutputModeIpc(mode);
       setOutputMode(mode);
+      toast.success(`Output mode set to ${MODES.find((m) => m.id === mode)?.label ?? mode}`);
     } catch (e) {
       console.error(e);
+      toast.error("Failed to update output mode: " + e);
     }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h2 className="text-2xl font-bold">Preferences</h2>
-      
-      <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-6">
-        <h3 className="text-lg font-semibold mb-4">Output Mode</h3>
-        <div className="space-y-3">
-          <label className="flex items-center space-x-3 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${outputMode === "paste" ? "border-blue-500" : "border-gray-500 group-hover:border-gray-400"}`}>
-              {outputMode === "paste" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
-            </div>
-            <input 
-              type="radio" 
-              name="outputMode" 
-              value="paste" 
-              checked={outputMode === "paste"} 
-              onChange={() => handleSetOutputMode("paste")} 
-              className="hidden"
-            />
-            <div>
-              <p className="text-sm font-medium text-gray-200">Instant Paste</p>
-              <p className="text-xs text-gray-500">Copies to clipboard and simulates Cmd+V (Fastest)</p>
-            </div>
-          </label>
-          
-          <label className="flex items-center space-x-3 cursor-pointer group">
-            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${outputMode === "type" ? "border-blue-500" : "border-gray-500 group-hover:border-gray-400"}`}>
-              {outputMode === "type" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
-            </div>
-            <input 
-              type="radio" 
-              name="outputMode" 
-              value="type" 
-              checked={outputMode === "type"} 
-              onChange={() => handleSetOutputMode("type")} 
-              className="hidden"
-            />
-            <div>
-              <p className="text-sm font-medium text-gray-200">Simulate Typing</p>
-              <p className="text-xs text-gray-500">Injects keystrokes sequentially (Best for remote desktop)</p>
-            </div>
-          </label>
+      <PageHeader title="Settings" description="How Patter delivers text into the frontmost app." />
+
+      <section>
+        <span className="t-label block px-1 pb-2.5">Output Mode</span>
+        <div className="grid grid-cols-2 gap-3">
+          {MODES.map(({ id, icon: Icon, label, detail }) => {
+            const selected = outputMode === id;
+            return (
+              <button
+                key={id}
+                onClick={() => handleSetOutputMode(id)}
+                className={cn(
+                  "group relative rounded-xl p-5 text-left ring-1 transition-all duration-150 cursor-pointer",
+                  selected
+                    ? "bg-steel/[0.08] ring-steel/40 shadow-[0_0_20px_rgba(91,155,209,0.12)]"
+                    : "bg-card ring-border hover:ring-white/15 hover:bg-white/[0.03]"
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute top-4 right-4 w-2 h-2 rounded-full transition-all",
+                    selected ? "bg-steelIce shadow-[0_0_8px_var(--color-steel)]" : "bg-white/10"
+                  )}
+                />
+                <Icon
+                  size={17}
+                  strokeWidth={1.8}
+                  className={selected ? "text-steelIce" : "text-muted-foreground"}
+                />
+                <p className={cn("mt-3 text-[13px] font-semibold", selected ? "text-foreground" : "text-foreground/85")}>
+                  {label}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+              </button>
+            );
+          })}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

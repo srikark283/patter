@@ -1,0 +1,123 @@
+use crate::state::AudioCommand;
+use anyhow::{bail, Result};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+pub fn resample_linear(input: &[f32], from: u32, to: u32) -> Vec<f32> {
+    if from == to || input.is_empty() {
+        return input.to_vec();
+    }
+    let ratio = from as f64 / to as f64;
+    let out_len = (input.len() as f64 / ratio) as usize;
+    (0..out_len)
+        .map(|i| {
+            let pos = i as f64 * ratio;
+            let idx = pos as usize;
+            let frac = (pos - idx as f64) as f32;
+            let a = input[idx.min(input.len() - 1)];
+            let b = input[(idx + 1).min(input.len() - 1)];
+            a + (b - a) * frac
+        })
+        .collect()
+}
+
+pub fn create_stream(
+    device: &cpal::Device,
+    config: &cpal::SupportedStreamConfig,
+    buf: Arc<Mutex<Vec<f32>>>,
+    tx: Sender<AudioCommand>,
+) -> Result<cpal::Stream> {
+    let err_buf = buf.clone();
+    let err_fn = move |e| {
+        eprintln!("stream error: {e}");
+        let _ = tx.send(AudioCommand::Reconnect(err_buf.clone()));
+    };
+
+    let stream = match config.sample_format() {
+        cpal::SampleFormat::F32 => device.build_input_stream(
+            &config.clone().into(),
+            move |data: &[f32], _| buf.lock().unwrap().extend_from_slice(data),
+            err_fn,
+            None,
+        )?,
+        cpal::SampleFormat::I16 => device.build_input_stream(
+            &config.clone().into(),
+            move |data: &[i16], _| {
+                let mut b = buf.lock().unwrap();
+                b.extend(data.iter().map(|&s| s as f32 / i16::MAX as f32));
+            },
+            err_fn,
+            None,
+        )?,
+        cpal::SampleFormat::U16 => device.build_input_stream(
+            &config.clone().into(),
+            move |data: &[u16], _| {
+                let mut b = buf.lock().unwrap();
+                b.extend(data.iter().map(|&s| (s as f32 / u16::MAX as f32) * 2.0 - 1.0));
+            },
+            err_fn,
+            None,
+        )?,
+        fmt => bail!("unsupported sample format: {fmt:?}"),
+    };
+    Ok(stream)
+}
+
+/// Sets up the default input device and spawns the background thread that owns
+/// the cpal stream, reacting to `AudioCommand`s sent from the recording/hotkey path.
+pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamConfig>>) {
+    let (tx, rx): (Sender<AudioCommand>, Receiver<AudioCommand>) = channel();
+
+    let host = cpal::default_host();
+    let initial_dev = host.default_input_device().unwrap();
+    let initial_cfg = initial_dev.default_input_config().unwrap();
+    let shared_config = Arc::new(Mutex::new(initial_cfg));
+    let thread_config = shared_config.clone();
+
+    let tx_for_audio = tx.clone();
+
+    thread::spawn(move || {
+        let mut stream: Option<cpal::Stream> = None;
+        for cmd in rx {
+            match cmd {
+                AudioCommand::Start(captured) => {
+                    if stream.is_none() {
+                        let host = cpal::default_host();
+                        if let Some(dev) = host.default_input_device() {
+                            if let Ok(cfg) = dev.default_input_config() {
+                                *thread_config.lock().unwrap() = cfg.clone();
+                                if let Ok(s) = create_stream(&dev, &cfg, captured, tx_for_audio.clone()) {
+                                    s.play().unwrap();
+                                    stream = Some(s);
+                                }
+                            }
+                        }
+                    }
+                }
+                AudioCommand::Stop => {
+                    stream = None;
+                }
+                AudioCommand::Reconnect(captured) => {
+                    eprintln!("Audio stream failed. Reconnecting...");
+                    stream = None;
+
+                    let host = cpal::default_host();
+                    if let Some(dev) = host.default_input_device() {
+                        if let Ok(cfg) = dev.default_input_config() {
+                            *thread_config.lock().unwrap() = cfg.clone();
+                            if let Ok(s) = create_stream(&dev, &cfg, captured, tx_for_audio.clone()) {
+                                s.play().unwrap();
+                                stream = Some(s);
+                                eprintln!("Reconnected successfully.");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    (tx, shared_config)
+}
