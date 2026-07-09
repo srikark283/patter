@@ -165,6 +165,8 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
             .title("Patter Dashboard")
             .inner_size(800.0, 600.0)
             .transparent(true)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true)
             .build()
             .map_err(|e| e.to_string())?;
         let _ = apply_vibrancy(&window, NSVisualEffectMaterial::UnderWindowBackground, None, None);

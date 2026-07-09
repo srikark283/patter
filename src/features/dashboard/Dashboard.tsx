@@ -5,12 +5,14 @@ import {
   CaseSensitive as DictionaryIcon,
   Cog as SettingsIcon,
   BrainCircuit as ModelsIcon,
+  MessagesSquare as MeetingsIcon,
 } from "lucide-react";
 
 import { AppStats, TranscriptionRecord } from "../../types";
 import { getStats, getHistory, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine } from "../../lib/ipc";
 import { cn } from "@/lib/utils";
 import { DashboardView } from "./views/DashboardView";
+import { MeetingsView } from "./views/MeetingsView";
 import { HistoryView } from "./views/HistoryView";
 import { DictionaryView } from "./views/DictionaryView";
 import { ModelsView, ALL_MODEL_IDS, MODEL_NAMES } from "./views/ModelsView";
@@ -72,6 +74,7 @@ export default function Dashboard() {
 
   const tabs = [
     { id: "dashboard", label: "Overview", icon: HomeIcon },
+    { id: "meetings", label: "Meetings", icon: MeetingsIcon },
     { id: "history", label: "History", icon: HistoryIcon },
     { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
     { id: "models", label: "Models", icon: ModelsIcon },
@@ -88,19 +91,19 @@ export default function Dashboard() {
 
       {/* Sidebar — instrument rail */}
       <aside className="relative z-10 w-56 flex flex-col border-r border-border bg-white/[0.015]">
-        <div className="flex items-center gap-2.5 px-5 pt-6 pb-5">
-          {/* <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-b from-steel to-steelDeep shadow-lg shadow-steel/25 ring-1 ring-white/15">
-            <AudioLines size={15} className="text-white" />
-          </div> */}
-          <img src={icon} alt="Patter Logo" className="w-10 h-10" />
+        {/* Traffic Lights spacing & Drag Region */}
+        <div data-tauri-drag-region className="w-full h-10 shrink-0" />
 
-          <div className="leading-none">
-            <h1 className="text-[15px] font-semibold tracking-tight">Patter</h1>
-            <p className="t-label mt-1 text-[9px]">Voice · Local</p>
+        <div className="flex items-center gap-1 px-5 pb-4">
+          <img src={icon} alt="Patter Logo" className="w-9 h-9 pointer-events-none" />
+
+          <div className="leading-none pointer-events-none">
+            <h1 className="text-[24px] font-semibold tracking-tight">Patter</h1>
+            {/* <p className="t-label mt-1 text-[9px]">Voice · Local</p> */}
           </div>
         </div>
 
-        <div className="px-5 pt-3 pb-2">
+        <div className="px-5 pt-3 pb-6">
           <div className="w-full border-t border-gray-600"></div>
         </div>
         <nav className="flex-1 px-3 space-y-0.5">
@@ -115,7 +118,7 @@ export default function Dashboard() {
                   "group relative w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-all duration-150 cursor-pointer",
                   isActive
                     ? "bg-accent text-accent-foreground shadow-[0_1px_0_rgba(255,255,255,0.05)_inset]"
-                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                    : "text-muted-foreground hover:bg-white/4 hover:text-foreground"
                 )}
               >
                 <span
@@ -152,6 +155,7 @@ export default function Dashboard() {
       <main className="relative z-10 flex-1 overflow-y-auto">
         <div className="px-10 py-9 max-w-5xl mx-auto">
           {activeTab === "dashboard" && <DashboardView stats={stats} history={history} onViewAll={() => setActiveTab("history")} />}
+          {activeTab === "meetings" && <MeetingsView />}
           {activeTab === "history" && <HistoryView history={history} setHistory={setHistory} />}
           {activeTab === "dictionary" && <DictionaryView />}
           {activeTab === "models" && (
