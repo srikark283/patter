@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import {
-  Home,
-  History as HistoryIcon,
-  BookA,
+  LayoutDashboard as HomeIcon,
+  ScrollText as HistoryIcon,
+  CaseSensitive as DictionaryIcon,
   Cog as SettingsIcon,
-  Sparkles,
+  BrainCircuit as ModelsIcon,
 } from "lucide-react";
 
 import { AppStats, TranscriptionRecord } from "../../types";
@@ -73,10 +73,10 @@ export default function Dashboard() {
   }, []);
 
   const tabs = [
-    { id: "dashboard", label: "Home", icon: Home },
+    { id: "dashboard", label: "Overview", icon: HomeIcon },
     { id: "history", label: "History", icon: HistoryIcon },
-    { id: "dictionary", label: "Dictionary", icon: BookA },
-    { id: "models", label: "Models", icon: Sparkles },
+    { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
+    { id: "models", label: "Models", icon: ModelsIcon },
     { id: "preferences", label: "Settings", icon: SettingsIcon },
   ];
 

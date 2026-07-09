@@ -2,12 +2,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Check, Download, Loader2 } from "lucide-react";
 import { downloadModel, setEngine } from "../../../lib/ipc";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
+
+import openaiLogo from "@/assets/openai-logo.png";
+import nvidiaLogo from "@/assets/nvidia-logo.png";
 
 interface ModelSpec {
   id: string;
@@ -20,6 +21,7 @@ interface EngineFamily {
   id: string;
   name: string;
   vendor: string;
+  icon?: React.ReactNode;
   models: ModelSpec[];
 }
 
@@ -28,6 +30,7 @@ const FAMILIES: EngineFamily[] = [
     id: "whisper",
     name: "Whisper",
     vendor: "OpenAI",
+    icon: <img src={openaiLogo} alt="OpenAI" className="w-5" />,
     models: [
       { id: "whisper-tiny", name: "Tiny", size: "78 MB", description: "Fastest, lowest accuracy — quick notes" },
       { id: "whisper-base", name: "Base", size: "148 MB", description: "Balanced speed and accuracy" },
@@ -39,6 +42,7 @@ const FAMILIES: EngineFamily[] = [
     id: "parakeet",
     name: "Parakeet",
     vendor: "Nvidia",
+    icon: <img src={nvidiaLogo} alt="Nvidia" className="w-16"/>,
     models: [
       { id: "parakeet-v2", name: "TDT 0.6B v2", size: "660 MB", description: "English only — fastest streaming" },
       { id: "parakeet-v3", name: "TDT 0.6B v3", size: "670 MB", description: "25 languages" },
@@ -100,7 +104,7 @@ export function ModelsView({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <PageHeader
         title="Models"
         description="Transcription engines run fully on-device. Download once, use offline."
@@ -108,18 +112,29 @@ export function ModelsView({
 
       {modelStatusLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full rounded-2xl bg-white/5" />
+          <Skeleton className="h-32 w-full rounded-2xl bg-white/5" />
         </div>
       ) : (
-        FAMILIES.map((family) => (
-          <section key={family.id}>
-            <div className="flex items-baseline gap-2 px-1 pb-2.5">
-              <h3 className="text-sm font-semibold tracking-tight">{family.name}</h3>
-              <span className="t-label">{family.vendor}</span>
-            </div>
-            <Card className="py-0">
-              <div className="divide-y divide-border">
+        <div className="flex flex-col gap-8">
+          {FAMILIES.map((family) => (
+            <section key={family.id} className="space-y-3">
+              {/* Family Header */}
+              <div className="flex items-center gap-2.5 px-2 mb-2">
+                <div className="flex items-center justify-center">
+                  {family.icon}
+                </div>
+                <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/50 ml-1">
+                  -
+                </span>
+                <h3 className="text-[15px] font-semibold tracking-tight text-foreground/90">{family.name}</h3>
+                {/* <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/50 ml-1">
+                  {family.vendor}
+                </span> */}
+              </div>
+              
+              {/* Models List */}
+              <div className="flex flex-col gap-2.5">
                 {family.models.map((model) => {
                   const isDownloaded = modelStatus[model.id] ?? false;
                   const isActive = activeEngine === model.id;
@@ -130,59 +145,76 @@ export function ModelsView({
                     <div
                       key={model.id}
                       className={cn(
-                        "flex items-center justify-between gap-4 px-5 py-4 transition-colors",
-                        isActive && "bg-steel/[0.06] shadow-[2px_0_0_var(--color-steel)_inset]"
+                        "group relative flex items-center justify-between gap-4 p-4 rounded-2xl border transition-all duration-300",
+                        isActive
+                          ? "bg-steel/[0.04] border-steel/30 shadow-[0_0_30px_rgba(91,155,209,0.06)]"
+                          : "bg-white/[0.015] border-border/40 hover:bg-white/[0.03] hover:border-border/60"
                       )}
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2.5">
-                          <h4 className="text-[13px] font-semibold">{model.name}</h4>
-                          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">{model.size}</span>
-                          {isActive && (
-                            <span className="t-label rounded-full px-2 py-0.5 text-[9px] !text-steelIce bg-steel/15 ring-1 ring-steel/30">
-                              Active
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{model.description}</p>
-                      </div>
-                      <div className="flex-none">
-                        {isActive ? (
-                          <span className="flex items-center gap-1.5 font-mono text-[11px] text-steelIce">
-                            <Check size={13} strokeWidth={2.5} />
-                            In use
+                      {/* Subtle Active Glow Background */}
+                      {isActive && (
+                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-steel/[0.05] to-transparent pointer-events-none" />
+                      )}
+
+                      <div className="relative min-w-0 flex-1">
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <h4 className={cn(
+                            "text-[15px] font-semibold tracking-tight transition-colors", 
+                            isActive ? "text-steelIce drop-shadow-sm" : "text-foreground/90 group-hover:text-foreground"
+                          )}>
+                            {model.name}
+                          </h4>
+                          <span className="font-mono text-[10px] font-medium text-muted-foreground/70 px-2 py-0.5 rounded-md bg-black/20 border border-white/5 shadow-inner">
+                            {model.size}
                           </span>
+                        </div>
+                        <p className="text-[13.5px] text-muted-foreground/70 leading-relaxed max-w-[80%]">
+                          {model.description}
+                        </p>
+                      </div>
+
+                      <div className="relative flex-none flex items-center justify-end min-w-[100px]">
+                        {isActive ? (
+                          <div className="flex items-center gap-1.5 text-[13px] font-medium text-steelIce bg-steel/[0.12] px-3.5 py-1.5 rounded-full ring-1 ring-steel/20 shadow-[0_0_15px_rgba(91,155,209,0.15)] animate-in zoom-in duration-300">
+                            <Check size={14} strokeWidth={3} />
+                            <span>Active</span>
+                          </div>
                         ) : isDownloaded ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <button
                             onClick={() => handleSetEngine(model.id, model.name)}
                             disabled={isSettingActive}
+                            className="flex items-center gap-1.5 text-[13px] font-medium bg-white/5 hover:bg-white/10 text-foreground/80 hover:text-foreground px-4 py-1.5 rounded-full border border-white/5 hover:border-white/10 transition-all opacity-60 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
                           >
                             {isSettingActive && <Loader2 size={13} className="animate-spin" />}
-                            Set Active
-                          </Button>
+                            Use Model
+                          </button>
                         ) : isDownloading ? (
-                          <div className="flex flex-col items-end gap-1 w-24">
-                            <span className="font-mono text-[10px] text-steelIce tabular-nums">
-                              {downloadProgress.toFixed(0)}%
-                            </span>
-                            <Progress value={downloadProgress} className="h-1" />
+                          <div className="flex flex-col items-end gap-1.5 w-32 bg-black/20 p-2.5 rounded-xl border border-white/5">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Downloading</span>
+                              <span className="font-mono text-[11px] text-steelIce font-semibold">
+                                {downloadProgress.toFixed(0)}%
+                              </span>
+                            </div>
+                            <Progress value={downloadProgress} className="h-1.5 bg-white/10" />
                           </div>
                         ) : (
-                          <Button variant="secondary" size="sm" onClick={() => handleDownload(model.id, model.name)}>
-                            <Download size={14} />
-                            <span>Download</span>
-                          </Button>
+                          <button 
+                            onClick={() => handleDownload(model.id, model.name)}
+                            className="flex items-center gap-1.5 text-[13px] font-semibold bg-steel hover:bg-steelIce text-white px-4 py-1.5 rounded-full transition-all shadow-sm hover:shadow-[0_0_15px_rgba(91,155,209,0.3)] opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100"
+                          >
+                            <Download size={14} strokeWidth={2.5} />
+                            Download
+                          </button>
                         )}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </Card>
-          </section>
-        ))
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );
