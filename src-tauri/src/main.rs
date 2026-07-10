@@ -4,6 +4,7 @@ mod asr;
 mod audio;
 mod commands;
 mod db;
+mod meeting;
 mod models;
 mod ollama;
 mod paste;
@@ -112,6 +113,8 @@ fn main() {
                 audio_tx: tx,
                 device_config: shared_config.clone(),
                 is_recording: Arc::new(AtomicBool::new(false)),
+                meeting_captured: Arc::new(Mutex::new(Vec::new())),
+                is_meeting_recording: Arc::new(AtomicBool::new(false)),
                 engine: Arc::new(Mutex::new(initial_engine)),
                 active_engine_id: Arc::new(Mutex::new(initial_engine_id)),
                 model_manager,
@@ -192,7 +195,12 @@ fn main() {
             commands::update_history_record,
             commands::cancel_dictation,
             commands::open_dashboard,
-            commands::list_ollama_models
+            commands::list_ollama_models,
+            commands::start_meeting_recording,
+            commands::stop_meeting_recording,
+            commands::is_meeting_recording,
+            commands::get_meetings,
+            commands::delete_meeting
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

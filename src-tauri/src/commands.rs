@@ -39,6 +39,31 @@ pub fn list_ollama_models() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+pub fn start_meeting_recording(app: tauri::AppHandle) -> Result<(), String> {
+    crate::meeting::start_meeting(&app)
+}
+
+#[tauri::command]
+pub fn stop_meeting_recording(app: tauri::AppHandle) -> Result<(), String> {
+    crate::meeting::stop_meeting(&app)
+}
+
+#[tauri::command]
+pub fn is_meeting_recording(app: tauri::AppHandle) -> bool {
+    app.state::<AppState>().is_meeting_recording.load(Ordering::SeqCst)
+}
+
+#[tauri::command]
+pub fn get_meetings(app: tauri::AppHandle) -> Vec<db::MeetingRecord> {
+    db::Db::new(&app).get_meetings()
+}
+
+#[tauri::command]
+pub fn delete_meeting(app: tauri::AppHandle, id: String) -> Result<bool, String> {
+    Ok(db::Db::new(&app).delete_meeting(&id))
+}
+
+#[tauri::command]
 pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
     app.state::<AppState>().settings.lock().unwrap().clone()
 }

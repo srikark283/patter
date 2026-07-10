@@ -26,6 +26,8 @@ pub struct Settings {
     pub llm_cleanup_enabled: bool,
     #[serde(default)]
     pub ollama_model: Option<String>,
+    #[serde(default)]
+    pub meeting_ollama_model: Option<String>,
     #[serde(default = "default_hud_position")]
     pub hud_position: String,
     #[serde(default = "default_play_sounds")]
@@ -45,6 +47,7 @@ impl Default for Settings {
             active_engine_id: None,
             llm_cleanup_enabled: false,
             ollama_model: None,
+            meeting_ollama_model: None,
             hud_position: "bottom".to_string(),
             play_sounds: true,
         }
@@ -56,6 +59,22 @@ pub struct AppStats {
     pub total_words: u32,
     pub time_saved_seconds: u32,
     pub transcriptions_count: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MeetingRecord {
+    pub id: String,
+    pub timestamp_ms: u64,
+    pub title: String,
+    pub duration_seconds: f32,
+    pub transcript: String,
+    pub summary: String,
+    #[serde(default)]
+    pub minutes: Vec<String>,
+    #[serde(default)]
+    pub decisions: Vec<String>,
+    #[serde(default)]
+    pub action_items: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -170,6 +189,47 @@ impl Db {
         history.retain(|r| r.id != id);
         if history.len() != initial_len {
             self.save_history(&history);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_meetings(&self) -> Vec<MeetingRecord> {
+        let path = self.data_dir.join("meetings.json");
+        if let Ok(content) = fs::read_to_string(path) {
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn save_meetings(&self, meetings: &[MeetingRecord]) {
+        let path = self.data_dir.join("meetings.json");
+        if let Ok(content) = serde_json::to_string_pretty(meetings) {
+            let _ = fs::write(path, content);
+        }
+    }
+
+    pub fn add_meeting(&self, mut record: MeetingRecord) {
+        if record.id.is_empty() {
+            record.id = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+                .to_string();
+        }
+        let mut meetings = self.get_meetings();
+        meetings.insert(0, record);
+        self.save_meetings(&meetings);
+    }
+
+    pub fn delete_meeting(&self, id: &str) -> bool {
+        let mut meetings = self.get_meetings();
+        let initial_len = meetings.len();
+        meetings.retain(|m| m.id != id);
+        if meetings.len() != initial_len {
+            self.save_meetings(&meetings);
             true
         } else {
             false

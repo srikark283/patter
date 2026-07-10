@@ -11,3 +11,15 @@ export interface TranscriptionRecord {
   duration_seconds: number;
   words: number;
 }
+
+export interface MeetingRecord {
+  id: string;
+  timestamp_ms: number;
+  title: string;
+  duration_seconds: number;
+  transcript: string;
+  summary: string;
+  minutes: string[];
+  decisions: string[];
+  action_items: string[];
+}

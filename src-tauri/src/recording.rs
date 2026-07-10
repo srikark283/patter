@@ -25,6 +25,11 @@ fn play_system_sound(sound_name: &str, rate: f32) {
 
 pub fn start_recording(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
+    // Meeting owns the single audio stream; dictation would hijack its buffer.
+    if state.is_meeting_recording.load(Ordering::SeqCst) {
+        let _ = app.emit("patter://state", "Meeting recording active");
+        return;
+    }
     println!("🔴 recording...");
     
     let settings = state.settings.lock().unwrap().clone();

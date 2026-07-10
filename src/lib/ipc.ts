@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppStats, TranscriptionRecord } from "../types";
+import type { AppStats, TranscriptionRecord, MeetingRecord } from "../types";
 
 export interface Settings {
   hotkey: string;
@@ -12,6 +12,7 @@ export interface Settings {
   silence_timeout_ms: number;
   llm_cleanup_enabled: boolean;
   ollama_model: string | null;
+  meeting_ollama_model: string | null;
   hud_position: string;
   play_sounds: boolean;
 }
@@ -54,6 +55,26 @@ export function setEngine(id: string) {
 
 export function getActiveEngine() {
   return invoke<string | null>("get_active_engine");
+}
+
+export function startMeetingRecording() {
+  return invoke<void>("start_meeting_recording");
+}
+
+export function stopMeetingRecording() {
+  return invoke<void>("stop_meeting_recording");
+}
+
+export function isMeetingRecording() {
+  return invoke<boolean>("is_meeting_recording");
+}
+
+export function getMeetings() {
+  return invoke<MeetingRecord[]>("get_meetings");
+}
+
+export function deleteMeeting(id: string) {
+  return invoke<boolean>("delete_meeting", { id });
 }
 
 export function listOllamaModels() {

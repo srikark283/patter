@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2 } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2, MessagesSquare } from "lucide-react";
 import { getSettings, updateSettings, getMicrophones, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Switch } from "@/components/ui/switch";
@@ -346,6 +346,36 @@ export function PreferencesView() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Select a model</SelectItem>
+                {(ollamaModels ?? []).map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Meeting Model Selection */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <MessagesSquare size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">Meeting Notes Model</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Model used to generate meeting minutes and summaries
+                </p>
+              </div>
+            </div>
+            <Select
+              value={settings.meeting_ollama_model ?? "same"}
+              disabled={!ollamaModels?.length}
+              onValueChange={(val) => update({ meeting_ollama_model: val === "same" ? null : val })}
+            >
+              <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+                <SelectValue placeholder="Same as cleanup model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="same">Same as cleanup model</SelectItem>
                 {(ollamaModels ?? []).map((m) => (
                   <SelectItem key={m} value={m}>{m}</SelectItem>
                 ))}

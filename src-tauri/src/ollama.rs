@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use serde::Serialize;
 use std::time::Duration;
 
 const OLLAMA_URL: &str = "http://localhost:11434";
@@ -100,4 +101,49 @@ pub fn cleanup(model: &str, text: &str) -> Result<String, String> {
         return Err("Ollama returned empty text".to_string());
     }
     Ok(cleaned)
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct MeetingAnalysis {
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub minutes: Vec<String>,
+    #[serde(default)]
+    pub decisions: Vec<String>,
+    #[serde(default)]
+    pub action_items: Vec<String>,
+}
+
+/// Analyze a meeting transcript into title/summary/minutes/decisions/action items.
+pub fn summarize_meeting(model: &str, transcript: &str) -> Result<MeetingAnalysis, String> {
+    let prompt = format!(
+        "You are a meeting assistant. Analyze this meeting transcript and reply with a JSON \
+         object with exactly these keys:\n\
+         - \"title\": a short descriptive meeting title (max 8 words)\n\
+         - \"summary\": a brief paragraph of what the meeting was about\n\
+         - \"minutes\": array of strings, the key discussion points in order\n\
+         - \"decisions\": array of strings, decisions that were made (empty if none)\n\
+         - \"action_items\": array of strings, to-do items with owner if mentioned (empty if none)\n\
+         Base everything strictly on the transcript; do not invent content.\n\n\
+         Transcript:\n{}",
+        transcript
+    );
+    let resp: GenerateResponse = reqwest::blocking::Client::new()
+        .post(format!("{}/api/generate", OLLAMA_URL))
+        .timeout(Duration::from_secs(300))
+        .json(&serde_json::json!({
+            "model": model,
+            "prompt": prompt,
+            "stream": false,
+            "format": "json",
+        }))
+        .send()
+        .map_err(|e| format!("Ollama not reachable: {}", e))?
+        .json()
+        .map_err(|e| format!("Bad response from Ollama: {}", e))?;
+    serde_json::from_str(&resp.response)
+        .map_err(|e| format!("Ollama returned malformed analysis: {}", e))
 }

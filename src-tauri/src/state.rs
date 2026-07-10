@@ -13,6 +13,8 @@ pub struct AppState {
     pub audio_tx: Sender<AudioCommand>,
     pub device_config: Arc<Mutex<cpal::SupportedStreamConfig>>,
     pub is_recording: Arc<AtomicBool>,
+    pub meeting_captured: Arc<Mutex<Vec<f32>>>,
+    pub is_meeting_recording: Arc<AtomicBool>,
     pub engine: Arc<Mutex<Option<Box<dyn ASREngine>>>>,
     pub active_engine_id: Arc<Mutex<Option<String>>>,
     pub model_manager: models::registry::ModelManager,
