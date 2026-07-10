@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2, MessagesSquare } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2, MessagesSquare, AudioWaveform } from "lucide-react";
 import { getSettings, updateSettings, getMicrophones, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Switch } from "@/components/ui/switch";
@@ -292,6 +292,25 @@ export function PreferencesView() {
                 <SelectItem value="2500">2.5s (Slow)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Trim Silence (Silero VAD) */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <AudioWaveform size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">Trim Silence</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Remove silence and noise before transcribing (Silero VAD) — prevents hallucinations
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.trim_silence}
+              onCheckedChange={(checked) => update({ trim_silence: checked })}
+            />
           </div>
         </div>
       </section>

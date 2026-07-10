@@ -10,6 +10,7 @@ mod ollama;
 mod paste;
 mod recording;
 mod state;
+mod vad;
 
 use state::AppState;
 use std::sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex};

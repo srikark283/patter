@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer, Mic } from "lucide-react";
 import { toast } from "sonner";
+import { listen } from "@tauri-apps/api/event";
 import { AppStats, TranscriptionRecord } from "../../../types";
-import { getSettings } from "../../../lib/ipc";
+import { getSettings, onHudState, isRecording, isMeetingRecording } from "../../../lib/ipc";
 // import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "../components/PageHeader";
+import { cn } from "@/lib/utils";
 
 interface Props {
   stats: AppStats | null;
@@ -113,6 +115,44 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
   const weekWords = history ? history.filter(r => r.timestamp_ms >= last7DaysStart.getTime()).reduce((a, r) => a + r.words, 0) : 0;
   const weekDictations = history ? history.filter(r => r.timestamp_ms >= last7DaysStart.getTime()).length : 0;
 
+  const [dictationState, setDictationState] = useState("Idle");
+  const [meetingState, setMeetingState] = useState("idle");
+
+  useEffect(() => {
+    isRecording().then(rec => rec && setDictationState("Listening...")).catch(console.error);
+    isMeetingRecording().then(rec => rec && setMeetingState("recording")).catch(console.error);
+
+    const u1 = onHudState(setDictationState);
+    const u2 = listen<string>("patter://meeting_state", (e) => {
+      if (!e.payload.startsWith("error:")) setMeetingState(e.payload);
+      else setMeetingState("idle");
+    });
+
+    return () => {
+      u1.then(f => f());
+      u2.then(f => f());
+    };
+  }, []);
+
+  let statusText = "Ready to dictate";
+  let isRecordingActive = false;
+  if (meetingState === "recording") {
+    statusText = "Recording meeting...";
+    isRecordingActive = true;
+  } else if (meetingState === "transcribing" || meetingState === "processing") {
+    statusText = "Processing meeting...";
+    isRecordingActive = true;
+  } else if (dictationState === "Listening...") {
+    statusText = "Recording dictation...";
+    isRecordingActive = true;
+  } else if (dictationState === "Transcribing...") {
+    statusText = "Transcribing dictation...";
+    isRecordingActive = true;
+  } else if (dictationState !== "Idle") {
+    statusText = dictationState;
+    isRecordingActive = true;
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
@@ -124,9 +164,17 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             <div className="flex items-center gap-3 rounded-full border border-steel/20 bg-steel/3 px-3.5 py-2 shadow-[0_0_15px_rgba(91,155,209,0.05)]">
               <div className="flex items-center gap-2.5">
                 <div className="relative flex h-4 w-4 items-center justify-center">
-                  <Mic className="relative z-10 h-4 w-4 text-steelIce animate-[pulse_2.5s_ease-in-out_infinite]" strokeWidth={2.5} />
+                  <Mic className={cn(
+                    "relative z-10 h-4 w-4 stroke-[2.5px]",
+                    isRecordingActive 
+                      ? "text-red-400 animate-pulse" 
+                      : "text-steelIce animate-[pulse_2.5s_ease-in-out_infinite]"
+                  )} />
                 </div>
-                <span className="text-[13px] font-medium text-foreground/80">Ready to dictate</span>
+                <span className={cn(
+                  "text-[13px] font-medium",
+                  isRecordingActive ? "text-foreground" : "text-foreground/80"
+                )}>{statusText}</span>
               </div>
               <div className="h-4 w-px bg-white/10" />
               <div className="flex items-center gap-1">

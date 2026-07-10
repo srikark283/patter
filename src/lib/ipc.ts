@@ -13,6 +13,7 @@ export interface Settings {
   llm_cleanup_enabled: boolean;
   ollama_model: string | null;
   meeting_ollama_model: string | null;
+  trim_silence: boolean;
   hud_position: string;
   play_sounds: boolean;
 }

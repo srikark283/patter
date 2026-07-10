@@ -38,9 +38,29 @@ impl ASREngine for WhisperEngine {
 
         let n = state.full_n_segments()?;
         let mut transcript = String::new();
+        
         for i in 0..n {
-            transcript.push_str(state.full_get_segment_text(i)?.trim());
-            transcript.push(' ');
+            let seg = state.full_get_segment_text(i)?.trim().to_string();
+            let lower = seg.to_lowercase();
+            
+            // Mitigate common Whisper hallucinations on silence or background noise
+            let is_hallucination = 
+                lower == "and others." || 
+                lower == "thank you." || 
+                lower == "thank you for watching." || 
+                lower == "thanks for watching." || 
+                lower == "subscribe." || 
+                lower == "subscribe to my channel." || 
+                lower == "please subscribe." ||
+                lower == "amem." ||
+                lower == "amen." ||
+                lower == "." ||
+                lower.is_empty();
+                
+            if !is_hallucination {
+                transcript.push_str(&seg);
+                transcript.push(' ');
+            }
         }
         
         Ok(transcript.trim().to_string())

@@ -32,6 +32,12 @@ pub struct Settings {
     pub hud_position: String,
     #[serde(default = "default_play_sounds")]
     pub play_sounds: bool,
+    #[serde(default = "default_trim_silence")]
+    pub trim_silence: bool,
+}
+
+fn default_trim_silence() -> bool {
+    true
 }
 
 impl Default for Settings {
@@ -50,6 +56,7 @@ impl Default for Settings {
             meeting_ollama_model: None,
             hud_position: "bottom".to_string(),
             play_sounds: true,
+            trim_silence: true,
         }
     }
 }

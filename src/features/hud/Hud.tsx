@@ -17,11 +17,13 @@ function phaseFor(status: string): Phase {
 export default function Hud() {
   const [status, setStatus] = useState("Idle");
   const [phase, setPhase] = useState<Phase>("idle");
+  const [leaving, setLeaving] = useState(false);
   const [entryKey, setEntryKey] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const targets = useRef<number[]>(new Array(BARS).fill(0));
   const heights = useRef<number[]>(new Array(BARS).fill(0));
   const phaseRef = useRef<Phase>("idle");
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Drive window visibility + pill state off patter://state.
   useEffect(() => {
@@ -29,6 +31,11 @@ export default function Hud() {
     const unlisten = onHudState((state) => {
       const next = phaseFor(state);
       setStatus(state);
+      if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+        hideTimer.current = null;
+        setLeaving(false);
+      }
       if (phaseRef.current === "idle" && next !== "idle") {
         setEntryKey((k) => k + 1); // replay entrance animation
         win.show();
@@ -39,7 +46,16 @@ export default function Hud() {
         heights.current.fill(0);
       }
       if (next === "idle") {
-        win.hide();
+        // Play the exit animation before the window actually hides.
+        phaseRef.current = "idle";
+        setLeaving(true);
+        hideTimer.current = setTimeout(() => {
+          win.hide();
+          setPhase("idle");
+          setLeaving(false);
+          hideTimer.current = null;
+        }, 180);
+        return;
       }
       phaseRef.current = next;
       setPhase(next);
@@ -71,8 +87,8 @@ export default function Hud() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const w = 90;
-    const h = 24;
+    const w = 96;
+    const h = 26;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = w * dpr;
     canvas.height = h * dpr;
@@ -157,11 +173,11 @@ export default function Hud() {
 
   return (
     <div className="w-screen h-screen flex items-center justify-center">
-      <div key={entryKey} className={`hud-pill ${phase}`}>
+      <div key={entryKey} className={`hud-pill ${phase}${leaving ? " leaving" : ""}`}>
         <div data-tauri-drag-region className="hud-drag-handle">
           <span className={`hud-dot ${phase}`} />
           {phase === "recording" && (
-            <canvas ref={canvasRef} className="hud-wave-canvas" style={{ width: 90, height: 24 }} />
+            <canvas ref={canvasRef} className="hud-wave-canvas" style={{ width: 96, height: 26 }} />
           )}
           {phase === "processing" && <span className="hud-label">Transcribing…</span>}
           {phase === "notice" && <span className="hud-label">{status}</span>}

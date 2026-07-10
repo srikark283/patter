@@ -158,7 +158,29 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
         let prompt = settings.custom_prompt;
         let language = settings.language;
-        
+
+        // Silero VAD: strip silence/noise so Whisper never hallucinates on it.
+        // Any VAD failure falls back to untrimmed audio — never lose a recording.
+        let audio = if settings.trim_silence {
+            match crate::vad::ensure_model(&app_handle)
+                .and_then(|p| crate::vad::trim_silence(&p, &audio))
+            {
+                Ok(trimmed) if trimmed.is_empty() => {
+                    let _ = app_handle.emit("patter://state", "No speech detected");
+                    thread::sleep(Duration::from_secs(1));
+                    let _ = app_handle.emit("patter://state", "Idle");
+                    return;
+                }
+                Ok(trimmed) => trimmed,
+                Err(e) => {
+                    eprintln!("VAD failed, using raw audio: {}", e);
+                    audio
+                }
+            }
+        } else {
+            audio
+        };
+
         let text = {
             let mut lock = engine_arc.lock().unwrap();
             if let Some(engine) = lock.as_mut() {

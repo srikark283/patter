@@ -76,6 +76,25 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
         let language = settings.language;
 
+        // Strip silence/noise before ASR — see recording.rs; failure = use raw audio.
+        let audio = if settings.trim_silence {
+            match crate::vad::ensure_model(&app_handle)
+                .and_then(|p| crate::vad::trim_silence(&p, &audio))
+            {
+                Ok(trimmed) if trimmed.is_empty() => {
+                    let _ = app_handle.emit("patter://meeting_state", "error: no speech detected");
+                    return;
+                }
+                Ok(trimmed) => trimmed,
+                Err(e) => {
+                    eprintln!("VAD failed, using raw audio: {}", e);
+                    audio
+                }
+            }
+        } else {
+            audio
+        };
+
         let transcript = {
             let mut lock = engine_arc.lock().unwrap();
             if let Some(engine) = lock.as_mut() {
