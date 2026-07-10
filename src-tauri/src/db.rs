@@ -8,6 +8,10 @@ fn default_hud_position() -> String {
     "bottom".to_string()
 }
 
+fn default_play_sounds() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub hotkey: String,
@@ -24,6 +28,8 @@ pub struct Settings {
     pub ollama_model: Option<String>,
     #[serde(default = "default_hud_position")]
     pub hud_position: String,
+    #[serde(default = "default_play_sounds")]
+    pub play_sounds: bool,
 }
 
 impl Default for Settings {
@@ -40,6 +46,7 @@ impl Default for Settings {
             llm_cleanup_enabled: false,
             ollama_model: None,
             hud_position: "bottom".to_string(),
+            play_sounds: true,
         }
     }
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2 } from "lucide-react";
 import { getSettings, updateSettings, getMicrophones, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -183,20 +184,10 @@ export function PreferencesView() {
                 <p className="text-[11px] text-muted-foreground">Start Patter automatically on boot</p>
               </div>
             </div>
-            <button
-              onClick={() => update({ autostart: !settings.autostart })}
-              className={cn(
-                "w-10 h-5 rounded-full transition-all relative hover:ring-2 hover:ring-steelIce/50 hover:ring-offset-2 hover:ring-offset-background",
-                settings.autostart ? "bg-steelIce" : "bg-white/10"
-              )}
-            >
-              <span 
-                className={cn(
-                  "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200",
-                  settings.autostart ? "translate-x-5" : ""
-                )} 
-              />
-            </button>
+            <Switch
+              checked={settings.autostart}
+              onCheckedChange={(checked) => update({ autostart: checked })}
+            />
           </div>
 
           {/* HUD Position */}
@@ -222,6 +213,23 @@ export function PreferencesView() {
                 <SelectItem value="bottom">Bottom</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* UI Sounds */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <Volume2 size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">UI Sounds</p>
+                <p className="text-[11px] text-muted-foreground">Play a sound when recording starts/stops</p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.play_sounds !== false}
+              onCheckedChange={(checked) => update({ play_sounds: checked })}
+            />
           </div>
         </div>
       </section>
@@ -305,20 +313,10 @@ export function PreferencesView() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => update({ llm_cleanup_enabled: !settings.llm_cleanup_enabled })}
-              className={cn(
-                "w-10 h-5 rounded-full transition-all relative hover:ring-2 hover:ring-steelIce/50 hover:ring-offset-2 hover:ring-offset-background",
-                settings.llm_cleanup_enabled ? "bg-steelIce" : "bg-white/10"
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200",
-                  settings.llm_cleanup_enabled ? "translate-x-5" : ""
-                )}
-              />
-            </button>
+            <Switch
+              checked={settings.llm_cleanup_enabled}
+              onCheckedChange={(checked) => update({ llm_cleanup_enabled: checked })}
+            />
           </div>
 
           {/* Model Selection */}

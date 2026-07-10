@@ -33,6 +33,7 @@ export default function Hud() {
         setEntryKey((k) => k + 1); // replay entrance animation
         win.show();
       }
+
       if (next === "recording") {
         targets.current.fill(0);
         heights.current.fill(0);
@@ -167,7 +168,7 @@ export default function Hud() {
         </div>
         {(phase === "recording" || phase === "processing") && (
           <button className="hud-cancel-btn" onClick={() => cancelDictation().catch(console.error)}>
-            <X size={12} strokeWidth={3} />
+            <X size={10} strokeWidth={3} />
           </button>
         )}
       </div>

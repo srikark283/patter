@@ -13,6 +13,7 @@ export interface Settings {
   llm_cleanup_enabled: boolean;
   ollama_model: string | null;
   hud_position: string;
+  play_sounds: boolean;
 }
 
 export function getStats() {

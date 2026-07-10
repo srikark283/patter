@@ -11,11 +11,26 @@ use tauri::{Emitter, Manager};
 
 const WHISPER_SAMPLE_RATE: u32 = 16_000;
 
+fn play_system_sound(sound_name: &str, rate: f32) {
+    let path = format!("/System/Library/Sounds/{}", sound_name);
+    let rate_str = rate.to_string();
+    thread::spawn(move || {
+        let _ = std::process::Command::new("afplay")
+            .arg("-r")
+            .arg(&rate_str)
+            .arg(&path)
+            .output();
+    });
+}
+
 pub fn start_recording(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     println!("🔴 recording...");
     
     let settings = state.settings.lock().unwrap().clone();
+    if settings.play_sounds {
+        play_system_sound("Pop.aiff", 1.5);
+    }
 
     // Reinitialize the buffer for a new recording
     *state.captured.lock().unwrap() = Vec::new();
@@ -79,6 +94,10 @@ pub fn start_recording(app: &tauri::AppHandle) {
 pub fn cancel(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     println!("Cancelling recording...");
+    
+    if state.settings.lock().unwrap().play_sounds {
+        play_system_sound("Pop.aiff", 0.9);
+    }
 
     state.is_recording.store(false, Ordering::SeqCst);
     let _ = state.audio_tx.send(AudioCommand::Stop);
@@ -91,6 +110,10 @@ pub fn cancel(app: &tauri::AppHandle) {
 pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     println!("Stopping recording...");
+    
+    if state.settings.lock().unwrap().play_sounds {
+        play_system_sound("Pop.aiff", 0.9);
+    }
 
     state.is_recording.store(false, Ordering::SeqCst);
     let _ = state.audio_tx.send(AudioCommand::Stop);
