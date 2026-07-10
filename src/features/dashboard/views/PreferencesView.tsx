@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor } from "lucide-react";
 import { getSettings, updateSettings, getMicrophones, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
@@ -197,6 +197,31 @@ export function PreferencesView() {
                 )} 
               />
             </button>
+          </div>
+
+          {/* HUD Position */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <Monitor size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">HUD Position</p>
+                <p className="text-[11px] text-muted-foreground">Where the recording pill appears</p>
+              </div>
+            </div>
+            <Select
+              value={settings.hud_position ?? "bottom"}
+              onValueChange={(val) => update({ hud_position: val })}
+            >
+              <SelectTrigger className="w-32 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="top">Top</SelectItem>
+                <SelectItem value="bottom">Bottom</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </section>

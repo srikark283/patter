@@ -49,6 +49,7 @@ pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<
     
     let mut current_settings = state.settings.lock().unwrap();
     let old_hotkey = current_settings.hotkey.clone();
+    let old_hud_position = current_settings.hud_position.clone();
     
     // Apply autostart if changed
     if settings.autostart != current_settings.autostart {
@@ -75,6 +76,22 @@ pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<
         
         if let Ok(new_shortcut) = settings.hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
             let _ = manager.register(new_shortcut);
+        }
+    }
+
+    if old_hud_position != settings.hud_position {
+        if let Some(window) = app.get_webview_window("main") {
+            if let Ok(Some(monitor)) = window.primary_monitor() {
+                let size = monitor.size();
+                let window_size = window.outer_size().unwrap_or_default();
+                let multiplier = match settings.hud_position.as_str() {
+                    "top" => 0.02,
+                    _ => 0.90,
+                };
+                let y = (size.height as f64 * multiplier) as i32;
+                let x = ((size.width as i32) - (window_size.width as i32)) / 2;
+                let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+            }
         }
     }
 

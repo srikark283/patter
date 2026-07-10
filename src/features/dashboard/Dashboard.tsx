@@ -97,6 +97,11 @@ export default function Dashboard() {
   return (
     <SidebarProvider style={{ "--sidebar-width": "14rem" } as React.CSSProperties}>
       <div className="relative flex h-screen w-full bg-background text-foreground overflow-hidden">
+        <div 
+          data-tauri-drag-region
+          className="absolute top-0 left-0 right-0 h-12 z-50 cursor-grab" 
+        />
+
         {/* Atmosphere: single cold top-glow + film grain */}
         <div className="pointer-events-none absolute inset-0 z-0">
           <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-240 h-128 rounded-full bg-steel/[0.07] blur-[140px]" />
@@ -105,8 +110,8 @@ export default function Dashboard() {
 
         {/* Sidebar — instrument rail */}
         <Sidebar className="border-r border-border bg-white/1.5 text-foreground">
-          {/* Traffic Lights spacing & Drag Region */}
-          <div data-tauri-drag-region className="w-full h-10 shrink-0" />
+          {/* Traffic Lights spacing */}
+          <div className="w-full h-10 shrink-0" />
 
           <SidebarHeader>
             <div className="flex items-center gap-1 px-3 pb-4 pt-2">

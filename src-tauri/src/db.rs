@@ -4,6 +4,10 @@ use std::fs;
 use tauri::Manager;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+fn default_hud_position() -> String {
+    "bottom".to_string()
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub hotkey: String,
@@ -18,6 +22,8 @@ pub struct Settings {
     pub llm_cleanup_enabled: bool,
     #[serde(default)]
     pub ollama_model: Option<String>,
+    #[serde(default = "default_hud_position")]
+    pub hud_position: String,
 }
 
 impl Default for Settings {
@@ -33,6 +39,7 @@ impl Default for Settings {
             active_engine_id: None,
             llm_cleanup_enabled: false,
             ollama_model: None,
+            hud_position: "bottom".to_string(),
         }
     }
 }

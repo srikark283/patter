@@ -105,6 +105,7 @@ fn main() {
             }
 
             let hotkey_str = settings.hotkey.clone();
+            let hud_position_str = settings.hud_position.clone();
 
             let app_state = AppState {
                 captured: Arc::new(Mutex::new(Vec::new())),
@@ -144,7 +145,11 @@ fn main() {
             if let Some(monitor) = window.primary_monitor()? {
                 let size = monitor.size();
                 let window_size = window.outer_size()?;
-                let y = (size.height as f64 * 0.85) as i32;
+                let multiplier = match hud_position_str.as_str() {
+                    "top" => 0.02,
+                    _ => 0.90,
+                };
+                let y = (size.height as f64 * multiplier) as i32;
                 let x = ((size.width as i32) - (window_size.width as i32)) / 2;
                 window.set_position(tauri::PhysicalPosition::new(x, y))?;
             }

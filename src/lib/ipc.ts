@@ -12,6 +12,7 @@ export interface Settings {
   silence_timeout_ms: number;
   llm_cleanup_enabled: boolean;
   ollama_model: string | null;
+  hud_position: string;
 }
 
 export function getStats() {
