@@ -1,7 +1,7 @@
-import { Clock, Type, Sparkles, Info, Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer } from "lucide-react";
+import { Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { AppStats, TranscriptionRecord } from "../../../types";
-import { Card, CardContent } from "@/components/ui/card";
+// import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "../components/PageHeader";
 
