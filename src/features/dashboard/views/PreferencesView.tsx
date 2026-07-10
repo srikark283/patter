@@ -1,9 +1,16 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power } from "lucide-react";
-import { getSettings, updateSettings, getMicrophones, Settings } from "../../../lib/ipc";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain } from "lucide-react";
+import { getSettings, updateSettings, getMicrophones, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const MODES = [
   {
@@ -23,11 +30,13 @@ const MODES = [
 export function PreferencesView() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mics, setMics] = useState<string[]>([]);
+  const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
   const [recordingHotkey, setRecordingHotkey] = useState(false);
 
   useEffect(() => {
     getSettings().then(setSettings).catch(console.error);
     getMicrophones().then(setMics).catch(console.error);
+    listOllamaModels().then(setOllamaModels).catch(() => setOllamaModels(null));
   }, []);
 
   const update = async (patch: Partial<Settings>) => {
@@ -147,16 +156,20 @@ export function PreferencesView() {
                 <p className="text-[11px] text-muted-foreground">Select audio input device</p>
               </div>
             </div>
-            <select
-              value={settings.microphone ?? ""}
-              onChange={(e) => update({ microphone: e.target.value === "" ? null : e.target.value })}
-              className="bg-background border border-white/10 rounded-md text-[13px] text-foreground/80 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel w-48 truncate"
+            <Select
+              value={settings.microphone ?? "none"}
+              onValueChange={(val) => update({ microphone: val === "none" ? null : val })}
             >
-              <option value="">System Default</option>
-              {mics.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+              <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                <SelectValue placeholder="System Default" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">System Default</SelectItem>
+                {mics.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Autostart */}
@@ -203,18 +216,22 @@ export function PreferencesView() {
                 <p className="text-[11px] text-muted-foreground">For Whisper models only</p>
               </div>
             </div>
-            <select
+            <Select
               value={settings.language}
-              onChange={(e) => update({ language: e.target.value })}
-              className="bg-background border border-white/10 rounded-md text-[13px] text-foreground/80 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel w-32"
+              onValueChange={(val) => update({ language: val })}
             >
-              <option value="auto">Auto-detect</option>
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="ja">Japanese</option>
-            </select>
+              <SelectTrigger className="w-32 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto-detect</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="es">Spanish</SelectItem>
+                <SelectItem value="fr">French</SelectItem>
+                <SelectItem value="de">German</SelectItem>
+                <SelectItem value="ja">Japanese</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Silence Timeout */}
@@ -228,16 +245,89 @@ export function PreferencesView() {
                 <p className="text-[11px] text-muted-foreground">Auto-stop after pausing for</p>
               </div>
             </div>
-            <select
+            <Select
               value={settings.silence_timeout_ms.toString()}
-              onChange={(e) => update({ silence_timeout_ms: parseInt(e.target.value, 10) })}
-              className="bg-background border border-white/10 rounded-md text-[13px] text-foreground/80 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel w-32"
+              onValueChange={(val) => update({ silence_timeout_ms: parseInt(val, 10) })}
             >
-              <option value="500">0.5s (Fast)</option>
-              <option value="1000">1.0s (Normal)</option>
-              <option value="1500">1.5s (Relaxed)</option>
-              <option value="2500">2.5s (Slow)</option>
-            </select>
+              <SelectTrigger className="w-32 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="500">0.5s (Fast)</SelectItem>
+                <SelectItem value="1000">1.0s (Normal)</SelectItem>
+                <SelectItem value="1500">1.5s (Relaxed)</SelectItem>
+                <SelectItem value="2500">2.5s (Slow)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <span className="t-label block px-1 pb-1">AI Cleanup</span>
+
+        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-white/5">
+          {/* Enable Toggle */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <Sparkles size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">Semantic Cleanup</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Polish transcripts with a local Ollama model — fixes grammar, removes filler words
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => update({ llm_cleanup_enabled: !settings.llm_cleanup_enabled })}
+              className={cn(
+                "w-10 h-5 rounded-full transition-all relative hover:ring-2 hover:ring-steelIce/50 hover:ring-offset-2 hover:ring-offset-background",
+                settings.llm_cleanup_enabled ? "bg-steelIce" : "bg-white/10"
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200",
+                  settings.llm_cleanup_enabled ? "translate-x-5" : ""
+                )}
+              />
+            </button>
+          </div>
+
+          {/* Model Selection */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <Brain size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">Ollama Model</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {ollamaModels === null
+                    ? "Ollama not running — start it to list models"
+                    : ollamaModels.length === 0
+                    ? "No models downloaded — run `ollama pull <model>`"
+                    : "Locally downloaded models"}
+                </p>
+              </div>
+            </div>
+            <Select
+              value={settings.ollama_model ?? "none"}
+              disabled={!ollamaModels?.length}
+              onValueChange={(val) => update({ ollama_model: val === "none" ? null : val })}
+            >
+              <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Select a model</SelectItem>
+                {(ollamaModels ?? []).map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </section>

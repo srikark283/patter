@@ -4,6 +4,7 @@ import { Check, Download, Loader2, Trash2 } from "lucide-react";
 import { downloadModel, setEngine, deleteModel } from "../../../lib/ipc";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
 
@@ -201,22 +202,26 @@ export function ModelsView({
                           </div>
                         ) : isDownloaded ? (
                           <div className="flex items-center gap-2">
-                            <button
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               onClick={() => handleSetEngine(model.id, model.name)}
                               disabled={isSettingActive || isDeleting}
-                              className="flex items-center gap-1.5 text-[13px] font-medium bg-white/5 hover:bg-white/10 text-foreground/80 hover:text-foreground px-4 py-1.5 rounded-full border border-white/5 hover:border-white/10 transition-all opacity-60 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
+                              className="rounded-full opacity-60 group-hover:opacity-100 focus:opacity-100"
                             >
                               {isSettingActive && <Loader2 size={13} className="animate-spin" />}
                               Use Model
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
                               onClick={() => handleDelete(model.id, model.name)}
                               disabled={isDeleting}
-                              className="p-1.5 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
+                              className="rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 focus:opacity-100"
                               title="Delete model"
                             >
                               {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                            </button>
+                            </Button>
                           </div>
                         ) : isDownloading ? (
                           <div className="flex flex-col items-end gap-1.5 w-32 bg-black/20 p-2.5 rounded-xl border border-white/5">
@@ -229,13 +234,14 @@ export function ModelsView({
                             <Progress value={downloadProgress} className="h-1.5 bg-white/10" />
                           </div>
                         ) : (
-                          <button 
+                          <Button
+                            size="sm"
                             onClick={() => handleDownload(model.id, model.name)}
-                            className="flex items-center gap-1.5 text-[13px] font-semibold bg-steel hover:bg-steelIce text-white px-4 py-1.5 rounded-full transition-all shadow-sm hover:shadow-[0_0_15px_rgba(91,155,209,0.3)] opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100"
+                            className="rounded-full shadow-sm hover:shadow-[0_0_15px_rgba(91,155,209,0.3)] opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100"
                           >
                             <Download size={14} strokeWidth={2.5} />
                             Download
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>

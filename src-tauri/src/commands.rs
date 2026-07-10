@@ -34,6 +34,11 @@ pub fn delete_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn list_ollama_models() -> Result<Vec<String>, String> {
+    crate::ollama::list_models()
+}
+
+#[tauri::command]
 pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
     app.state::<AppState>().settings.lock().unwrap().clone()
 }

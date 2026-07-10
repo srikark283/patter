@@ -10,6 +10,8 @@ export interface Settings {
   autostart: boolean;
   language: string;
   silence_timeout_ms: number;
+  llm_cleanup_enabled: boolean;
+  ollama_model: string | null;
 }
 
 export function getStats() {
@@ -50,6 +52,10 @@ export function setEngine(id: string) {
 
 export function getActiveEngine() {
   return invoke<string | null>("get_active_engine");
+}
+
+export function listOllamaModels() {
+  return invoke<string[]>("list_ollama_models");
 }
 
 export function getSettings() {

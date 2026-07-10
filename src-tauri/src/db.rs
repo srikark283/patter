@@ -14,6 +14,10 @@ pub struct Settings {
     pub language: String,
     pub silence_timeout_ms: u32,
     pub active_engine_id: Option<String>,
+    #[serde(default)]
+    pub llm_cleanup_enabled: bool,
+    #[serde(default)]
+    pub ollama_model: Option<String>,
 }
 
 impl Default for Settings {
@@ -27,6 +31,8 @@ impl Default for Settings {
             language: "auto".to_string(),
             silence_timeout_ms: 1000,
             active_engine_id: None,
+            llm_cleanup_enabled: false,
+            ollama_model: None,
         }
     }
 }

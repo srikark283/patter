@@ -1,8 +1,11 @@
-import { Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { AppStats, TranscriptionRecord } from "../../../types";
+import { getSettings } from "../../../lib/ipc";
 // import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "../components/PageHeader";
 
 interface Props {
@@ -74,6 +77,12 @@ function calculateStreak(history: TranscriptionRecord[]) {
 }
 
 export function DashboardView({ stats, history, onViewAll }: Props) {
+  const [hotkey, setHotkey] = useState<string>("");
+
+  useEffect(() => {
+    getSettings().then((s) => setHotkey(s.hotkey)).catch(console.error);
+  }, []);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -107,12 +116,38 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
-      <PageHeader title={`${greeting} 👋`} description="Here's an overview of your dictations." />
+      <PageHeader 
+        title={`${greeting} 👋`} 
+        description="Here's an overview of your dictations." 
+        action={
+          hotkey && (
+            <div className="flex items-center gap-3 rounded-full border border-steel/20 bg-steel/3 px-3.5 py-2 shadow-[0_0_15px_rgba(91,155,209,0.05)]">
+              <div className="flex items-center gap-2.5">
+                <div className="relative flex h-4 w-4 items-center justify-center">
+                  <Mic className="relative z-10 h-4 w-4 text-steelIce animate-[pulse_2.5s_ease-in-out_infinite]" strokeWidth={2.5} />
+                </div>
+                <span className="text-[13px] font-medium text-foreground/80">Ready to dictate</span>
+              </div>
+              <div className="h-4 w-px bg-white/10" />
+              <div className="flex items-center gap-1">
+                {hotkey.split('+').map((key, i, arr) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <kbd className="rounded-[4px] border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground">
+                      {key}
+                    </kbd>
+                    {i < arr.length - 1 && <span className="text-muted-foreground/40 text-[10px] font-medium">+</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )
+        }
+      />
       
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-4 gap-4">
         {/* Total Words */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/[0.015] p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
           {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3">+{weekWords} this week</div>}
           {weekWords === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.total_words : <Skeleton className="h-8 w-16" />}</div>
@@ -121,7 +156,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         </div>
         
         {/* Dictations */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/[0.015] p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
           {weekDictations > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3">+{weekDictations} this week</div>}
           {weekDictations === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.transcriptions_count : <Skeleton className="h-8 w-16" />}</div>
@@ -130,7 +165,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         </div>
 
         {/* Time Saved */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/[0.015] p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? formatTime(stats.time_saved_seconds) : <Skeleton className="h-8 w-24" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Time Saved</div>
@@ -138,7 +173,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         </div>
 
         {/* Streak */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/[0.015] p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? `${longestStreak} day${longestStreak === 1 ? '' : 's'}` : <Skeleton className="h-8 w-20" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Longest Streak</div>
@@ -152,7 +187,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         <div className="grid grid-cols-2 gap-4">
           
           {/* Activity Chart */}
-          <div className="rounded-xl border border-border/60 bg-white/[0.015] p-5 flex flex-col">
+          <div className="rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
             <h3 className="text-sm font-medium text-muted-foreground mb-6">Activity (Last 7 Days)</h3>
             {series === null ? (
               <Skeleton className="h-32 w-full mt-auto" />
@@ -164,8 +199,8 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                       <div
                         className={`w-full max-w-[24px] rounded-sm transition-all duration-300 ${
                           d.words > 0
-                            ? "bg-gradient-to-t from-blue-500/80 to-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                            : "bg-white/[0.03]"
+                            ? "bg-linear-to-t from-blue-500/80 to-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                            : "bg-white/3"
                         }`}
                         style={{ height: d.words > 0 ? `${Math.max(15, (d.words / maxWords) * 100)}%` : "15%" }}
                       />
@@ -181,7 +216,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
           </div>
 
           {/* Top Words */}
-          <div className="rounded-xl border border-border/60 bg-white/[0.015] p-5">
+          <div className="rounded-xl border border-border/60 bg-white/1.5 p-5">
             <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Words</h3>
             {!history ? (
               <Skeleton className="h-32 w-full" />
@@ -190,7 +225,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             ) : (
               <div className="flex flex-wrap gap-2.5 mt-2">
                 {topWords.map((w) => (
-                  <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.05]">
+                  <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/4 border border-white/5">
                     <span className="text-[13px] text-foreground/90 font-medium">{w.word}</span>
                     <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-mono">{w.count}</span>
                   </div>
@@ -209,21 +244,23 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
               Recent
             </h3>
             {onViewAll && (
-              <button 
+              <Button
+                variant="outline"
+                size="xs"
                 onClick={onViewAll}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 bg-white/[0.03] hover:bg-white/[0.06] px-3 py-1.5 rounded-full border border-border/50"
+                className="rounded-full text-muted-foreground hover:text-foreground"
               >
                 View all <ArrowRight size={12} />
-              </button>
+              </Button>
             )}
           </div>
           <div className="flex flex-col gap-3">
             {history.slice(0, 5).map((record) => (
               <div 
                 key={record.id} 
-                className="group relative flex flex-col gap-4 px-5 py-4 rounded-xl border border-border/60 bg-white/[0.015] hover:bg-white/[0.03] transition-colors"
+                className="group relative flex flex-col gap-4 px-5 py-4 rounded-xl border border-border/60 bg-white/1.5 hover:bg-white/3 transition-colors"
               >
-                <p className="text-[15px] leading-relaxed text-foreground/90 break-words line-clamp-2 pr-8">
+                <p className="text-[15px] leading-relaxed text-foreground/90 wrap-break-word line-clamp-2 pr-8">
                   {record.text}
                 </p>
                 <div className="flex items-center gap-2.5">
@@ -234,16 +271,18 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                   </span>
                 </div>
                 {/* Copy button on hover */}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => {
                     navigator.clipboard.writeText(record.text);
                     toast.success("Copied to clipboard");
                   }}
                   title="Copy text"
-                  className="absolute right-4 top-4 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 hover:text-steelIce hover:bg-white/[0.08] cursor-pointer bg-background/80 backdrop-blur-sm"
+                  className="absolute right-4 top-4 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-steelIce bg-background/80 backdrop-blur-sm"
                 >
                   <Copy size={13} />
-                </button>
+                </Button>
               </div>
             ))}
           </div>

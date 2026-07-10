@@ -156,6 +156,27 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
              return;
         }
 
+        let text = if settings.llm_cleanup_enabled {
+            if let Some(model) = settings.ollama_model.as_deref() {
+                let _ = app_handle.emit("patter://state", "Cleaning up…");
+                match crate::ollama::cleanup(model, &text) {
+                    Ok(cleaned) => {
+                        println!("Cleaned: {}", cleaned);
+                        cleaned
+                    }
+                    Err(e) => {
+                        // Fall back to the raw transcript rather than dropping it.
+                        eprintln!("LLM cleanup failed: {}", e);
+                        text
+                    }
+                }
+            } else {
+                text
+            }
+        } else {
+            text
+        };
+
         let word_count = text.split_whitespace().count();
         let duration_seconds = audio.len() as f32 / WHISPER_SAMPLE_RATE as f32;
 

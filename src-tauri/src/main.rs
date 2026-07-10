@@ -5,6 +5,7 @@ mod audio;
 mod commands;
 mod db;
 mod models;
+mod ollama;
 mod paste;
 mod recording;
 mod state;
@@ -185,7 +186,8 @@ fn main() {
             commands::delete_history_record,
             commands::update_history_record,
             commands::cancel_dictation,
-            commands::open_dashboard
+            commands::open_dashboard,
+            commands::list_ollama_models
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

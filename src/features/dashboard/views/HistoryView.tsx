@@ -166,27 +166,33 @@ export function HistoryView({ history, setHistory }: Props) {
                       {/* Left metadata */}
                       <div className="w-20 shrink-0 relative flex items-center pt-[1px]">
                         <div className="absolute left-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity -ml-1 gap-0.5 z-10">
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDelete(record.id)}
                             title="Delete"
-                            className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground transition-colors hover:text-red-400 hover:bg-white/[0.06] cursor-pointer"
+                            className="text-muted-foreground hover:text-red-400"
                           >
                             <Trash2 size={12} />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => startEdit(record)}
                             title="Edit"
-                            className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground transition-colors hover:text-blue-400 hover:bg-white/[0.06] cursor-pointer"
+                            className="text-muted-foreground hover:text-blue-400"
                           >
                             <Pencil size={12} />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleCopy(record.text)}
                             title="Copy text"
-                            className="flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground transition-colors hover:text-steelIce hover:bg-white/[0.06] cursor-pointer"
+                            className="text-muted-foreground hover:text-steelIce"
                           >
                             <Copy size={12} />
-                          </button>
+                          </Button>
                         </div>
                         <span className="font-mono text-[11px] text-muted-foreground/80 group-hover:opacity-0 transition-opacity">{formatTime(record.timestamp_ms)}</span>
                       </div>

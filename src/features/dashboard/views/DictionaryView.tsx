@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { updateSettings, getSettings, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Search, Plus, ArrowUpDown, Settings as SettingsIcon, Trash2, Pencil, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function DictionaryView() {
@@ -107,12 +108,9 @@ export function DictionaryView() {
           className="bg-transparent border-none text-foreground outline-none py-1.5 pl-2.5 w-32 md:w-40 text-sm placeholder:text-muted-foreground"
         />
       </div>
-      <button 
-        onClick={() => setIsAdding(true)}
-        className="flex items-center gap-1.5 bg-steel hover:bg-steelIce text-white px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors shadow-sm"
-      >
+      <Button onClick={() => setIsAdding(true)} className="rounded-full shadow-sm">
         <Plus size={16} /> Add new
-      </button>
+      </Button>
     </div>
   );
 
@@ -128,12 +126,14 @@ export function DictionaryView() {
       <div className="flex items-center justify-between text-muted-foreground text-sm font-medium px-1">
         <span>{terms.length} terms</span>
         <div className="flex gap-2 relative" ref={sortRef}>
-          <button 
-            onClick={() => setIsSortOpen(!isSortOpen)} 
-            className={cn("p-1.5 rounded-md hover:bg-white/5 hover:text-foreground transition-colors", isSortOpen && "bg-white/5 text-foreground")}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setIsSortOpen(!isSortOpen)}
+            className={cn(isSortOpen && "bg-muted text-foreground")}
           >
             <ArrowUpDown size={16} />
-          </button>
+          </Button>
           
           {isSortOpen && (
             <div className="absolute top-full right-8 z-10 mt-2 bg-background border border-border rounded-xl p-2 flex flex-col gap-1 shadow-xl min-w-[160px]">
@@ -161,9 +161,9 @@ export function DictionaryView() {
             </div>
           )}
 
-          <button className="p-1.5 rounded-md hover:bg-white/5 hover:text-foreground transition-colors">
+          <Button variant="ghost" size="icon-sm">
             <SettingsIcon size={16} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -186,8 +186,8 @@ export function DictionaryView() {
               className="flex-1 bg-transparent border-none text-foreground outline-none text-[15px] font-medium"
             />
             <div className="flex gap-2 items-center">
-              <button type="button" onClick={() => { setIsAdding(false); setNewTerm(""); }} className="text-muted-foreground hover:text-foreground px-3 py-1.5 text-sm font-medium transition-colors">Cancel</button>
-              <button type="submit" disabled={!newTerm.trim()} className="bg-steel hover:bg-steelIce text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:pointer-events-none">Add</button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setIsAdding(false); setNewTerm(""); }}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={!newTerm.trim()}>Add</Button>
             </div>
           </form>
         )}
@@ -198,9 +198,9 @@ export function DictionaryView() {
             <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">
               Add words you want Patter to recognize. It can be particular spellings, names, and slang that you often use.
             </p>
-            <button onClick={() => setIsAdding(true)} className="flex items-center gap-1.5 bg-steel hover:bg-steelDeep text-white px-4 py-2 rounded-full text-sm font-medium transition-colors mt-2">
+            <Button onClick={() => setIsAdding(true)} className="rounded-full mt-2">
               <Plus size={16} /> Add new
-            </button>
+            </Button>
           </div>
         ) : (
           filteredTerms.map(term => (
@@ -217,20 +217,20 @@ export function DictionaryView() {
                   className="flex-1 bg-transparent border-none text-foreground outline-none text-[15px] font-medium"
                 />
                 <div className="flex gap-2 items-center">
-                  <button type="button" onClick={() => setEditingTerm(null)} className="text-muted-foreground hover:text-foreground px-3 py-1.5 text-sm font-medium transition-colors">Cancel</button>
-                  <button type="submit" disabled={!editValue.trim() || editValue.trim() === term} className="bg-steel hover:bg-steelIce text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:pointer-events-none">Save</button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setEditingTerm(null)}>Cancel</Button>
+                  <Button type="submit" size="sm" disabled={!editValue.trim() || editValue.trim() === term}>Save</Button>
                 </div>
               </form>
             ) : (
               <div key={term} className="group flex items-center justify-between bg-white/[0.015] hover:bg-white/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">
                 <span className="font-medium text-[15px] text-foreground/90">{term}</span>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => startEditing(term)} className="p-1.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-white/10 transition-colors">
+                  <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => startEditing(term)}>
                     <Pencil size={15} />
-                  </button>
-                  <button onClick={() => removeTerm(term)} className="p-1.5 text-muted-foreground hover:text-destructive rounded-md hover:bg-destructive/10 transition-colors">
+                  </Button>
+                  <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => removeTerm(term)}>
                     <Trash2 size={15} />
-                  </button>
+                  </Button>
                 </div>
               </div>
             )

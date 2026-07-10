@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import {
-  LayoutDashboard as HomeIcon,
+  // LayoutDashboard as HomeIcon,
   ScrollText as HistoryIcon,
   CaseSensitive as DictionaryIcon,
   Cog as SettingsIcon,
   BrainCircuit as ModelsIcon,
-  MessagesSquare as MeetingsIcon,
+  // UsersRound as MeetingsIcon,
 } from "lucide-react";
+import { 
+  HomeIcon as HomeIcon,
+  UsersIcon as MeetingsIcon 
+} from '@heroicons/react/24/solid'
 
 import { AppStats, TranscriptionRecord } from "../../types";
 import { getStats, getHistory, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine } from "../../lib/ipc";
@@ -18,7 +22,16 @@ import { DictionaryView } from "./views/DictionaryView";
 import { ModelsView, ALL_MODEL_IDS, MODEL_NAMES } from "./views/ModelsView";
 import { PreferencesView } from "./views/PreferencesView";
 import icon from "@/assets/icon.png";
-
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -73,7 +86,7 @@ export default function Dashboard() {
   }, []);
 
   const tabs = [
-    { id: "dashboard", label: "Overview", icon: HomeIcon },
+    { id: "dashboard", label: "Home", icon: HomeIcon },
     { id: "meetings", label: "Meetings", icon: MeetingsIcon },
     { id: "history", label: "History", icon: HistoryIcon },
     { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
@@ -82,76 +95,79 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="relative flex h-screen bg-background text-foreground overflow-hidden">
-      {/* Atmosphere: single cold top-glow + film grain */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-[60rem] h-[32rem] rounded-full bg-steel/[0.07] blur-[140px]" />
-        <div className="absolute inset-0 bg-noise opacity-[0.025]" />
-      </div>
-
-      {/* Sidebar — instrument rail */}
-      <aside className="relative z-10 w-56 flex flex-col border-r border-border bg-white/[0.015]">
-        {/* Traffic Lights spacing & Drag Region */}
-        <div data-tauri-drag-region className="w-full h-10 shrink-0" />
-
-        <div className="flex items-center gap-1 px-5 pb-4">
-          <img src={icon} alt="Patter Logo" className="w-9 h-9 pointer-events-none" />
-
-          <div className="leading-none pointer-events-none">
-            <h1 className="text-[24px] font-semibold tracking-tight">Patter</h1>
-            {/* <p className="t-label mt-1 text-[9px]">Voice · Local</p> */}
-          </div>
+    <SidebarProvider style={{ "--sidebar-width": "14rem" } as React.CSSProperties}>
+      <div className="relative flex h-screen w-full bg-background text-foreground overflow-hidden">
+        {/* Atmosphere: single cold top-glow + film grain */}
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-240 h-128 rounded-full bg-steel/[0.07] blur-[140px]" />
+          <div className="absolute inset-0 bg-noise opacity-[0.025]" />
         </div>
 
-        <div className="px-5 pt-3 pb-6">
-          <div className="w-full border-t border-gray-600"></div>
-        </div>
-        <nav className="flex-1 px-3 space-y-0.5">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "group relative w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-all duration-150 cursor-pointer",
-                  isActive
-                    ? "bg-accent text-accent-foreground shadow-[0_1px_0_rgba(255,255,255,0.05)_inset]"
-                    : "text-muted-foreground hover:bg-white/4 hover:text-foreground"
-                )}
-              >
+        {/* Sidebar — instrument rail */}
+        <Sidebar className="border-r border-border bg-white/1.5 text-foreground">
+          {/* Traffic Lights spacing & Drag Region */}
+          <div data-tauri-drag-region className="w-full h-10 shrink-0" />
+
+          <SidebarHeader>
+            <div className="flex items-center gap-1 px-3 pb-4 pt-2">
+              <img src={icon} alt="Patter Logo" className="w-9 h-9 pointer-events-none" />
+
+              <div className="leading-none pointer-events-none">
+                <h1 className="text-[24px] font-semibold tracking-tight">Patter</h1>
+              </div>
+            </div>
+
+            {/* <div className="px-3 pt-3 pb-4">
+              <div className="w-full border-t border-gray-600"></div>
+            </div> */}
+          </SidebarHeader>
+
+          <SidebarContent>
+            <SidebarMenu className="px-3 space-y-0.5">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <SidebarMenuItem key={tab.id}>
+                    <SidebarMenuButton
+                      onClick={() => setActiveTab(tab.id)}
+                      isActive={isActive}
+                      className={cn(
+                        "group w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-all duration-150 cursor-pointer h-auto",
+                        isActive
+                          ? "bg-accent text-white shadow-[0_1px_0_rgba(255,255,255,0.05)_inset] hover:bg-accent hover:text-white"
+                          : "text-muted-foreground hover:bg-white/4 hover:text-foreground"
+                      )}
+                    >
+                      <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+                      <span>{tab.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarContent>
+
+          <SidebarFooter>
+            {/* Status footer: live engine readout */}
+            <div className="px-3 py-4 border-t border-border">
+              <span className="t-label">Engine</span>
+              <div className="mt-2 flex items-center gap-2">
                 <span
                   className={cn(
-                    "absolute left-0 top-1/2 -translate-y-1/2 h-3.5 w-0.5 rounded-full bg-steelIce transition-opacity",
-                    isActive ? "opacity-100 shadow-[0_0_8px_var(--color-steel)]" : "opacity-0"
+                    "w-1.5 h-1.5 rounded-full flex-none",
+                    activeEngine ? "bg-success shadow-[0_0_6px_var(--color-success)]" : "bg-muted-foreground/40"
                   )}
                 />
-                <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+                <span className="font-mono text-[11px] text-foreground/80 truncate">
+                  {activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "No model loaded"}
+                </span>
+              </div>
+            </div>
+          </SidebarFooter>
+        </Sidebar>
 
-        {/* Status footer: live engine readout */}
-        <div className="px-5 py-4 border-t border-border">
-          <span className="t-label">Engine</span>
-          <div className="mt-2 flex items-center gap-2">
-            <span
-              className={cn(
-                "w-1.5 h-1.5 rounded-full flex-none",
-                activeEngine ? "bg-success shadow-[0_0_6px_var(--color-success)]" : "bg-muted-foreground/40"
-              )}
-            />
-            <span className="font-mono text-[11px] text-foreground/80 truncate">
-              {activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "No model loaded"}
-            </span>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
+        {/* Main Content */}
       <main className="relative z-10 flex-1 overflow-y-auto">
         <div className="px-10 py-9 max-w-5xl mx-auto">
           {activeTab === "dashboard" && <DashboardView stats={stats} history={history} onViewAll={() => setActiveTab("history")} />}
@@ -173,6 +189,7 @@ export default function Dashboard() {
           {activeTab === "preferences" && <PreferencesView />}
         </div>
       </main>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }
