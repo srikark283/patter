@@ -43,6 +43,8 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Patter ${{ github.ref_name }}"
-          releaseDraft: true
+          # Publish immediately: pushing a v* tag IS the release decision.
+          # Installed apps see the update as soon as the build finishes.
+          releaseDraft: false
           # ponytail: Apple Silicon only — universal needs x86_64 cross-compile
           # of sherpa-onnx/whisper.cpp native libs; add when Intel users ask.
