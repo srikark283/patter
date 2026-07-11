@@ -1,4 +1,25 @@
-# Patter — Milestone 1 spike
+# Patter
+
+Local-first dictation and meeting notes for macOS. Audio is captured, transcribed (Whisper / Parakeet), and cleaned up (Ollama) entirely on-device — nothing is ever uploaded.
+
+## Install
+
+Apple Silicon only, macOS 11+.
+
+1. Download the `.dmg` from the [latest release](https://github.com/srikark283/patter/releases/latest) and drag **Patter** to Applications.
+2. Patter isn't notarized (no Apple Developer account), so macOS will claim it's "damaged" on first launch. It isn't — that's the quarantine flag on the download. Clear it:
+
+   ```bash
+   xattr -cr /Applications/patter.app
+   ```
+
+3. Launch. Onboarding walks you through the mic permission, a speech model download, and your hotkey.
+
+Updates install themselves in-app — the "damaged" dance is first-install only.
+
+---
+
+# Development notes — Milestone 1 spike
 
 Proves the two highest-risk pieces of the whole project — `cpal` (CoreAudio capture) and `whisper-rs` (whisper.cpp with Metal) — compile and run on your machine, **before any Tauri or UI work**. If this spike works, everything downstream is plumbing.
 
