@@ -154,7 +154,7 @@ export function MeetingsView() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-3.5 py-1.5">
           <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="font-mono text-[13px] text-foreground/80 tabular-nums">{formatElapsed(elapsed)}</span>
+          <span className="font-sans text-[13px] text-foreground/80 tabular-nums">{formatElapsed(elapsed)}</span>
         </div>
         <Button variant="destructive" className="rounded-full" onClick={handleStop}>
           <Square size={14} /> Stop &amp; Process

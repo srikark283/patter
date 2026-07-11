@@ -194,7 +194,7 @@ export function HistoryView({ history, setHistory }: Props) {
                             <Copy size={12} />
                           </Button>
                         </div>
-                        <span className="font-mono text-[11px] text-muted-foreground/80 group-hover:opacity-0 transition-opacity">{formatTime(record.timestamp_ms)}</span>
+                        <span className="font-sans text-[11px] text-muted-foreground/80 group-hover:opacity-0 transition-opacity">{formatTime(record.timestamp_ms)}</span>
                       </div>
 
                       {/* Main Text */}
@@ -236,7 +236,7 @@ export function HistoryView({ history, setHistory }: Props) {
 
                       {/* Right Actions/Stats */}
                       <div className="flex shrink-0 items-start justify-end w-12">
-                        <span className="font-mono text-[10px] text-muted-foreground tabular-nums pt-[2px]">
+                        <span className="font-sans text-[10px] text-muted-foreground tabular-nums pt-[2px]">
                           {record.duration_seconds.toFixed(1)}s
                         </span>
                       </div>

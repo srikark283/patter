@@ -140,7 +140,7 @@ export function PreferencesView() {
               onBlur={() => setRecordingHotkey(false)}
               onKeyDown={handleHotkeyRecord}
               className={cn(
-                "w-32 bg-background border border-white/10 rounded-md text-xs font-mono text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                "w-32 bg-background border border-white/10 rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
                 recordingHotkey ? "border-steel/50 bg-steel/10 text-steelIce" : "hover:border-white/20 text-muted-foreground"
               )}
             />

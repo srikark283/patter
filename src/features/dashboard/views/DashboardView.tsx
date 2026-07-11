@@ -180,7 +180,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
               <div className="flex items-center gap-1">
                 {hotkey.split('+').map((key, i, arr) => (
                   <span key={i} className="flex items-center gap-1">
-                    <kbd className="rounded-[4px] border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground">
+                    <kbd className="rounded-[4px] border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-sans font-medium text-muted-foreground">
                       {key}
                     </kbd>
                     {i < arr.length - 1 && <span className="text-muted-foreground/40 text-[10px] font-medium">+</span>}
@@ -252,7 +252,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                         }`}
                         style={{ height: d.words > 0 ? `${Math.max(15, (d.words / maxWords) * 100)}%` : "15%" }}
                       />
-                      <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2 py-1 font-mono text-[10px] text-foreground opacity-0 ring-1 ring-border transition-opacity group-hover:opacity-100">
+                      <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2 py-1 font-sans text-[10px] text-foreground opacity-0 ring-1 ring-border transition-opacity group-hover:opacity-100">
                         {d.words}w
                       </div>
                     </div>
@@ -275,7 +275,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                 {topWords.map((w) => (
                   <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/4 border border-white/5">
                     <span className="text-[13px] text-foreground/90 font-medium">{w.word}</span>
-                    <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-mono">{w.count}</span>
+                    <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{w.count}</span>
                   </div>
                 ))}
               </div>
@@ -312,9 +312,9 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                   {record.text}
                 </p>
                 <div className="flex items-center gap-2.5">
-                  <span className="font-mono text-[11px] text-muted-foreground/50">{timeAgo(record.timestamp_ms)}</span>
+                  <span className="font-sans text-[11px] text-muted-foreground/50">{timeAgo(record.timestamp_ms)}</span>
                   <span className="text-muted-foreground/30 text-[10px]">·</span>
-                  <span className="font-mono text-[11px] text-muted-foreground/50 tabular-nums">
+                  <span className="font-sans text-[11px] text-muted-foreground/50 tabular-nums">
                     {record.duration_seconds.toFixed(1)}s
                   </span>
                 </div>

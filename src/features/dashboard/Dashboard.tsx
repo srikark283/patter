@@ -164,7 +164,7 @@ export default function Dashboard() {
                     activeEngine ? "bg-success shadow-[0_0_6px_var(--color-success)]" : "bg-muted-foreground/40"
                   )}
                 />
-                <span className="font-mono text-[11px] text-foreground/80 truncate">
+                <span className="font-sans text-[11px] text-foreground/80 truncate">
                   {activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "No model loaded"}
                 </span>
               </div>

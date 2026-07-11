@@ -185,7 +185,7 @@ export function ModelsView({
                           )}>
                             {model.name}
                           </h4>
-                          <span className="font-mono text-[10px] font-medium text-muted-foreground/70 px-2 py-0.5 rounded-md bg-black/20 border border-white/5 shadow-inner">
+                          <span className="font-sans text-[10px] font-medium text-muted-foreground/70 px-2 py-0.5 rounded-md bg-black/20 border border-white/5 shadow-inner">
                             {model.size}
                           </span>
                         </div>
@@ -227,7 +227,7 @@ export function ModelsView({
                           <div className="flex flex-col items-end gap-1.5 w-32 bg-black/20 p-2.5 rounded-xl border border-white/5">
                             <div className="flex items-center justify-between w-full">
                               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Downloading</span>
-                              <span className="font-mono text-[11px] text-steelIce font-semibold">
+                              <span className="font-sans text-[11px] text-steelIce font-semibold">
                                 {downloadProgress.toFixed(0)}%
                               </span>
                             </div>
