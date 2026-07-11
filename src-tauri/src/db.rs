@@ -34,6 +34,26 @@ pub struct Settings {
     pub play_sounds: bool,
     #[serde(default = "default_trim_silence")]
     pub trim_silence: bool,
+    /// False for fresh installs and installs predating onboarding.
+    #[serde(default)]
+    pub onboarding_done: bool,
+    /// Hold hotkey to record, release to transcribe (vs press-to-toggle).
+    #[serde(default)]
+    pub push_to_talk: bool,
+    /// Label speakers in meeting transcripts (needs diarization models).
+    #[serde(default)]
+    pub diarize_meetings: bool,
+    /// Per-app cleanup instructions, matched against the frontmost app name.
+    #[serde(default)]
+    pub app_profiles: Vec<AppProfile>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AppProfile {
+    /// Case-insensitive substring of the app name ("slack", "mail").
+    pub app: String,
+    /// Extra instruction for the Ollama cleanup pass in that app.
+    pub prompt: String,
 }
 
 fn default_trim_silence() -> bool {
@@ -57,6 +77,10 @@ impl Default for Settings {
             hud_position: "bottom".to_string(),
             play_sounds: true,
             trim_silence: true,
+            onboarding_done: false,
+            push_to_talk: false,
+            diarize_meetings: false,
+            app_profiles: Vec::new(),
         }
     }
 }

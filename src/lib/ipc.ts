@@ -2,6 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AppStats, TranscriptionRecord, MeetingRecord } from "../types";
 
+export interface AppProfile {
+  app: string;
+  prompt: string;
+}
+
 export interface Settings {
   hotkey: string;
   microphone: string | null;
@@ -16,6 +21,10 @@ export interface Settings {
   trim_silence: boolean;
   hud_position: string;
   play_sounds: boolean;
+  onboarding_done: boolean;
+  push_to_talk: boolean;
+  diarize_meetings: boolean;
+  app_profiles: AppProfile[];
 }
 
 export function getStats() {
@@ -118,4 +127,16 @@ export function onLevels(callback: (levels: number[]) => void) {
 
 export function cancelDictation() {
   return invoke<void>("cancel_dictation");
+}
+
+export function accessibilityTrusted() {
+  return invoke<boolean>("accessibility_trusted");
+}
+
+export function openAccessibilitySettings() {
+  return invoke<void>("open_accessibility_settings");
+}
+
+export function onAccessibilityMissing(callback: () => void) {
+  return listen("patter://accessibility_missing", () => callback());
 }

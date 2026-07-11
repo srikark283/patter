@@ -13,6 +13,7 @@ import {
   ScrollText,
   AlignLeft,
   ClipboardCopy,
+  Users,
 } from "lucide-react";
 import { MeetingRecord } from "../../../types";
 import {
@@ -21,10 +22,15 @@ import {
   startMeetingRecording,
   stopMeetingRecording,
   isMeetingRecording,
+  getSettings,
+  updateSettings,
+  isModelDownloaded,
+  downloadModel,
 } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 type MeetingState = "idle" | "recording" | "transcribing" | "summarizing";
@@ -92,11 +98,40 @@ export function MeetingsView() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [diarize, setDiarize] = useState(false);
+  const [downloadingDiar, setDownloadingDiar] = useState(false);
+
   const loadMeetings = () => getMeetings().then(setMeetings).catch(console.error);
+
+  const toggleDiarize = async (checked: boolean) => {
+    try {
+      if (checked) {
+        const [seg, emb] = await Promise.all([
+          isModelDownloaded("diar-segmentation"),
+          isModelDownloaded("diar-embedding"),
+        ]);
+        if (!seg || !emb) {
+          setDownloadingDiar(true);
+          toast.info("Downloading speaker models (~44 MB)…");
+          if (!seg) await downloadModel("diar-segmentation");
+          if (!emb) await downloadModel("diar-embedding");
+          setDownloadingDiar(false);
+        }
+      }
+      const latest = await getSettings();
+      await updateSettings({ ...latest, diarize_meetings: checked });
+      setDiarize(checked);
+      if (checked) toast.success("Speaker labels enabled");
+    } catch (e) {
+      setDownloadingDiar(false);
+      toast.error("Failed to enable speaker labels: " + e);
+    }
+  };
 
   useEffect(() => {
     loadMeetings();
     isMeetingRecording().then((rec) => rec && setState("recording")).catch(console.error);
+    getSettings().then((s) => setDiarize(s.diarize_meetings)).catch(console.error);
 
     const unlistenState = listen<string>("patter://meeting_state", (e) => {
       const s = e.payload;
@@ -189,6 +224,25 @@ export function MeetingsView() {
         description="Record a meeting from your mic, get transcript, minutes, decisions, and to-dos."
         action={headerAction}
       />
+
+      <div className="flex items-center justify-between bg-card ring-1 ring-border rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+            <Users size={14} className="text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-[13px] font-medium text-foreground/90">Speaker labels</p>
+            <p className="text-[11px] text-muted-foreground">
+              Label who said what ("Speaker 1: …") — slower processing, on-device
+            </p>
+          </div>
+        </div>
+        {downloadingDiar ? (
+          <Loader2 size={16} className="animate-spin text-steelIce" />
+        ) : (
+          <Switch checked={diarize} onCheckedChange={toggleDiarize} />
+        )}
+      </div>
 
       {meetings !== null && meetings.length === 0 && state === "idle" && !processing && (
         <Card className="flex flex-col items-center justify-center py-20 px-4 text-center border-dashed bg-white/[0.01]">

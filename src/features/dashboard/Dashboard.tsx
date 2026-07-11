@@ -13,7 +13,9 @@ import {
 } from '@heroicons/react/24/solid'
 
 import { AppStats, TranscriptionRecord } from "../../types";
-import { getStats, getHistory, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine } from "../../lib/ipc";
+import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing } from "../../lib/ipc";
+import { toast } from "sonner";
+import { Onboarding } from "../onboarding/Onboarding";
 import { cn } from "@/lib/utils";
 import { DashboardView } from "./views/DashboardView";
 import { MeetingsView } from "./views/MeetingsView";
@@ -37,6 +39,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [stats, setStats] = useState<AppStats | null>(null);
   const [history, setHistory] = useState<TranscriptionRecord[] | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Settings State
   const [activeEngine, setActiveEngine] = useState<string | null>(null);
@@ -66,6 +69,23 @@ export default function Dashboard() {
     refreshData();
     refreshModelStatus();
     getActiveEngine().then(setActiveEngine).catch(console.error);
+    getSettings().then((s) => setShowOnboarding(!s.onboarding_done)).catch(console.error);
+
+    const warnAccessibility = () =>
+      toast.warning("Patter can't type for you yet", {
+        id: "ax-perm",
+        description:
+          "Grant Accessibility permission so dictation can type into other apps. Until then, text is copied to the clipboard.",
+        action: { label: "Open Settings", onClick: () => openAccessibilitySettings() },
+        duration: 10000,
+      });
+
+    accessibilityTrusted()
+      .then((trusted) => {
+        if (!trusted) warnAccessibility();
+      })
+      .catch(console.error);
+    const unlistenAx = onAccessibilityMissing(warnAccessibility);
 
     const unlistenProgress = onDownloadProgress((id, pct) => {
       setDownloadProgress(pct);
@@ -82,6 +102,7 @@ export default function Dashboard() {
     return () => {
       unlistenProgress.then((f) => f());
       unlistenDb.then((f) => f());
+      unlistenAx.then((f) => f());
     };
   }, []);
 
@@ -194,6 +215,19 @@ export default function Dashboard() {
           {activeTab === "preferences" && <PreferencesView />}
         </div>
       </main>
+
+      {showOnboarding && (
+        <Onboarding
+          modelStatus={modelStatus}
+          downloadingId={downloadingId}
+          setDownloadingId={setDownloadingId}
+          downloadProgress={downloadProgress}
+          activeEngine={activeEngine}
+          setActiveEngine={setActiveEngine}
+          onModelDownloaded={refreshModelStatus}
+          onDone={() => setShowOnboarding(false)}
+        />
+      )}
       </div>
     </SidebarProvider>
   );

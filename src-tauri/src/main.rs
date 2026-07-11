@@ -4,19 +4,20 @@ mod asr;
 mod audio;
 mod commands;
 mod db;
+mod diarize;
 mod meeting;
 mod models;
 mod ollama;
 mod paste;
 mod recording;
 mod state;
+mod tray;
 mod vad;
 
 use state::AppState;
 use std::sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex};
 use tauri::{Manager, WebviewUrl};
 use tauri_plugin_autostart::ManagerExt;
-use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri_nspanel::{tauri_panel, PanelBuilder, PanelLevel};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -39,25 +40,6 @@ fn main() {
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-
-            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let dashboard_i = MenuItem::with_id(app, "dashboard", "Dashboard", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&dashboard_i, &quit_i])?;
-
-            let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).unwrap();
-            let _tray = TrayIconBuilder::new()
-                .icon(tray_icon)
-                .menu(&menu)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => {
-                        std::process::exit(0);
-                    }
-                    "dashboard" => {
-                        let _ = commands::open_dashboard(app.clone());
-                    }
-                    _ => {}
-                })
-                .build(app)?;
 
             let model_manager = models::registry::ModelManager::new(app.handle())?;
             let db_instance = db::Db::new(app.handle());
@@ -86,6 +68,7 @@ fn main() {
                                     }
                                 }
                             }
+                            models::registry::EngineKind::Diarization => {}
                         }
                     }
                 }
@@ -114,6 +97,8 @@ fn main() {
                 audio_tx: tx,
                 device_config: shared_config.clone(),
                 is_recording: Arc::new(AtomicBool::new(false)),
+                is_paused: Arc::new(AtomicBool::new(false)),
+                frontmost_app: Arc::new(Mutex::new(None)),
                 meeting_captured: Arc::new(Mutex::new(Vec::new())),
                 is_meeting_recording: Arc::new(AtomicBool::new(false)),
                 engine: Arc::new(Mutex::new(initial_engine)),
@@ -123,6 +108,14 @@ fn main() {
             };
 
             app.manage(app_state);
+
+            // Tray needs AppState (history, model list, pause flag) to build its menu.
+            let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).unwrap();
+            let _tray = TrayIconBuilder::with_id(tray::TRAY_ID)
+                .icon(tray_icon)
+                .menu(&tray::build_menu(app.handle())?)
+                .on_menu_event(|app, event| tray::on_menu_event(app, event))
+                .build(app)?;
 
             let shortcut = hotkey_str.parse::<tauri_plugin_global_shortcut::Shortcut>()
                 .unwrap_or_else(|_| "Alt+Space".parse().unwrap());
@@ -169,12 +162,24 @@ fn main() {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
-                    if event.state == ShortcutState::Pressed {
-                        let state = app.state::<AppState>();
-                        if state.is_recording.load(Ordering::SeqCst) {
-                            recording::stop_and_transcribe(app);
-                        } else {
-                            recording::start_recording(app);
+                    let state = app.state::<AppState>();
+                    let push_to_talk = state.settings.lock().unwrap().push_to_talk;
+                    match event.state {
+                        ShortcutState::Pressed => {
+                            if state.is_recording.load(Ordering::SeqCst) {
+                                // In push-to-talk, repeated Pressed events while
+                                // holding the key must not stop the recording.
+                                if !push_to_talk {
+                                    recording::stop_and_transcribe(app);
+                                }
+                            } else if !state.is_paused.load(Ordering::SeqCst) {
+                                recording::start_recording(app);
+                            }
+                        }
+                        ShortcutState::Released => {
+                            if push_to_talk && state.is_recording.load(Ordering::SeqCst) {
+                                recording::stop_and_transcribe(app);
+                            }
                         }
                     }
                 })
@@ -201,7 +206,9 @@ fn main() {
             commands::stop_meeting_recording,
             commands::is_meeting_recording,
             commands::get_meetings,
-            commands::delete_meeting
+            commands::delete_meeting,
+            commands::accessibility_trusted,
+            commands::open_accessibility_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

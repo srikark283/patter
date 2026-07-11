@@ -2769,6 +2769,7 @@ dependencies = [
  "cpal",
  "enigo",
  "futures-util",
+ "objc2-app-kit",
  "reqwest 0.12.28",
  "rustfft",
  "serde",

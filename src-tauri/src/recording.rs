@@ -2,6 +2,7 @@ use crate::audio::levels::{extract_levels, FFT_SIZE};
 use crate::audio::capture::resample_linear;
 use crate::db;
 use crate::paste;
+use crate::tray;
 use crate::state::{AppState, AudioCommand};
 use rustfft::FftPlanner;
 use std::sync::atomic::Ordering;
@@ -31,7 +32,11 @@ pub fn start_recording(app: &tauri::AppHandle) {
         return;
     }
     println!("🔴 recording...");
-    
+
+    // The app in focus now is where the text will land — remember it for
+    // per-app cleanup profiles.
+    *state.frontmost_app.lock().unwrap() = paste::frontmost_app_name();
+
     let settings = state.settings.lock().unwrap().clone();
     if settings.play_sounds {
         play_system_sound("Pop.aiff", 1.5);
@@ -189,6 +194,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                     Ok(t) => t,
                     Err(e) => {
                         eprintln!("Inference failed: {}", e);
+                        let _ = app_handle.emit("patter://state", "⚠ Transcription failed");
+                        thread::sleep(Duration::from_secs(2));
                         let _ = app_handle.emit("patter://state", "Idle");
                         return;
                     }
@@ -208,10 +215,28 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
              return;
         }
 
+        let frontmost = app_handle
+            .state::<AppState>()
+            .frontmost_app
+            .lock()
+            .unwrap()
+            .clone();
+        let profile_prompt = frontmost.as_deref().and_then(|name| {
+            let lower = name.to_lowercase();
+            settings
+                .app_profiles
+                .iter()
+                .find(|p| !p.app.is_empty() && lower.contains(&p.app.to_lowercase()))
+                .map(|p| {
+                    println!("[cleanup] app profile matched: {} ({})", p.app, name);
+                    p.prompt.clone()
+                })
+        });
+
         let text = if settings.llm_cleanup_enabled {
             if let Some(model) = settings.ollama_model.as_deref() {
                 let _ = app_handle.emit("patter://state", "Cleaning up…");
-                match crate::ollama::cleanup(model, &text) {
+                match crate::ollama::cleanup(model, &text, profile_prompt.as_deref()) {
                     Ok(cleaned) => {
                         println!("Cleaned: {}", cleaned);
                         cleaned
@@ -245,14 +270,22 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             transcribe_ms,
         });
         let _ = app_handle.emit("patter://db_updated", ());
-
-        let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
+        tray::refresh(&app_handle);
 
         let mode = settings.output_mode;
 
-        let _ = app_handle.run_on_main_thread(move || {
-            paste::paste_text(&mode, &text);
-        });
+        if paste::accessibility_trusted() {
+            let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
+            let _ = app_handle.run_on_main_thread(move || {
+                paste::paste_text(&mode, &text);
+            });
+        } else {
+            // Can't synthesize keystrokes without the Accessibility permission;
+            // land the text on the clipboard so it isn't lost and tell the UI.
+            paste::copy_text(&text);
+            let _ = app_handle.emit("patter://accessibility_missing", ());
+            let _ = app_handle.emit("patter://state", "⚠ Copied — needs Accessibility");
+        }
 
         thread::sleep(Duration::from_millis(1500));
         let _ = app_handle.emit("patter://state", "Idle");

@@ -187,6 +187,9 @@ pub fn set_engine(app: tauri::AppHandle, id: String) -> Result<(), String> {
             let dir = mm.variant_dir(&id).ok_or("Unknown engine")?;
             Box::new(asr::parakeet::ParakeetEngine::new(&dir.to_string_lossy()).map_err(|e| e.to_string())?)
         },
+        Some(models::registry::EngineKind::Diarization) => {
+            return Err("Not an ASR engine".into())
+        },
         None => return Err("Unknown engine".into())
     };
 
@@ -196,7 +199,9 @@ pub fn set_engine(app: tauri::AppHandle, id: String) -> Result<(), String> {
     let mut settings = state.settings.lock().unwrap();
     settings.active_engine_id = Some(id);
     crate::db::Db::new(&app).save_settings(&settings);
+    drop(settings);
 
+    crate::tray::refresh(&app);
     Ok(())
 }
 
@@ -220,5 +225,19 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
     } else {
         app.get_webview_window("dashboard").unwrap().set_focus().unwrap();
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn accessibility_trusted() -> bool {
+    crate::paste::accessibility_trusted()
+}
+
+#[tauri::command]
+pub fn open_accessibility_settings() -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        .spawn()
+        .map_err(|e| e.to_string())?;
     Ok(())
 }

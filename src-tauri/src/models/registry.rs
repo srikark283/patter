@@ -16,6 +16,8 @@ pub struct DownloadProgress {
 pub enum EngineKind {
     Whisper,
     Parakeet,
+    /// Not an ASR engine — speaker diarization models for meetings.
+    Diarization,
 }
 
 pub struct ModelFile {
@@ -76,6 +78,22 @@ const CATALOG: &[ModelVariant] = &[
             ModelFile { name: "tokens.txt", size: 9_384 },
         ],
     },
+    // Diarization pair: pyannote segmentation + speaker embedding. Sizes
+    // verified via `curl -sIL` Content-Length, same as the entries above.
+    ModelVariant {
+        id: "diar-segmentation",
+        engine: EngineKind::Diarization,
+        base_url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main",
+        dest_subdir: "diarization",
+        files: &[ModelFile { name: "model.onnx", size: 5_992_913 }],
+    },
+    ModelVariant {
+        id: "diar-embedding",
+        engine: EngineKind::Diarization,
+        base_url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main",
+        dest_subdir: "diarization",
+        files: &[ModelFile { name: "nemo_en_titanet_small.onnx", size: 40_257_283 }],
+    },
     ModelVariant {
         id: "parakeet-v3",
         engine: EngineKind::Parakeet,
@@ -124,6 +142,15 @@ impl ModelManager {
     pub fn variant_dir(&self, id: &str) -> Option<PathBuf> {
         let variant = find_variant(id)?;
         Some(self.models_dir.join(variant.dest_subdir))
+    }
+
+    /// Downloaded ASR engines only (feeds the tray model switcher).
+    pub fn downloaded_ids(&self) -> Vec<&'static str> {
+        CATALOG
+            .iter()
+            .filter(|v| v.engine != EngineKind::Diarization && self.is_downloaded(v.id))
+            .map(|v| v.id)
+            .collect()
     }
 
     pub fn is_downloaded(&self, id: &str) -> bool {

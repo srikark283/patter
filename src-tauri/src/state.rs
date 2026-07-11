@@ -13,6 +13,9 @@ pub struct AppState {
     pub audio_tx: Sender<AudioCommand>,
     pub device_config: Arc<Mutex<cpal::SupportedStreamConfig>>,
     pub is_recording: Arc<AtomicBool>,
+    pub is_paused: Arc<AtomicBool>,
+    /// App the user was in when recording started — the paste target.
+    pub frontmost_app: Arc<Mutex<Option<String>>>,
     pub meeting_captured: Arc<Mutex<Vec<f32>>>,
     pub is_meeting_recording: Arc<AtomicBool>,
     pub engine: Arc<Mutex<Option<Box<dyn ASREngine>>>>,

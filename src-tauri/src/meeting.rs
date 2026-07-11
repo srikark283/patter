@@ -98,13 +98,31 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         let transcript = {
             let mut lock = engine_arc.lock().unwrap();
             if let Some(engine) = lock.as_mut() {
-                match engine.transcribe(&audio, None, Some(&language)) {
-                    Ok(t) => t,
-                    Err(e) => {
-                        eprintln!("Meeting transcription failed: {}", e);
-                        let _ = app_handle.emit("patter://meeting_state", "error: transcription failed");
-                        return;
+                // Speaker labels: diarize + per-segment transcription. Any
+                // diarization failure falls back to plain transcription.
+                let diarized = if settings.diarize_meetings
+                    && crate::diarize::models_downloaded(&app_handle)
+                {
+                    match crate::diarize::diarize_and_transcribe(&app_handle, engine, &audio, &language) {
+                        Ok(t) => Some(t),
+                        Err(e) => {
+                            eprintln!("[diarize] failed, plain transcription: {}", e);
+                            None
+                        }
                     }
+                } else {
+                    None
+                };
+                match diarized {
+                    Some(t) => t,
+                    None => match engine.transcribe(&audio, None, Some(&language)) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            eprintln!("Meeting transcription failed: {}", e);
+                            let _ = app_handle.emit("patter://meeting_state", "error: transcription failed");
+                            return;
+                        }
+                    },
                 }
             } else {
                 let _ = app_handle.emit("patter://meeting_state", "error: no model loaded");
@@ -126,6 +144,12 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
                 Ok(a) => a,
                 Err(e) => {
                     eprintln!("Meeting analysis failed: {}", e);
+                    // Transcript-only record still gets saved below; tell the UI why
+                    // there's no summary.
+                    let _ = app_handle.emit(
+                        "patter://meeting_state",
+                        format!("error: summary failed ({}) — transcript saved", e),
+                    );
                     Default::default()
                 }
             }

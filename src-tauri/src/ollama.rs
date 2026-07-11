@@ -79,9 +79,14 @@ pub fn list_models() -> Result<Vec<String>, String> {
 }
 
 /// Clean up a raw transcript with a local Ollama model. Returns cleaned text.
-pub fn cleanup(model: &str, text: &str) -> Result<String, String> {
-    let prompt = format!("{}\n\n<transcript>\n{}\n</transcript>",
+/// `extra` is an optional app-profile instruction appended to the base prompt.
+pub fn cleanup(model: &str, text: &str, extra: Option<&str>) -> Result<String, String> {
+    let extra_instruction = extra
+        .map(|e| format!("\n\nAdditional instruction for this context: {}", e))
+        .unwrap_or_default();
+    let prompt = format!("{}{}\n\n<transcript>\n{}\n</transcript>",
         CLEANUP_PROMPT,
+        extra_instruction,
         text
     );
     let resp: GenerateResponse = reqwest::blocking::Client::new()
