@@ -1,7 +1,9 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2, MessagesSquare, AudioWaveform, ShieldCheck, Trash2 } from "lucide-react";
-import { getSettings, updateSettings, getMicrophones, listOllamaModels, Settings } from "../../../lib/ipc";
+import { getSettings, updateSettings, getMicrophones, listOllamaModels, checkUpdate, Settings } from "../../../lib/ipc";
+import { promptUpdateInstall } from "../../../lib/update";
+import { getVersion } from "@tauri-apps/api/app";
 import { PageHeader } from "../components/PageHeader";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -33,12 +35,31 @@ export function PreferencesView() {
   const [mics, setMics] = useState<string[]>([]);
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
   const [recordingHotkey, setRecordingHotkey] = useState(false);
+  const [appVersion, setAppVersion] = useState("");
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
     getSettings().then(setSettings).catch(console.error);
     getMicrophones().then(setMics).catch(console.error);
     listOllamaModels().then(setOllamaModels).catch(() => setOllamaModels(null));
+    getVersion().then(setAppVersion).catch(console.error);
   }, []);
+
+  const handleCheckUpdates = async () => {
+    setCheckingUpdate(true);
+    try {
+      const version = await checkUpdate();
+      if (version) {
+        promptUpdateInstall(version);
+      } else {
+        toast.success("You're on the latest version");
+      }
+    } catch (e) {
+      toast.error("Update check failed: " + e);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   const update = async (patch: Partial<Settings>) => {
     if (!settings) return;
@@ -207,21 +228,32 @@ export function PreferencesView() {
             />
           </div>
 
-          {/* Automatic Updates */}
+          {/* Updates */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
                 <Sparkles size={14} className="text-muted-foreground" />
               </div>
               <div>
-                <p className="text-[13px] font-medium text-foreground/90">Automatic Updates</p>
-                <p className="text-[11px] text-muted-foreground">Check GitHub for new versions on launch</p>
+                <p className="text-[13px] font-medium text-foreground/90">Updates</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {appVersion ? `Patter v${appVersion} · ` : ""}Notify about new versions on launch
+                </p>
               </div>
             </div>
-            <Switch
-              checked={settings.auto_update}
-              onCheckedChange={(checked) => update({ auto_update: checked })}
-            />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCheckUpdates}
+                disabled={checkingUpdate}
+                className="text-[12px] text-steelIce/80 hover:text-steelIce disabled:opacity-50 transition-colors"
+              >
+                {checkingUpdate ? "Checking…" : "Check for Updates"}
+              </button>
+              <Switch
+                checked={settings.auto_update}
+                onCheckedChange={(checked) => update({ auto_update: checked })}
+              />
+            </div>
           </div>
 
           {/* HUD Position */}

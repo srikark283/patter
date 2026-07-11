@@ -13,7 +13,9 @@ import {
 } from '@heroicons/react/24/solid'
 
 import { AppStats, TranscriptionRecord } from "../../types";
-import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateReady, restartApp } from "../../lib/ipc";
+import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable } from "../../lib/ipc";
+import { promptUpdateInstall } from "../../lib/update";
+import { getVersion } from "@tauri-apps/api/app";
 import { toast } from "sonner";
 import { Onboarding } from "../onboarding/Onboarding";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<AppStats | null>(null);
   const [history, setHistory] = useState<TranscriptionRecord[] | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [appVersion, setAppVersion] = useState("");
 
   // Settings State
   const [activeEngine, setActiveEngine] = useState<string | null>(null);
@@ -70,6 +73,7 @@ export default function Dashboard() {
     refreshModelStatus();
     getActiveEngine().then(setActiveEngine).catch(console.error);
     getSettings().then((s) => setShowOnboarding(!s.onboarding_done)).catch(console.error);
+    getVersion().then(setAppVersion).catch(console.error);
 
     const warnAccessibility = () =>
       toast.warning("Patter can't type for you yet", {
@@ -87,14 +91,7 @@ export default function Dashboard() {
       .catch(console.error);
     const unlistenAx = onAccessibilityMissing(warnAccessibility);
 
-    const unlistenUpdate = onUpdateReady((version) =>
-      toast.success(`Patter ${version} downloaded`, {
-        id: "update-ready",
-        description: "The update applies next time Patter starts.",
-        action: { label: "Restart now", onClick: () => restartApp() },
-        duration: Infinity,
-      })
-    );
+    const unlistenUpdate = onUpdateAvailable(promptUpdateInstall);
 
     const unlistenProgress = onDownloadProgress((id, pct) => {
       setDownloadProgress(pct);
@@ -199,6 +196,11 @@ export default function Dashboard() {
                   {activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "No model loaded"}
                 </span>
               </div>
+              {appVersion && (
+                <p className="mt-2 font-sans text-[10px] text-muted-foreground/60 tabular-nums">
+                  Patter v{appVersion}
+                </p>
+              )}
             </div>
           </SidebarFooter>
         </Sidebar>

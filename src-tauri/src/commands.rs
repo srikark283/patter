@@ -246,3 +246,30 @@ pub fn open_accessibility_settings() -> Result<(), String> {
 pub fn restart_app(app: tauri::AppHandle) {
     app.restart();
 }
+
+#[tauri::command]
+pub async fn check_update(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    Ok(updater
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .map(|u| u.version))
+}
+
+#[tauri::command]
+pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("No update available")?;
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}

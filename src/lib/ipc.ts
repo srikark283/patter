@@ -142,8 +142,16 @@ export function onAccessibilityMissing(callback: () => void) {
   return listen("patter://accessibility_missing", () => callback());
 }
 
-export function onUpdateReady(callback: (version: string) => void) {
-  return listen<string>("patter://update_ready", (event) => callback(event.payload));
+export function onUpdateAvailable(callback: (version: string) => void) {
+  return listen<string>("patter://update_available", (event) => callback(event.payload));
+}
+
+export function checkUpdate() {
+  return invoke<string | null>("check_update");
+}
+
+export function installUpdate() {
+  return invoke<void>("install_update");
 }
 
 export function restartApp() {

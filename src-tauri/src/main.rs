@@ -42,9 +42,8 @@ fn main() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // Background update check: download quietly, apply on restart.
-            // Updater downloads skip Gatekeeper quarantine (not browser-fetched),
-            // so this works without notarization.
+            // Background update check on launch: notify only — download and
+            // install happen when the user asks (install_update command).
             let update_handle = app.handle().clone();
             let check_updates = move || {
                 tauri::async_runtime::spawn(async move {
@@ -56,14 +55,9 @@ fn main() {
                     };
                     match updater.check().await {
                         Ok(Some(update)) => {
-                            println!("[update] v{} available, downloading", update.version);
-                            match update.download_and_install(|_, _| {}, || {}).await {
-                                Ok(()) => {
-                                    let _ = update_handle
-                                        .emit("patter://update_ready", update.version.clone());
-                                }
-                                Err(e) => eprintln!("[update] install failed: {}", e),
-                            }
+                            println!("[update] v{} available", update.version);
+                            let _ = update_handle
+                                .emit("patter://update_available", update.version.clone());
                         }
                         Ok(None) => println!("[update] up to date"),
                         Err(e) => eprintln!("[update] check failed: {}", e),
@@ -244,7 +238,9 @@ fn main() {
             commands::delete_meeting,
             commands::accessibility_trusted,
             commands::open_accessibility_settings,
-            commands::restart_app
+            commands::restart_app,
+            commands::check_update,
+            commands::install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
