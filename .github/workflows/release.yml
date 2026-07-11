@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # Builds the .app/.dmg, plus .app.tar.gz + .sig updater artifacts and
+      # latest.json (createUpdaterArtifacts). No Apple signing — the DMG is
+      # unsigned; the updater verifies its own minisign signature instead.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Patter ${{ github.ref_name }}"
+          releaseDraft: true
+          # ponytail: Apple Silicon only — universal needs x86_64 cross-compile
+          # of sherpa-onnx/whisper.cpp native libs; add when Intel users ask.

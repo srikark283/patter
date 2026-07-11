@@ -25,6 +25,7 @@ export interface Settings {
   push_to_talk: boolean;
   diarize_meetings: boolean;
   app_profiles: AppProfile[];
+  auto_update: boolean;
 }
 
 export function getStats() {
@@ -139,4 +140,12 @@ export function openAccessibilitySettings() {
 
 export function onAccessibilityMissing(callback: () => void) {
   return listen("patter://accessibility_missing", () => callback());
+}
+
+export function onUpdateReady(callback: (version: string) => void) {
+  return listen<string>("patter://update_ready", (event) => callback(event.payload));
+}
+
+export function restartApp() {
+  return invoke<void>("restart_app");
 }

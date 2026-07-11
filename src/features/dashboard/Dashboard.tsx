@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/solid'
 
 import { AppStats, TranscriptionRecord } from "../../types";
-import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing } from "../../lib/ipc";
+import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateReady, restartApp } from "../../lib/ipc";
 import { toast } from "sonner";
 import { Onboarding } from "../onboarding/Onboarding";
 import { cn } from "@/lib/utils";
@@ -87,6 +87,15 @@ export default function Dashboard() {
       .catch(console.error);
     const unlistenAx = onAccessibilityMissing(warnAccessibility);
 
+    const unlistenUpdate = onUpdateReady((version) =>
+      toast.success(`Patter ${version} downloaded`, {
+        id: "update-ready",
+        description: "The update applies next time Patter starts.",
+        action: { label: "Restart now", onClick: () => restartApp() },
+        duration: Infinity,
+      })
+    );
+
     const unlistenProgress = onDownloadProgress((id, pct) => {
       setDownloadProgress(pct);
       if (pct >= 100) {
@@ -103,6 +112,7 @@ export default function Dashboard() {
       unlistenProgress.then((f) => f());
       unlistenDb.then((f) => f());
       unlistenAx.then((f) => f());
+      unlistenUpdate.then((f) => f());
     };
   }, []);
 

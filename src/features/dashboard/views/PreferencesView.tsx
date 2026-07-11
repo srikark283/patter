@@ -207,6 +207,23 @@ export function PreferencesView() {
             />
           </div>
 
+          {/* Automatic Updates */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                <Sparkles size={14} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">Automatic Updates</p>
+                <p className="text-[11px] text-muted-foreground">Check GitHub for new versions on launch</p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.auto_update}
+              onCheckedChange={(checked) => update({ auto_update: checked })}
+            />
+          </div>
+
           {/* HUD Position */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">

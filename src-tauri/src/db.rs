@@ -46,6 +46,13 @@ pub struct Settings {
     /// Per-app cleanup instructions, matched against the frontmost app name.
     #[serde(default)]
     pub app_profiles: Vec<AppProfile>,
+    /// Check GitHub releases for updates on launch.
+    #[serde(default = "default_auto_update")]
+    pub auto_update: bool,
+}
+
+fn default_auto_update() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -81,6 +88,7 @@ impl Default for Settings {
             push_to_talk: false,
             diarize_meetings: false,
             app_profiles: Vec::new(),
+            auto_update: true,
         }
     }
 }

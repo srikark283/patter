@@ -36,10 +36,40 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_nspanel::init())
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            // Background update check: download quietly, apply on restart.
+            // Updater downloads skip Gatekeeper quarantine (not browser-fetched),
+            // so this works without notarization.
+            let update_handle = app.handle().clone();
+            let check_updates = move || {
+                tauri::async_runtime::spawn(async move {
+                    use tauri::Emitter;
+                    use tauri_plugin_updater::UpdaterExt;
+                    let updater = match update_handle.updater() {
+                        Ok(u) => u,
+                        Err(e) => return eprintln!("[update] updater init failed: {}", e),
+                    };
+                    match updater.check().await {
+                        Ok(Some(update)) => {
+                            println!("[update] v{} available, downloading", update.version);
+                            match update.download_and_install(|_, _| {}, || {}).await {
+                                Ok(()) => {
+                                    let _ = update_handle
+                                        .emit("patter://update_ready", update.version.clone());
+                                }
+                                Err(e) => eprintln!("[update] install failed: {}", e),
+                            }
+                        }
+                        Ok(None) => println!("[update] up to date"),
+                        Err(e) => eprintln!("[update] check failed: {}", e),
+                    }
+                });
+            };
 
             let model_manager = models::registry::ModelManager::new(app.handle())?;
             let db_instance = db::Db::new(app.handle());
@@ -91,6 +121,7 @@ fn main() {
 
             let hotkey_str = settings.hotkey.clone();
             let hud_position_str = settings.hud_position.clone();
+            let auto_update = settings.auto_update;
 
             let app_state = AppState {
                 captured: Arc::new(Mutex::new(Vec::new())),
@@ -157,6 +188,10 @@ fn main() {
             // the small pill. CSS-only glass (bg-graphite + backdrop-blur) instead.
             panel.show();
 
+            if auto_update {
+                check_updates();
+            }
+
             Ok(())
         })
         .plugin(
@@ -208,7 +243,8 @@ fn main() {
             commands::get_meetings,
             commands::delete_meeting,
             commands::accessibility_trusted,
-            commands::open_accessibility_settings
+            commands::open_accessibility_settings,
+            commands::restart_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
