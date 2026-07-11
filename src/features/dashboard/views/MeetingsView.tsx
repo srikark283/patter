@@ -12,6 +12,7 @@ import {
   Gavel,
   ScrollText,
   AlignLeft,
+  ClipboardCopy,
 } from "lucide-react";
 import { MeetingRecord } from "../../../types";
 import {
@@ -48,6 +49,16 @@ function formatDate(ms: number) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function toMarkdown(m: MeetingRecord): string {
+  const lines = [`# ${m.title}`, "", `${new Date(m.timestamp_ms).toLocaleString()} · ${formatDuration(m.duration_seconds)}`];
+  if (m.summary) lines.push("", "## Summary", "", m.summary);
+  if (m.minutes.length) lines.push("", "## Minutes", "", ...m.minutes.map((x) => `- ${x}`));
+  if (m.decisions.length) lines.push("", "## Decisions", "", ...m.decisions.map((x) => `- ${x}`));
+  if (m.action_items.length) lines.push("", "## Action Items", "", ...m.action_items.map((x) => `- [ ] ${x}`));
+  lines.push("", "## Transcript", "", m.transcript);
+  return lines.join("\n");
 }
 
 function Section({ icon: Icon, title, children }: { icon: typeof ListChecks; title: string; children: React.ReactNode }) {
@@ -244,7 +255,18 @@ export function MeetingsView() {
                       {m.transcript}
                     </p>
                   </Section>
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground"
+                      onClick={() => {
+                        navigator.clipboard.writeText(toMarkdown(m));
+                        toast.success("Meeting copied as Markdown");
+                      }}
+                    >
+                      <ClipboardCopy size={14} /> Copy as Markdown
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

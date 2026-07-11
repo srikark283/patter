@@ -181,6 +181,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             audio
         };
 
+        let transcribe_started = std::time::Instant::now();
         let text = {
             let mut lock = engine_arc.lock().unwrap();
             if let Some(engine) = lock.as_mut() {
@@ -199,6 +200,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                 return;
             }
         };
+        let transcribe_ms = transcribe_started.elapsed().as_millis() as u32;
 
         println!("Transcript: {}", text);
         if text.is_empty() {
@@ -240,6 +242,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             text: text.clone(),
             duration_seconds,
             words: word_count as u32,
+            transcribe_ms,
         });
         let _ = app_handle.emit("patter://db_updated", ());
 

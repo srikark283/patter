@@ -10,6 +10,7 @@ export interface TranscriptionRecord {
   text: string;
   duration_seconds: number;
   words: number;
+  transcribe_ms: number;
 }
 
 export interface MeetingRecord {

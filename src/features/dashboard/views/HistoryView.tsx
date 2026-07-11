@@ -235,10 +235,18 @@ export function HistoryView({ history, setHistory }: Props) {
                       </div>
 
                       {/* Right Actions/Stats */}
-                      <div className="flex shrink-0 items-start justify-end w-12">
-                        <span className="font-sans text-[10px] text-muted-foreground tabular-nums pt-[2px]">
+                      <div className="flex shrink-0 flex-col items-end w-16 pt-[2px]">
+                        <span className="font-sans text-[10px] text-muted-foreground tabular-nums">
                           {record.duration_seconds.toFixed(1)}s
                         </span>
+                        {record.transcribe_ms > 0 && (
+                          <span
+                            className="font-sans text-[10px] text-steelIce/60 tabular-nums"
+                            title="Transcription time"
+                          >
+                            ⚡{(record.transcribe_ms / 1000).toFixed(1)}s
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}

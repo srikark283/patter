@@ -91,6 +91,9 @@ pub struct TranscriptionRecord {
     pub text: String,
     pub duration_seconds: f32,
     pub words: u32,
+    /// Engine inference time; 0 for records predating this field.
+    #[serde(default)]
+    pub transcribe_ms: u32,
 }
 
 pub struct Db {

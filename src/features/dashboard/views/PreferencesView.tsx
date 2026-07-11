@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2, MessagesSquare, AudioWaveform } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2, MessagesSquare, AudioWaveform, ShieldCheck } from "lucide-react";
 import { getSettings, updateSettings, getMicrophones, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Switch } from "@/components/ui/switch";
@@ -400,6 +400,25 @@ export function PreferencesView() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <span className="t-label block px-1 pb-1">Privacy</span>
+        <div className="bg-card ring-1 ring-border rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 shrink-0 rounded-full bg-emerald-500/10 flex items-center justify-center">
+              <ShieldCheck size={14} className="text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-foreground/90">Everything stays on your Mac</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                Audio is captured, transcribed, and cleaned up entirely on-device. Whisper and Parakeet
+                run locally; Ollama runs on localhost. Nothing is ever uploaded — the only network
+                traffic Patter makes is downloading models you explicitly request.
+              </p>
+            </div>
           </div>
         </div>
       </section>
