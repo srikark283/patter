@@ -91,12 +91,21 @@ pub fn cleanup(model: &str, text: &str) -> Result<String, String> {
             "model": model,
             "prompt": prompt,
             "stream": false,
+            // Thinking models (qwen3, deepseek-r1) put output in `thinking`
+            // and leave `response` empty unless thinking is disabled.
+            "think": false,
         }))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?
         .json()
         .map_err(|e| format!("Bad response from Ollama: {}", e))?;
     let cleaned = resp.response.trim().to_string();
+    println!(
+        "[cleanup] model={} in_chars={} out_chars={}",
+        model,
+        text.len(),
+        cleaned.len()
+    );
     if cleaned.is_empty() {
         return Err("Ollama returned empty text".to_string());
     }
@@ -131,6 +140,11 @@ pub fn summarize_meeting(model: &str, transcript: &str) -> Result<MeetingAnalysi
          Transcript:\n{}",
         transcript
     );
+    println!(
+        "[meeting] summarizing with model={} transcript_chars={}",
+        model,
+        transcript.len()
+    );
     let resp: GenerateResponse = reqwest::blocking::Client::new()
         .post(format!("{}/api/generate", OLLAMA_URL))
         .timeout(Duration::from_secs(300))
@@ -139,11 +153,24 @@ pub fn summarize_meeting(model: &str, transcript: &str) -> Result<MeetingAnalysi
             "prompt": prompt,
             "stream": false,
             "format": "json",
+            "think": false,
         }))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?
         .json()
         .map_err(|e| format!("Bad response from Ollama: {}", e))?;
-    serde_json::from_str(&resp.response)
-        .map_err(|e| format!("Ollama returned malformed analysis: {}", e))
+    let raw = resp.response.trim();
+    let snippet: String = raw.chars().take(300).collect();
+    println!(
+        "[meeting] ollama raw response ({} chars): {}",
+        raw.len(),
+        snippet
+    );
+    serde_json::from_str(raw).map_err(|e| {
+        format!(
+            "Ollama returned malformed analysis ({}): {:?}",
+            e,
+            raw.chars().take(120).collect::<String>()
+        )
+    })
 }
