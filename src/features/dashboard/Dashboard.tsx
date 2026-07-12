@@ -27,7 +27,7 @@ import { DictionaryView } from "./views/DictionaryView";
 import { ModelsView, ALL_MODEL_IDS, MODEL_NAMES } from "./views/ModelsView";
 import { AIView } from "./views/AIView";
 import { PreferencesView } from "./views/PreferencesView";
-import icon from "@/assets/loghq.png";
+import icon from "@/assets/logohq.png";
 import {
   SidebarProvider,
   Sidebar,
