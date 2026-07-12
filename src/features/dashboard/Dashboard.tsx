@@ -27,7 +27,7 @@ import { DictionaryView } from "./views/DictionaryView";
 import { ModelsView, ALL_MODEL_IDS, MODEL_NAMES } from "./views/ModelsView";
 import { AIView } from "./views/AIView";
 import { PreferencesView } from "./views/PreferencesView";
-import icon from "@/assets/icon.png";
+import icon from "@/assets/loghq.png";
 import {
   SidebarProvider,
   Sidebar,
@@ -148,7 +148,7 @@ export default function Dashboard() {
 
           <SidebarHeader>
             <div className="flex items-center gap-1 px-3 pb-4 pt-2">
-              <img src={icon} alt="Patter Logo" className="w-9 h-9 pointer-events-none" />
+              <img src={icon} alt="Patter Logo" className="w-9 h-9 rounded-md pointer-events-none" />
 
               <div className="leading-none pointer-events-none">
                 <h1 className="text-[24px] font-semibold tracking-[1px] font-['Nave']">Patter</h1>

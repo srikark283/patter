@@ -212,6 +212,11 @@ pub fn get_active_engine(app: tauri::AppHandle) -> Option<String> {
 
 #[tauri::command]
 pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
+    // Menubar app normally hides from the Dock; show while the dashboard is
+    // open (reverted on window destroy in main.rs).
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+
     if app.get_webview_window("dashboard").is_none() {
         let window = tauri::WebviewWindowBuilder::new(&app, "dashboard", WebviewUrl::App("dashboard.html".into()))
             .title("Patter Dashboard")

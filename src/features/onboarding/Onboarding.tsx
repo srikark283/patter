@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import icon from "@/assets/icon.png";
+import icon from "@/assets/loghq.png";
 
 const RECOMMENDED_MODEL = "whisper-base";
 const RECOMMENDED_MODEL_NAME = "Whisper Base";
