@@ -1,7 +1,7 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Brain, Monitor, Volume2, MessagesSquare, AudioWaveform, ShieldCheck, Trash2 } from "lucide-react";
-import { getSettings, updateSettings, getMicrophones, listOllamaModels, checkUpdate, Settings } from "../../../lib/ipc";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Monitor, Volume2, AudioWaveform, ShieldCheck } from "lucide-react";
+import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { PageHeader } from "../components/PageHeader";
@@ -33,7 +33,6 @@ const MODES = [
 export function PreferencesView() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mics, setMics] = useState<string[]>([]);
-  const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
   const [recordingHotkey, setRecordingHotkey] = useState(false);
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -41,7 +40,6 @@ export function PreferencesView() {
   useEffect(() => {
     getSettings().then(setSettings).catch(console.error);
     getMicrophones().then(setMics).catch(console.error);
-    listOllamaModels().then(setOllamaModels).catch(() => setOllamaModels(null));
     getVersion().then(setAppVersion).catch(console.error);
   }, []);
 
@@ -378,148 +376,6 @@ export function PreferencesView() {
               onCheckedChange={(checked) => update({ trim_silence: checked })}
             />
           </div>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <span className="t-label block px-1 pb-1">AI Cleanup</span>
-
-        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-white/5">
-          {/* Enable Toggle */}
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Sparkles size={14} className="text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-foreground/90">Semantic Cleanup</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Polish transcripts with a local Ollama model — fixes grammar, removes filler words
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.llm_cleanup_enabled}
-              onCheckedChange={(checked) => update({ llm_cleanup_enabled: checked })}
-            />
-          </div>
-
-          {/* Model Selection */}
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Brain size={14} className="text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-foreground/90">Ollama Model</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {ollamaModels === null
-                    ? "Ollama not running — start it to list models"
-                    : ollamaModels.length === 0
-                    ? "No models downloaded — run `ollama pull <model>`"
-                    : "Locally downloaded models"}
-                </p>
-              </div>
-            </div>
-            <Select
-              value={settings.ollama_model ?? "none"}
-              disabled={!ollamaModels?.length}
-              onValueChange={(val) => update({ ollama_model: val === "none" ? null : val })}
-            >
-              <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Select a model</SelectItem>
-                {(ollamaModels ?? []).map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Meeting Model Selection */}
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <MessagesSquare size={14} className="text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-foreground/90">Meeting Notes Model</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Model used to generate meeting minutes and summaries
-                </p>
-              </div>
-            </div>
-            <Select
-              value={settings.meeting_ollama_model ?? "same"}
-              disabled={!ollamaModels?.length}
-              onValueChange={(val) => update({ meeting_ollama_model: val === "same" ? null : val })}
-            >
-              <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
-                <SelectValue placeholder="Same as cleanup model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="same">Same as cleanup model</SelectItem>
-                {(ollamaModels ?? []).map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <span className="t-label block px-1 pb-1">App Profiles</span>
-        <div className="bg-card ring-1 ring-border rounded-xl p-4 space-y-3">
-          <p className="text-[11px] text-muted-foreground">
-            Extra cleanup instruction when dictating into a matching app (name substring, e.g.
-            "slack"). {!settings.llm_cleanup_enabled && "Requires LLM cleanup to be enabled."}
-          </p>
-          {settings.app_profiles.map((profile, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                value={profile.app}
-                placeholder="App name"
-                onChange={(e) => {
-                  const next = settings.app_profiles.map((p, j) =>
-                    j === i ? { ...p, app: e.target.value } : p
-                  );
-                  update({ app_profiles: next });
-                }}
-                className="w-32 bg-background border border-white/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
-              />
-              <input
-                value={profile.prompt}
-                placeholder='Instruction, e.g. "casual tone, no punctuation fixes"'
-                onChange={(e) => {
-                  const next = settings.app_profiles.map((p, j) =>
-                    j === i ? { ...p, prompt: e.target.value } : p
-                  );
-                  update({ app_profiles: next });
-                }}
-                className="flex-1 bg-background border border-white/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
-              />
-              <button
-                onClick={() =>
-                  update({ app_profiles: settings.app_profiles.filter((_, j) => j !== i) })
-                }
-                className="text-muted-foreground hover:text-red-400 transition-colors p-1"
-                title="Remove profile"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={() =>
-              update({ app_profiles: [...settings.app_profiles, { app: "", prompt: "" }] })
-            }
-            className="text-[12px] text-steelIce/80 hover:text-steelIce transition-colors"
-          >
-            + Add profile
-          </button>
         </div>
       </section>
 

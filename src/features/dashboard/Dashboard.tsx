@@ -5,6 +5,7 @@ import {
   CaseSensitive as DictionaryIcon,
   Cog as SettingsIcon,
   BrainCircuit as ModelsIcon,
+  Sparkles as AIIcon,
   // UsersRound as MeetingsIcon,
 } from "lucide-react";
 import { 
@@ -24,6 +25,7 @@ import { MeetingsView } from "./views/MeetingsView";
 import { HistoryView } from "./views/HistoryView";
 import { DictionaryView } from "./views/DictionaryView";
 import { ModelsView, ALL_MODEL_IDS, MODEL_NAMES } from "./views/ModelsView";
+import { AIView } from "./views/AIView";
 import { PreferencesView } from "./views/PreferencesView";
 import icon from "@/assets/icon.png";
 import {
@@ -121,6 +123,7 @@ export default function Dashboard() {
     { id: "history", label: "History", icon: HistoryIcon },
     { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
     { id: "models", label: "Models", icon: ModelsIcon },
+    { id: "ai", label: "AI", icon: AIIcon },
     { id: "preferences", label: "Settings", icon: SettingsIcon },
   ];
 
@@ -226,6 +229,7 @@ export default function Dashboard() {
               onModelDeleted={refreshModelStatus}
             />
           )}
+          {activeTab === "ai" && <AIView />}
           {activeTab === "preferences" && <PreferencesView />}
         </div>
       </main>
