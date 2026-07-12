@@ -13,6 +13,7 @@
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@heroicons/react": "^2.2.0",
+    "@phosphor-icons/react": "^2.1.10",
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-opener": "^2",
     "class-variance-authority": "^0.7.1",

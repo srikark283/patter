@@ -1,6 +1,7 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Sparkles, Monitor, Volume2, AudioWaveform, ShieldCheck } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck } from "lucide-react";
+import { PackageIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
@@ -232,7 +233,7 @@ export function PreferencesView() {
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-fuchsia-500/10 flex items-center justify-center">
-                <Sparkles size={14} className="text-fuchsia-400" />
+                <PackageIcon size={14} className="text-fuchsia-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Updates</p>

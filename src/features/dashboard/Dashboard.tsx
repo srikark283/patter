@@ -1,17 +1,26 @@
 import { useState, useEffect } from "react";
 import {
   // LayoutDashboard as HomeIcon,
-  ScrollText as HistoryIcon,
+  // ScrollText as HistoryIcon,
   CaseSensitive as DictionaryIcon,
   Cog as SettingsIcon,
-  BrainCircuit as ModelsIcon,
-  Sparkles as AIIcon,
+  // BrainCircuit as ModelsIcon,
+  // Sparkles as AIIcon,
   // UsersRound as MeetingsIcon,
 } from "lucide-react";
 import { 
   HomeIcon as HomeIcon,
-  UsersIcon as MeetingsIcon 
-} from '@heroicons/react/24/solid'
+  UsersIcon as MeetingsIcon,
+  // SparklesIcon as AIIcon
+} from '@heroicons/react/24/outline'
+
+import {
+  WaveformIcon as ModelsIcon, 
+  SparkleIcon as AIIcon,
+  ClockCounterClockwiseIcon as HistoryIcon,
+} from '@phosphor-icons/react'
+
+
 
 import { AppStats, TranscriptionRecord } from "../../types";
 import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate } from "../../lib/ipc";
@@ -122,7 +131,7 @@ export default function Dashboard() {
     { id: "meetings", label: "Meetings", icon: MeetingsIcon },
     { id: "history", label: "History", icon: HistoryIcon },
     { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
-    { id: "models", label: "Models", icon: ModelsIcon },
+    { id: "models", label: "Speech Models", icon: ModelsIcon },
     { id: "ai", label: "Intelligence", icon: AIIcon },
     { id: "preferences", label: "Preferences", icon: SettingsIcon },
   ];

@@ -13,8 +13,9 @@ import {
   ScrollText,
   AlignLeft,
   ClipboardCopy,
-  Users,
+  User,
 } from "lucide-react";
+import { UsersIcon } from '@heroicons/react/24/outline'
 import { MeetingRecord } from "../../../types";
 import {
   getMeetings,
@@ -228,7 +229,7 @@ export function MeetingsView() {
       <div className="flex items-center justify-between bg-card ring-1 ring-border rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
-            <Users size={14} className="text-indigo-400" />
+            <User size={14} className="text-indigo-400" />
           </div>
           <div>
             <p className="text-[13px] font-medium text-foreground/90">Speaker labels</p>
@@ -247,7 +248,7 @@ export function MeetingsView() {
       {meetings !== null && meetings.length === 0 && state === "idle" && !processing && (
         <Card className="flex flex-col items-center justify-center py-20 px-4 text-center border-dashed bg-white/[0.01]">
           <div className="w-12 h-12 rounded-xl bg-white/[0.04] ring-1 ring-border flex items-center justify-center mb-4">
-            <MessagesSquare className="text-muted-foreground" size={24} />
+            <UsersIcon className="w-7 h-7 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-medium text-foreground">No meetings yet</h3>
           <p className="text-sm text-muted-foreground mt-2 max-w-[320px]">
