@@ -32,6 +32,7 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     }
     state.is_meeting_recording.store(true, Ordering::SeqCst);
     let _ = app.emit("patter://meeting_state", "recording");
+    crate::tray::refresh(app);
     Ok(())
 }
 
@@ -43,6 +44,7 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     }
     state.is_meeting_recording.store(false, Ordering::SeqCst);
     let _ = state.audio_tx.send(AudioCommand::Stop);
+    crate::tray::refresh(app);
 
     let raw = std::mem::take(&mut *state.meeting_captured.lock().unwrap());
     if raw.is_empty() {

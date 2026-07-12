@@ -1,7 +1,10 @@
 use std::sync::atomic::Ordering;
 
-use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Manager, Wry};
+use tauri::menu::{
+    CheckMenuItem, IconMenuItem, IsMenuItem, Menu, MenuItem, NativeIcon, PredefinedMenuItem,
+    Submenu,
+};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::state::AppState;
 use crate::{commands, db, paste};
@@ -35,41 +38,44 @@ fn truncate_label(text: &str) -> String {
 pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let state = app.state::<AppState>();
     let paused = state.is_paused.load(Ordering::SeqCst);
+    let meeting_active = state.is_meeting_recording.load(Ordering::SeqCst);
     let active_engine = state.active_engine_id.lock().unwrap().clone();
+    let selected_mic = state.settings.lock().unwrap().microphone.clone();
     let downloaded = state.model_manager.downloaded_ids();
+    let history = db::Db::new(app).get_history();
 
     let mut items: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
 
-    items.push(Box::new(CheckMenuItem::with_id(
+    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
         app,
-        "pause",
-        "Pause Dictation",
+        "meeting",
+        if meeting_active { "Stop Meeting Notes" } else { "Start Meeting Notes" },
         true,
-        paused,
+        Some(NativeIcon::UserGroup),
         None::<&str>,
     )?));
+
+    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+        app,
+        "copy-last",
+        "Copy Last Transcription",
+        !history.is_empty(),
+        Some(NativeIcon::MultipleDocuments),
+        None::<&str>,
+    )?));
+
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
 
-    let history = db::Db::new(app).get_history();
-    if !history.is_empty() {
-        items.push(Box::new(MenuItem::with_id(
-            app,
-            "recent-header",
-            "Recent (click to copy)",
-            false,
-            None::<&str>,
-        )?));
-        for record in history.iter().take(3) {
-            items.push(Box::new(MenuItem::with_id(
-                app,
-                format!("recent:{}", record.id),
-                truncate_label(&record.text),
-                true,
-                None::<&str>,
-            )?));
-        }
-        items.push(Box::new(PredefinedMenuItem::separator(app)?));
-    }
+    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+        app,
+        "pause",
+        if paused { "Resume Dictation" } else { "Pause Dictation" },
+        true,
+        Some(if paused { NativeIcon::StatusUnavailable } else { NativeIcon::StatusAvailable }),
+        None::<&str>,
+    )?));
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
 
     if !downloaded.is_empty() {
         let model_items: Vec<CheckMenuItem<Wry>> = downloaded
@@ -85,31 +91,101 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
                 )
             })
             .collect::<Result<_, _>>()?;
-        let model_refs: Vec<&dyn IsMenuItem<Wry>> =
+        let refs: Vec<&dyn IsMenuItem<Wry>> =
             model_items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
+        items.push(Box::new(Submenu::with_items(app, "Speech Model", true, &refs)?));
+    }
+
+    if let Ok(mics) = commands::get_microphones() {
+        let mut mic_items: Vec<CheckMenuItem<Wry>> = vec![CheckMenuItem::with_id(
+            app,
+            "mic:",
+            "System Default",
+            true,
+            selected_mic.is_none(),
+            None::<&str>,
+        )?];
+        for mic in &mics {
+            mic_items.push(CheckMenuItem::with_id(
+                app,
+                format!("mic:{}", mic),
+                mic,
+                true,
+                selected_mic.as_deref() == Some(mic),
+                None::<&str>,
+            )?);
+        }
+        let refs: Vec<&dyn IsMenuItem<Wry>> =
+            mic_items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
+        items.push(Box::new(Submenu::with_items(app, "Microphone", true, &refs)?));
+    }
+
+    if !history.is_empty() {
+        let recent_items: Vec<MenuItem<Wry>> = history
+            .iter()
+            .take(3)
+            .map(|r| {
+                MenuItem::with_id(
+                    app,
+                    format!("recent:{}", r.id),
+                    truncate_label(&r.text),
+                    true,
+                    None::<&str>,
+                )
+            })
+            .collect::<Result<_, _>>()?;
+        let refs: Vec<&dyn IsMenuItem<Wry>> =
+            recent_items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
         items.push(Box::new(Submenu::with_items(
             app,
-            "Model",
+            "Recent Transcriptions",
             true,
-            &model_refs,
+            &refs,
         )?));
-        items.push(Box::new(PredefinedMenuItem::separator(app)?));
     }
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+
+    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+        app,
+        "nav:preferences",
+        "Settings…",
+        true,
+        Some(NativeIcon::PreferencesGeneral),
+        None::<&str>,
+    )?));
+    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+        app,
+        "nav:history",
+        "History",
+        true,
+        Some(NativeIcon::ListView),
+        None::<&str>,
+    )?));
+    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+        app,
+        "nav:meetings",
+        "Meetings",
+        true,
+        Some(NativeIcon::Bookmarks),
+        None::<&str>,
+    )?));
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
 
     items.push(Box::new(MenuItem::with_id(
         app,
-        "dashboard",
-        "Dashboard",
+        "quit",
+        "Quit Patter",
         true,
-        None::<&str>,
+        Some("CmdOrCtrl+Q"),
     )?));
-    items.push(Box::new(MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?));
 
     let item_refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|i| i.as_ref()).collect();
     Menu::with_items(app, &item_refs)
 }
 
-/// Rebuild the tray menu to reflect current history/model/pause state.
+/// Rebuild the tray menu to reflect current history/model/pause/meeting state.
 pub fn refresh(app: &AppHandle) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         match build_menu(app) {
@@ -121,12 +197,46 @@ pub fn refresh(app: &AppHandle) {
     }
 }
 
+/// Open the dashboard and switch it to `tab` (fire-and-forget; the delay
+/// gives a freshly created window time to mount its event listener).
+fn open_dashboard_tab(app: &AppHandle, tab: &str) {
+    let existed = app.get_webview_window("dashboard").is_some();
+    if commands::open_dashboard(app.clone()).is_err() {
+        return;
+    }
+    let app = app.clone();
+    let tab = tab.to_string();
+    std::thread::spawn(move || {
+        if !existed {
+            std::thread::sleep(std::time::Duration::from_millis(600));
+        }
+        let _ = app.emit("patter://navigate", tab);
+    });
+}
+
 pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     let id = event.id.as_ref();
     match id {
         "quit" => std::process::exit(0),
-        "dashboard" => {
-            let _ = commands::open_dashboard(app.clone());
+        "meeting" => {
+            let active = app
+                .state::<AppState>()
+                .is_meeting_recording
+                .load(Ordering::SeqCst);
+            let result = if active {
+                crate::meeting::stop_meeting(app)
+            } else {
+                crate::meeting::start_meeting(app)
+            };
+            if let Err(e) = result {
+                eprintln!("[tray] meeting toggle failed: {}", e);
+            }
+            refresh(app);
+        }
+        "copy-last" => {
+            if let Some(record) = db::Db::new(app).get_history().first() {
+                paste::copy_text(&record.text);
+            }
         }
         "pause" => {
             let state = app.state::<AppState>();
@@ -135,7 +245,9 @@ pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             refresh(app);
         }
         _ => {
-            if let Some(record_id) = id.strip_prefix("recent:") {
+            if let Some(tab) = id.strip_prefix("nav:") {
+                open_dashboard_tab(app, tab);
+            } else if let Some(record_id) = id.strip_prefix("recent:") {
                 let history = db::Db::new(app).get_history();
                 if let Some(record) = history.iter().find(|r| r.id == record_id) {
                     paste::copy_text(&record.text);
@@ -144,6 +256,13 @@ pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 if let Err(e) = commands::set_engine(app.clone(), model_id.to_string()) {
                     eprintln!("[tray] failed to switch model: {}", e);
                 }
+            } else if let Some(mic) = id.strip_prefix("mic:") {
+                let state = app.state::<AppState>();
+                let mut settings = state.settings.lock().unwrap();
+                settings.microphone = if mic.is_empty() { None } else { Some(mic.to_string()) };
+                db::Db::new(app).save_settings(&settings);
+                drop(settings);
+                refresh(app);
             }
         }
     }

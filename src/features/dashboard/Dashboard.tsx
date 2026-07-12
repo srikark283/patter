@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/solid'
 
 import { AppStats, TranscriptionRecord } from "../../types";
-import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable } from "../../lib/ipc";
+import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate } from "../../lib/ipc";
 import { promptUpdateInstall } from "../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { toast } from "sonner";
@@ -92,6 +92,7 @@ export default function Dashboard() {
     const unlistenAx = onAccessibilityMissing(warnAccessibility);
 
     const unlistenUpdate = onUpdateAvailable(promptUpdateInstall);
+    const unlistenNav = onNavigate(setActiveTab);
 
     const unlistenProgress = onDownloadProgress((id, pct) => {
       setDownloadProgress(pct);
@@ -110,6 +111,7 @@ export default function Dashboard() {
       unlistenDb.then((f) => f());
       unlistenAx.then((f) => f());
       unlistenUpdate.then((f) => f());
+      unlistenNav.then((f) => f());
     };
   }, []);
 

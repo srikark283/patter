@@ -142,6 +142,10 @@ export function onAccessibilityMissing(callback: () => void) {
   return listen("patter://accessibility_missing", () => callback());
 }
 
+export function onNavigate(callback: (tab: string) => void) {
+  return listen<string>("patter://navigate", (event) => callback(event.payload));
+}
+
 export function onUpdateAvailable(callback: (version: string) => void) {
   return listen<string>("patter://update_available", (event) => callback(event.payload));
 }
