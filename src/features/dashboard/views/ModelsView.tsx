@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, Download, Loader2, Trash2 } from "lucide-react";
+import { Check, Download, Loader2, Trash2, Globe, Type } from "lucide-react";
 import { downloadModel, setEngine, deleteModel } from "../../../lib/ipc";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
 
@@ -13,48 +12,34 @@ import nvidiaLogo from "@/assets/nvidia-logo.png";
 
 interface ModelSpec {
   id: string;
+  /** Short card title ("Small") */
   name: string;
+  /** Full name for sidebar/status ("Whisper Small") */
+  fullName: string;
   size: string;
+  vendor: "openai" | "nvidia";
+  multilingual: boolean;
   description: string;
 }
 
-interface EngineFamily {
-  id: string;
-  name: string;
-  vendor: string;
-  icon?: React.ReactNode;
-  models: ModelSpec[];
-}
-
-const FAMILIES: EngineFamily[] = [
-  {
-    id: "whisper",
-    name: "Whisper",
-    vendor: "OpenAI",
-    icon: <img src={openaiLogo} alt="OpenAI" className="w-5" />,
-    models: [
-      { id: "whisper-tiny", name: "Tiny", size: "78 MB", description: "Fastest, lowest accuracy — quick notes" },
-      { id: "whisper-base", name: "Base", size: "148 MB", description: "Balanced speed and accuracy" },
-      { id: "whisper-small", name: "Small", size: "488 MB", description: "More accurate, slower" },
-      { id: "whisper-large-v3-turbo", name: "Large v3 Turbo", size: "1.6 GB", description: "Best quality, needs Metal GPU" },
-    ],
-  },
-  {
-    id: "parakeet",
-    name: "Parakeet",
-    vendor: "Nvidia",
-    icon: <img src={nvidiaLogo} alt="Nvidia" className="w-16"/>,
-    models: [
-      { id: "parakeet-v2", name: "TDT 0.6B v2", size: "660 MB", description: "English only — fastest streaming" },
-      { id: "parakeet-v3", name: "TDT 0.6B v3", size: "670 MB", description: "25 languages" },
-    ],
-  },
+const MODELS: ModelSpec[] = [
+  { id: "whisper-tiny", name: "Tiny", fullName: "Whisper Tiny", size: "78 MB", vendor: "openai", multilingual: false, description: "Fastest, lowest accuracy — quick notes" },
+  { id: "whisper-base", name: "Base", fullName: "Whisper Base", size: "148 MB", vendor: "openai", multilingual: false, description: "Balanced speed and accuracy" },
+  { id: "whisper-small", name: "Small", fullName: "Whisper Small", size: "488 MB", vendor: "openai", multilingual: false, description: "More accurate, slower" },
+  { id: "parakeet-v2", name: "Parakeet V2", fullName: "Parakeet TDT 0.6B v2", size: "660 MB", vendor: "nvidia", multilingual: false, description: "English only — fastest streaming" },
+  { id: "whisper-large-v3-turbo", name: "Large v3 Turbo", fullName: "Whisper Large v3 Turbo", size: "1.6 GB", vendor: "openai", multilingual: true, description: "Best quality, needs Metal GPU" },
+  { id: "parakeet-v3", name: "Parakeet V3", fullName: "Parakeet TDT 0.6B v3", size: "670 MB", vendor: "nvidia", multilingual: true, description: "25 languages" },
 ];
 
-export const ALL_MODEL_IDS = FAMILIES.flatMap((f) => f.models.map((m) => m.id));
+const VENDOR_LOGOS: Record<ModelSpec["vendor"], string> = {
+  openai: openaiLogo,
+  nvidia: nvidiaLogo,
+};
+
+export const ALL_MODEL_IDS = MODELS.map((m) => m.id);
 
 export const MODEL_NAMES: Record<string, string> = Object.fromEntries(
-  FAMILIES.flatMap((f) => f.models.map((m) => [m.id, `${f.name} ${m.name}`]))
+  MODELS.map((m) => [m.id, m.fullName])
 );
 
 interface Props {
@@ -123,134 +108,135 @@ export function ModelsView({
     }
   };
 
+  const renderCard = (model: ModelSpec) => {
+    const isDownloaded = modelStatus[model.id] ?? false;
+    const isActive = activeEngine === model.id;
+    const isDownloading = downloadingId === model.id;
+    const isSettingActive = settingEngineId === model.id;
+    const isDeleting = deletingId === model.id;
+    const clickable = !isActive && !isDownloading && !isSettingActive && !isDeleting;
+
+    return (
+      <div
+        key={model.id}
+        role="button"
+        title={model.description}
+        onClick={() => {
+          if (!clickable) return;
+          if (isDownloaded) handleSetEngine(model.id, model.fullName);
+          else handleDownload(model.id, model.fullName);
+        }}
+        className={cn(
+          "group relative flex items-center gap-3 p-3.5 rounded-xl ring-1 transition-all duration-200",
+          isActive
+            ? "bg-steel/[0.06] ring-steel/40 shadow-[0_0_20px_rgba(91,155,209,0.08)]"
+            : "bg-card ring-border",
+          clickable && "cursor-pointer hover:bg-white/[0.04] hover:ring-white/20"
+        )}
+      >
+        <div className="w-9 h-9 shrink-0 rounded-lg bg-white/[0.04] ring-1 ring-white/5 flex items-center justify-center overflow-hidden">
+          <img
+            src={VENDOR_LOGOS[model.vendor]}
+            alt={model.vendor}
+            className={model.vendor === "nvidia" ? "w-7" : "w-5"}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className={cn("text-[13px] font-medium truncate", isActive ? "text-steelIce" : "text-foreground/90")}>
+            {model.name}
+          </p>
+          {isDownloading ? (
+            <div className="mt-1.5 flex items-center gap-2">
+              <Progress value={downloadProgress} className="h-1 flex-1 bg-white/10" />
+              <span className="font-sans text-[10px] text-steelIce tabular-nums shrink-0">
+                {downloadProgress.toFixed(0)}%
+              </span>
+            </div>
+          ) : (
+            <p className="font-sans text-[11px] text-muted-foreground">{model.size}</p>
+          )}
+        </div>
+
+        <div className="shrink-0 flex items-center gap-1.5">
+          {isDownloaded && !isActive && !isDeleting && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(model.id, model.fullName);
+              }}
+              className="opacity-0 group-hover:opacity-100 text-muted-foreground/60 hover:text-destructive transition-all p-1"
+              title="Delete model"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+          {isActive ? (
+            <span className="w-6 h-6 rounded-full bg-success/15 ring-1 ring-success/30 flex items-center justify-center">
+              <Check size={13} strokeWidth={3} className="text-success" />
+            </span>
+          ) : isSettingActive || isDeleting ? (
+            <Loader2 size={15} className="animate-spin text-steelIce" />
+          ) : isDownloaded ? (
+            <span className="text-[11px] text-muted-foreground/60 group-hover:text-steelIce transition-colors">
+              Use
+            </span>
+          ) : !isDownloading ? (
+            <Download size={15} className="text-muted-foreground/50 group-hover:text-steelIce transition-colors" />
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
+  const englishModels = MODELS.filter((m) => !m.multilingual);
+  const multilingualModels = MODELS.filter((m) => m.multilingual);
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <PageHeader
-        title="Models"
-        description="Transcription engines run fully on-device. Download once, use offline."
+        title="Speech Models"
+        description="Everything runs on-device. Download once, use offline."
       />
 
+      <div className="bg-card ring-1 ring-border rounded-xl p-5">
+        <h3 className="text-[15px] font-semibold text-foreground/90">
+          Choose your transcription engine.
+        </h3>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          Smaller models are faster. Larger models are more accurate. Click a model to download it,
+          click a downloaded model to make it active.
+        </p>
+      </div>
+
       {modelStatusLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full rounded-2xl bg-white/5" />
-          <Skeleton className="h-32 w-full rounded-2xl bg-white/5" />
-        </div>
-      ) : (
-        <div className="flex flex-col gap-8">
-          {FAMILIES.map((family) => (
-            <section key={family.id} className="space-y-3">
-              {/* Family Header */}
-              <div className="flex items-center gap-2.5 px-2 mb-2">
-                <div className="flex items-center justify-center">
-                  {family.icon}
-                </div>
-                <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/50 ml-1">
-                  -
-                </span>
-                <h3 className="text-[15px] font-semibold tracking-tight text-foreground/90">{family.name}</h3>
-                {/* <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/50 ml-1">
-                  {family.vendor}
-                </span> */}
-              </div>
-              
-              {/* Models List */}
-              <div className="flex flex-col gap-2.5">
-                {family.models.map((model) => {
-                  const isDownloaded = modelStatus[model.id] ?? false;
-                  const isActive = activeEngine === model.id;
-                  const isDownloading = downloadingId === model.id;
-                  const isSettingActive = settingEngineId === model.id;
-                  const isDeleting = deletingId === model.id;
-
-                  return (
-                    <div
-                      key={model.id}
-                      className={cn(
-                        "group relative flex items-center justify-between gap-4 p-4 rounded-2xl border transition-all duration-300",
-                        isActive
-                          ? "bg-steel/[0.04] border-steel/30 shadow-[0_0_30px_rgba(91,155,209,0.06)]"
-                          : "bg-white/[0.015] border-border/40 hover:bg-white/[0.03] hover:border-border/60"
-                      )}
-                    >
-                      {/* Subtle Active Glow Background */}
-                      {isActive && (
-                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-steel/[0.05] to-transparent pointer-events-none" />
-                      )}
-
-                      <div className="relative min-w-0 flex-1">
-                        <div className="flex items-center gap-3 mb-1.5">
-                          <h4 className={cn(
-                            "text-[15px] font-semibold tracking-tight transition-colors", 
-                            isActive ? "text-steelIce drop-shadow-sm" : "text-foreground/90 group-hover:text-foreground"
-                          )}>
-                            {model.name}
-                          </h4>
-                          <span className="font-sans text-[10px] font-medium text-muted-foreground/70 px-2 py-0.5 rounded-md bg-black/20 border border-white/5 shadow-inner">
-                            {model.size}
-                          </span>
-                        </div>
-                        <p className="text-[13.5px] text-muted-foreground/70 leading-relaxed max-w-[80%]">
-                          {model.description}
-                        </p>
-                      </div>
-
-                      <div className="relative flex-none flex items-center justify-end min-w-[100px]">
-                        {isActive ? (
-                          <div className="flex items-center gap-1.5 text-[13px] font-medium text-steelIce bg-steel/[0.12] px-3.5 py-1.5 rounded-full ring-1 ring-steel/20 shadow-[0_0_15px_rgba(91,155,209,0.15)] animate-in zoom-in duration-300">
-                            <Check size={14} strokeWidth={3} />
-                            <span>Active</span>
-                          </div>
-                        ) : isDownloaded ? (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleSetEngine(model.id, model.name)}
-                              disabled={isSettingActive || isDeleting}
-                              className="rounded-full opacity-60 group-hover:opacity-100 focus:opacity-100"
-                            >
-                              {isSettingActive && <Loader2 size={13} className="animate-spin" />}
-                              Use Model
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handleDelete(model.id, model.name)}
-                              disabled={isDeleting}
-                              className="rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                              title="Delete model"
-                            >
-                              {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                            </Button>
-                          </div>
-                        ) : isDownloading ? (
-                          <div className="flex flex-col items-end gap-1.5 w-32 bg-black/20 p-2.5 rounded-xl border border-white/5">
-                            <div className="flex items-center justify-between w-full">
-                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Downloading</span>
-                              <span className="font-sans text-[11px] text-steelIce font-semibold">
-                                {downloadProgress.toFixed(0)}%
-                              </span>
-                            </div>
-                            <Progress value={downloadProgress} className="h-1.5 bg-white/10" />
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => handleDownload(model.id, model.name)}
-                            className="rounded-full shadow-sm hover:shadow-[0_0_15px_rgba(91,155,209,0.3)] opacity-90 group-hover:opacity-100 scale-95 group-hover:scale-100"
-                          >
-                            <Download size={14} strokeWidth={2.5} />
-                            Download
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+        <div className="grid grid-cols-2 gap-3">
+          {MODELS.map((m) => (
+            <Skeleton key={m.id} className="h-16 w-full rounded-xl bg-white/5" />
           ))}
         </div>
+      ) : (
+        <>
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <Type size={12} className="text-muted-foreground/60" />
+              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/60">
+                English only
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">{englishModels.map(renderCard)}</div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <Globe size={12} className="text-muted-foreground/60" />
+              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/60">
+                Multilingual
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">{multilingualModels.map(renderCard)}</div>
+          </section>
+        </>
       )}
     </div>
   );
