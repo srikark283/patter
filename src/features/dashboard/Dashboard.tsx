@@ -123,8 +123,8 @@ export default function Dashboard() {
     { id: "history", label: "History", icon: HistoryIcon },
     { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
     { id: "models", label: "Models", icon: ModelsIcon },
-    { id: "ai", label: "AI", icon: AIIcon },
-    { id: "preferences", label: "Settings", icon: SettingsIcon },
+    { id: "ai", label: "Intelligence", icon: AIIcon },
+    { id: "preferences", label: "Preferences", icon: SettingsIcon },
   ];
 
   return (

@@ -19,12 +19,14 @@ const MODES = [
   {
     id: "paste",
     icon: Zap,
+    tint: "text-amber-400",
     label: "Instant Paste",
     detail: "Copies to clipboard and simulates Cmd+V — fastest",
   },
   {
     id: "type",
     icon: Keyboard,
+    tint: "text-blue-400",
     label: "Simulate Typing",
     detail: "Injects keystrokes sequentially — best for remote desktop",
   },
@@ -98,12 +100,12 @@ export function PreferencesView() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-      <PageHeader title="Settings" description="Configure Patter's behavior." />
+      <PageHeader title="Preferences" description="Configure Patter's behavior." />
 
       <section>
-        <span className="t-label block px-1 pb-2.5">Output Mode</span>
+        <span className="t-label block px-1 pb-2.5">Output</span>
         <div className="grid grid-cols-2 gap-3">
-          {MODES.map(({ id, icon: Icon, label, detail }) => {
+          {MODES.map(({ id, icon: Icon, tint, label, detail }) => {
             const selected = settings.output_mode === id;
             return (
               <button
@@ -112,8 +114,8 @@ export function PreferencesView() {
                 className={cn(
                   "group relative rounded-xl p-5 text-left ring-1 transition-all duration-150 cursor-pointer",
                   selected
-                    ? "bg-steel/[0.08] ring-steel/40 shadow-[0_0_20px_rgba(91,155,209,0.12)]"
-                    : "bg-card ring-border hover:ring-white/15 hover:bg-white/[0.03]"
+                    ? "bg-steel/8 ring-steel/40 shadow-[0_0_20px_rgba(91,155,209,0.12)]"
+                    : "bg-card ring-border hover:ring-white/15 hover:bg-white/3"
                 )}
               >
                 <span
@@ -125,7 +127,7 @@ export function PreferencesView() {
                 <Icon
                   size={17}
                   strokeWidth={1.8}
-                  className={selected ? "text-steelIce" : "text-muted-foreground"}
+                  className={selected ? tint : "text-muted-foreground"}
                 />
                 <p className={cn("mt-3 text-[13px] font-semibold", selected ? "text-foreground" : "text-foreground/85")}>
                   {label}
@@ -144,8 +146,8 @@ export function PreferencesView() {
           {/* Global Hotkey */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Command size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-violet-500/10 flex items-center justify-center">
+                <Command size={14} className="text-violet-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Global Hotkey</p>
@@ -168,8 +170,8 @@ export function PreferencesView() {
           {/* Push to Talk */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Keyboard size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <Keyboard size={14} className="text-blue-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Push to Talk</p>
@@ -185,8 +187,8 @@ export function PreferencesView() {
           {/* Microphone Selection */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Mic size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center">
+                <Mic size={14} className="text-rose-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Microphone</p>
@@ -212,8 +214,8 @@ export function PreferencesView() {
           {/* Autostart */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Power size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                <Power size={14} className="text-green-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Launch at Login</p>
@@ -229,8 +231,8 @@ export function PreferencesView() {
           {/* Updates */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Sparkles size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-fuchsia-500/10 flex items-center justify-center">
+                <Sparkles size={14} className="text-fuchsia-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Updates</p>
@@ -257,8 +259,8 @@ export function PreferencesView() {
           {/* HUD Position */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Monitor size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                <Monitor size={14} className="text-cyan-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">HUD Position</p>
@@ -282,8 +284,8 @@ export function PreferencesView() {
           {/* UI Sounds */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Volume2 size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+                <Volume2 size={14} className="text-orange-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">UI Sounds</p>
@@ -305,8 +307,8 @@ export function PreferencesView() {
           {/* Language Selection */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Languages size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-sky-500/10 flex items-center justify-center">
+                <Languages size={14} className="text-sky-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Language</p>
@@ -334,8 +336,8 @@ export function PreferencesView() {
           {/* Silence Timeout */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Timer size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <Timer size={14} className="text-amber-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Silence Timeout</p>
@@ -361,8 +363,8 @@ export function PreferencesView() {
           {/* Trim Silence (Silero VAD) */}
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <AudioWaveform size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-teal-500/10 flex items-center justify-center">
+                <AudioWaveform size={14} className="text-teal-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Trim Silence</p>

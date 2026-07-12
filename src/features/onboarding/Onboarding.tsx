@@ -95,6 +95,7 @@ export function Onboarding({
   const steps = [
     {
       icon: ShieldCheck,
+      tint: "bg-emerald-500/10 text-emerald-400",
       title: "Welcome to Patter",
       body: (
         <>
@@ -115,6 +116,7 @@ export function Onboarding({
     },
     {
       icon: Download,
+      tint: "bg-blue-500/10 text-blue-400",
       title: "Get a speech model",
       body: modelReady ? (
         <p>
@@ -158,6 +160,7 @@ export function Onboarding({
     },
     {
       icon: Keyboard,
+      tint: "bg-violet-500/10 text-violet-400",
       title: "Try it",
       body: (
         <>
@@ -213,8 +216,8 @@ export function Onboarding({
 
         <div className="bg-card ring-1 ring-border rounded-xl p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 shrink-0 rounded-full bg-steel/10 flex items-center justify-center">
-              <Icon size={15} className="text-steelIce" />
+            <div className={cn("w-8 h-8 shrink-0 rounded-full flex items-center justify-center", current.tint)}>
+              <Icon size={15} />
             </div>
             <h2 className="text-[16px] font-medium text-foreground/90">{current.title}</h2>
           </div>

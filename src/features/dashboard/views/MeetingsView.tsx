@@ -67,11 +67,11 @@ function toMarkdown(m: MeetingRecord): string {
   return lines.join("\n");
 }
 
-function Section({ icon: Icon, title, children }: { icon: typeof ListChecks; title: string; children: React.ReactNode }) {
+function Section({ icon: Icon, title, tint, children }: { icon: typeof ListChecks; title: string; tint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-        <Icon size={13} /> {title}
+        <Icon size={13} className={tint} /> {title}
       </div>
       {children}
     </div>
@@ -227,8 +227,8 @@ export function MeetingsView() {
 
       <div className="flex items-center justify-between bg-card ring-1 ring-border rounded-xl p-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-            <Users size={14} className="text-muted-foreground" />
+          <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+            <Users size={14} className="text-indigo-400" />
           </div>
           <div>
             <p className="text-[13px] font-medium text-foreground/90">Speaker labels</p>
@@ -285,22 +285,22 @@ export function MeetingsView() {
               {expanded && (
                 <div className="space-y-6 border-t border-border/60 px-5 py-5">
                   {m.summary && (
-                    <Section icon={AlignLeft} title="Summary">
+                    <Section icon={AlignLeft} title="Summary" tint="text-sky-400">
                       <p className="text-[13px] leading-relaxed text-foreground/85">{m.summary}</p>
                     </Section>
                   )}
                   {m.minutes.length > 0 && (
-                    <Section icon={ScrollText} title="Minutes">
+                    <Section icon={ScrollText} title="Minutes" tint="text-violet-400">
                       <BulletList items={m.minutes} />
                     </Section>
                   )}
                   {m.decisions.length > 0 && (
-                    <Section icon={Gavel} title="Decisions">
+                    <Section icon={Gavel} title="Decisions" tint="text-amber-400">
                       <BulletList items={m.decisions} />
                     </Section>
                   )}
                   {m.action_items.length > 0 && (
-                    <Section icon={ListChecks} title="Action Items">
+                    <Section icon={ListChecks} title="Action Items" tint="text-emerald-400">
                       <BulletList items={m.action_items} />
                     </Section>
                   )}

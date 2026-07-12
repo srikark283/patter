@@ -50,7 +50,7 @@ export function AIView() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <PageHeader
-        title="AI"
+        title="Intelligence"
         description="Local LLM features powered by Ollama — cleanup, meeting notes, per-app tone."
       />
 
@@ -71,7 +71,7 @@ export function AIView() {
             </p>
             <p className="text-[11px] text-muted-foreground">
               {ollamaUp
-                ? "Everything below runs on localhost — nothing leaves this Mac."
+                ? "Everything below runs locally — nothing leaves your device."
                 : "Install from ollama.com and pull a model (e.g. `ollama pull qwen2.5:7b`), then retry."}
             </p>
           </div>
@@ -92,8 +92,8 @@ export function AIView() {
         <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-white/5">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Sparkles size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-fuchsia-500/10 flex items-center justify-center">
+                <Sparkles size={14} className="text-fuchsia-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Semantic Cleanup</p>
@@ -110,8 +110,8 @@ export function AIView() {
 
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <Brain size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-violet-500/10 flex items-center justify-center">
+                <Brain size={14} className="text-violet-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Cleanup Model</p>
@@ -149,8 +149,8 @@ export function AIView() {
         <div className="bg-card ring-1 ring-border rounded-xl">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                <MessagesSquare size={14} className="text-muted-foreground" />
+              <div className="w-8 h-8 rounded-full bg-sky-500/10 flex items-center justify-center">
+                <MessagesSquare size={14} className="text-sky-400" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Meeting Notes Model</p>

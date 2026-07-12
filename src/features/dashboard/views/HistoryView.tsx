@@ -241,7 +241,7 @@ export function HistoryView({ history, setHistory }: Props) {
                         </span>
                         {record.transcribe_ms > 0 && (
                           <span
-                            className="font-sans text-[10px] text-steelIce/60 tabular-nums"
+                            className="font-sans text-[10px] text-amber-400/70 tabular-nums"
                             title="Transcription time"
                           >
                             ⚡{(record.transcribe_ms / 1000).toFixed(1)}s
