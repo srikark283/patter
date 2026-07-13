@@ -174,7 +174,9 @@ impl ModelManager {
         let dir = self.models_dir.join(variant.dest_subdir);
         std::fs::create_dir_all(&dir)?;
 
-        let client = Client::new();
+        let client = Client::builder()
+            .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Patter/0.2.1")
+            .build()?;
         let total_bytes: f64 = variant.files.iter().map(|f| f.size as f64).sum();
         let mut overall_downloaded = 0f64;
         let mut last_emitted_pct = -1.0f64;
