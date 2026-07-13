@@ -48,7 +48,7 @@ pub fn trim_silence(model_path: &PathBuf, audio: &[f32]) -> Result<Vec<f32>, Str
         .ok_or("failed to create VAD (bad model file?)")?;
 
     let mut out: Vec<f32> = Vec::new();
-    let mut push_segments = |vad: &VoiceActivityDetector, out: &mut Vec<f32>| {
+    let push_segments = |vad: &VoiceActivityDetector, out: &mut Vec<f32>| {
         while !vad.is_empty() {
             if let Some(seg) = vad.front() {
                 if !out.is_empty() {
