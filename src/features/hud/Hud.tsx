@@ -174,7 +174,14 @@ export default function Hud() {
   return (
     <div className="w-screen h-screen flex items-center justify-center">
       <div key={entryKey} className={`hud-pill ${phase}${leaving ? " leaving" : ""}`}>
-        <div data-tauri-drag-region className="hud-drag-handle">
+        <div 
+          onPointerDown={(e) => {
+            if (e.buttons === 1) {
+              getCurrentWindow().startDragging();
+            }
+          }}
+          className="hud-drag-handle"
+        >
           <span className={`hud-dot ${phase}`} />
           {phase === "recording" && (
             <canvas ref={canvasRef} className="hud-wave-canvas" style={{ width: 96, height: 26 }} />
