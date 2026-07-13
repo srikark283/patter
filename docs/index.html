@@ -159,10 +159,19 @@
 
     <section class="install">
       <h2>Install in a minute</h2>
+      <p style="font-size: 14.5px; color: var(--muted); margin-bottom: 12px;">
+        One command — downloads the latest release and installs it:
+      </p>
+      <p><code>curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh</code></p>
+      <p class="note" style="margin-bottom: 28px;">
+        Then launch from Spotlight. Onboarding walks you through mic access, a speech model, and
+        your hotkey. Updates install themselves in-app afterwards.
+      </p>
+
+      <h2 style="font-size: 17px;">Prefer the DMG?</h2>
       <div class="step"><span class="n">1</span><p><strong>Download the DMG</strong> from the latest release and drag Patter to Applications.</p></div>
-      <div class="step"><span class="n">2</span><p><strong>Clear the quarantine flag</strong> — Patter isn't notarized (indie app, no Apple Developer program), so macOS calls it "damaged" until you run:<br /><code>xattr -cr /Applications/patter.app</code></p></div>
-      <div class="step"><span class="n">3</span><p><strong>Launch.</strong> Onboarding walks you through mic access, a speech model, and your hotkey.</p></div>
-      <p class="note">First install only — updates install themselves in-app afterwards.</p>
+      <div class="step"><span class="n">2</span><p><strong>Clear the quarantine flag</strong> — browser downloads get tagged by macOS, and Patter isn't notarized (indie app, no Apple Developer program), so it reads "damaged" until you run:<br /><code>xattr -cr /Applications/patter.app</code></p></div>
+      <div class="step"><span class="n">3</span><p><strong>Launch.</strong> Same onboarding, same app — the curl route just skips step 2.</p></div>
     </section>
 
     <footer>

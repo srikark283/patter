@@ -6,8 +6,16 @@ Local-first dictation and meeting notes for macOS. Audio is captured, transcribe
 
 Apple Silicon only, macOS 11+.
 
+**One command** (no Gatekeeper friction — curl'd files carry no quarantine flag):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh
+```
+
+**Or the DMG route:**
+
 1. Download the `.dmg` from the [latest release](https://github.com/srikark283/patter/releases/latest) and drag **Patter** to Applications.
-2. Patter isn't notarized (no Apple Developer account), so macOS will claim it's "damaged" on first launch. It isn't — that's the quarantine flag on the download. Clear it:
+2. Patter isn't notarized (no Apple Developer account), so macOS will claim the browser download is "damaged". It isn't — that's the quarantine flag. Clear it:
 
    ```bash
    xattr -cr /Applications/patter.app
@@ -15,7 +23,7 @@ Apple Silicon only, macOS 11+.
 
 3. Launch. Onboarding walks you through the mic permission, a speech model download, and your hotkey.
 
-Updates install themselves in-app — the "damaged" dance is first-install only.
+Updates install themselves in-app — Gatekeeper only ever sees the first install.
 
 ---
 
