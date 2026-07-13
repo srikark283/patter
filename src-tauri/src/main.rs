@@ -42,24 +42,7 @@ fn main() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // Dev runs a bare binary with no .app bundle, so the Dock would
-            // show the generic exec icon; set it explicitly. Release builds
-            // get the icon from the bundle, but this is harmless there too.
-            #[cfg(target_os = "macos")]
-            {
-                use objc2::AllocAnyThread;
-                use objc2_app_kit::{NSApplication, NSImage};
-                use objc2_foundation::{MainThreadMarker, NSData};
-                if let Some(mtm) = MainThreadMarker::new() {
-                    let data = NSData::with_bytes(include_bytes!("../icons/icon.png"));
-                    if let Some(img) = NSImage::initWithData(NSImage::alloc(), &data) {
-                        unsafe {
-                            NSApplication::sharedApplication(mtm)
-                                .setApplicationIconImage(Some(&img));
-                        }
-                    }
-                }
-            }
+            commands::apply_dock_icon();
 
             // Background update check on launch: notify only — download and
             // install happen when the user asks (install_update command).

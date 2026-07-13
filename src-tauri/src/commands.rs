@@ -216,6 +216,8 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
     // open (reverted on window destroy in main.rs).
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+    // Re-apply after the Dock tile exists — a set made under Accessory can be dropped.
+    apply_dock_icon();
 
     if app.get_webview_window("dashboard").is_none() {
         let window = tauri::WebviewWindowBuilder::new(&app, "dashboard", WebviewUrl::App("dashboard.html".into()))
@@ -278,3 +280,25 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+/// Dev runs a bare binary with no .app bundle, so the Dock shows the generic
+/// exec icon; set it explicitly. Harmless in release (bundle icon wins).
+/// Called at startup and again when the Dock presence appears, because a set
+/// made while the policy is Accessory can be dropped.
+#[cfg(target_os = "macos")]
+pub fn apply_dock_icon() {
+    use objc2::AllocAnyThread;
+    use objc2_app_kit::{NSApplication, NSImage};
+    use objc2_foundation::{MainThreadMarker, NSData};
+    if let Some(mtm) = MainThreadMarker::new() {
+        let data = NSData::with_bytes(include_bytes!("../icons/icon.png"));
+        if let Some(img) = NSImage::initWithData(NSImage::alloc(), &data) {
+            unsafe {
+                NSApplication::sharedApplication(mtm).setApplicationIconImage(Some(&img));
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn apply_dock_icon() {}
