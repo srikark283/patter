@@ -80,30 +80,39 @@
     .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.25); }
     .fineprint { margin-top: 18px; font-size: 12.5px; color: var(--muted); }
 
-    /* HUD mock */
-    .hud-stage { display: flex; justify-content: center; padding: 46px 0 72px; }
-    .hud {
-      display: flex; align-items: center; gap: 14px;
-      background: rgba(18, 21, 26, 0.9); border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 999px; padding: 14px 26px;
-      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(91, 155, 209, 0.10);
+    /* HUD replica — same pill, dot, and waveform as src/features/hud/Hud.tsx */
+    .hud-stage { display: flex; justify-content: center; padding: 52px 0 78px; }
+    .hud-pill {
+      transform: scale(1.7); transform-origin: center;
+      width: max-content; min-width: 116px; height: 36px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 8px 0 14px; border-radius: 18px; overflow: hidden;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 40%),
+        rgba(12, 13, 16, 0.82);
+      backdrop-filter: blur(24px) saturate(1.4);
+      -webkit-backdrop-filter: blur(24px) saturate(1.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.09),
+        0 2px 8px rgba(0, 0, 0, 0.35),
+        0 12px 32px rgba(0, 0, 0, 0.5);
     }
-    .hud .rec { width: 9px; height: 9px; border-radius: 999px; background: #ff453a; animation: pulse 1.6s ease-in-out infinite; }
-    .bars { display: flex; align-items: center; gap: 3px; height: 26px; }
-    .bars span { width: 3.5px; border-radius: 2px; background: var(--steel-ice); animation: wave 1.1s ease-in-out infinite; }
-    .bars span:nth-child(1) { height: 30%; animation-delay: 0s; }
-    .bars span:nth-child(2) { height: 65%; animation-delay: 0.12s; }
-    .bars span:nth-child(3) { height: 95%; animation-delay: 0.24s; }
-    .bars span:nth-child(4) { height: 55%; animation-delay: 0.36s; }
-    .bars span:nth-child(5) { height: 80%; animation-delay: 0.48s; }
-    .bars span:nth-child(6) { height: 40%; animation-delay: 0.6s; }
-    .bars span:nth-child(7) { height: 70%; animation-delay: 0.72s; }
-    .bars span:nth-child(8) { height: 35%; animation-delay: 0.84s; }
-    .hud .txt { font-size: 14px; color: var(--muted); }
-    .hud .txt strong { color: var(--fg); font-weight: 500; }
-    @keyframes wave { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-    @media (prefers-reduced-motion: reduce) { .bars span, .hud .rec { animation: none; } }
+    .hud-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex: none;
+      background: #f0555f; animation: hud-breathe 2.2s ease-in-out infinite;
+    }
+    @keyframes hud-breathe {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(240, 85, 95, 0.45); opacity: 1; }
+      50% { box-shadow: 0 0 6px 2px rgba(240, 85, 95, 0.25); opacity: 0.75; }
+    }
+    .hud-wave { display: block; }
+    .hud-cancel {
+      width: 22px; height: 22px; border-radius: 50%; flex: none;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(231, 234, 238, 0.4); opacity: 0.35;
+    }
+    @media (prefers-reduced-motion: reduce) { .hud-dot { animation: none; } }
 
     .band {
       margin: 0 0 72px; padding: 20px 26px; border: 1px solid rgba(52, 199, 89, 0.25);
@@ -209,10 +218,12 @@
     </header>
 
     <div class="hud-stage" aria-hidden="true">
-      <div class="hud">
-        <span class="rec"></span>
-        <div class="bars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-        <span class="txt">Listening… release <strong>F12</strong> to type</span>
+      <div class="hud-pill">
+        <span class="hud-dot"></span>
+        <canvas id="hud-wave" class="hud-wave" style="width: 96px; height: 26px"></canvas>
+        <span class="hud-cancel">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </span>
       </div>
     </div>
 
@@ -323,5 +334,71 @@
       </span>
     </footer>
   </div>
+
+  <script>
+    // Faithful port of the app's HUD waveform (src/features/hud/Hud.tsx):
+    // 28 spring-chased samples drawn as 3 overlapping glowing strands.
+    // The app feeds real 5-band FFT levels; here a speech-like random walk.
+    (function () {
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      var canvas = document.getElementById("hud-wave");
+      var ctx = canvas.getContext("2d");
+      var BARS = 28, w = 96, h = 26;
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = w * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr);
+      var rgb = "174, 205, 232";
+      var targets = new Array(BARS).fill(0);
+      var heights = new Array(BARS).fill(0);
+
+      var level = 0.4;
+      setInterval(function () {
+        // Speech-ish: mostly mid levels, occasional pauses and peaks.
+        level += (Math.random() - 0.5) * 0.5;
+        if (Math.random() < 0.06) level = 0.05;
+        level = Math.max(0.05, Math.min(1, level));
+        targets.push(Math.min(1, Math.sqrt(level * 0.9)));
+        targets.shift();
+      }, 66);
+
+      function tick() {
+        requestAnimationFrame(tick);
+        for (var i = 0; i < BARS; i++) {
+          var t = targets[i], v = heights[i];
+          heights[i] = v + (t - v) * (t > v ? 0.5 : 0.18);
+        }
+        ctx.clearRect(0, 0, w, h);
+        var time = Date.now() / 1000;
+        var opacities = [1.0, 0.65, 0.35];
+        for (var li = 0; li < 3; li++) {
+          var g = ctx.createLinearGradient(0, 0, w, 0);
+          g.addColorStop(0, "rgba(" + rgb + ", 0)");
+          g.addColorStop(0.15, "rgba(" + rgb + ", " + opacities[li] + ")");
+          g.addColorStop(0.85, "rgba(" + rgb + ", " + opacities[li] + ")");
+          g.addColorStop(1, "rgba(" + rgb + ", 0)");
+          ctx.beginPath();
+          var step = w / (BARS - 1), maxAmp = h / 2 - 1, pts = [];
+          for (var i = 0; i < BARS; i++) {
+            var phase = i * 0.4 + time * 3.5 + li * 2;
+            var windowFunc = Math.sin((i / (BARS - 1)) * Math.PI);
+            var rawAmp = Math.max(heights[i], 0.12);
+            var amp = rawAmp * maxAmp * (1 - li * 0.2) * windowFunc * Math.sin(phase);
+            pts.push({ x: i * step, y: h / 2 + amp });
+          }
+          ctx.moveTo(pts[0].x, pts[0].y);
+          for (var j = 1; j < pts.length - 2; j++) {
+            ctx.quadraticCurveTo(pts[j].x, pts[j].y, (pts[j].x + pts[j + 1].x) / 2, (pts[j].y + pts[j + 1].y) / 2);
+          }
+          ctx.quadraticCurveTo(pts[pts.length - 2].x, pts[pts.length - 2].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
+          ctx.strokeStyle = g;
+          ctx.lineWidth = li === 0 ? 2.0 : li === 1 ? 1.5 : 1.0;
+          if (li === 0) { ctx.shadowColor = "rgba(" + rgb + ", 0.9)"; ctx.shadowBlur = 8; }
+          else ctx.shadowBlur = 0;
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+      }
+      requestAnimationFrame(tick);
+    })();
+  </script>
 </body>
 </html>
