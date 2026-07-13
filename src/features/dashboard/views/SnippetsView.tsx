@@ -4,7 +4,7 @@ import { updateSettings, getSettings, Settings, Snippet } from "../../../lib/ipc
 import { PageHeader } from "../components/PageHeader";
 import { Search, Plus, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+// import { cn } from "@/lib/utils";
 
 export function SnippetsView() {
   const [settings, setSettings] = useState<Settings | null>(null);
