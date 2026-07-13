@@ -3,12 +3,41 @@ use crate::db;
 use crate::state::{AppState, AudioCommand};
 use std::sync::atomic::Ordering;
 use std::thread;
+use std::time::Duration;
 use tauri::{Emitter, Manager};
 
 const WHISPER_SAMPLE_RATE: u32 = 16_000;
 
-// ponytail: whole meeting buffered raw in RAM (~1.4GB/hr at 48kHz stereo).
-// Downsample in the capture callback if multi-hour meetings become a real use case.
+/// Move whatever raw audio has accumulated into the compact 16 kHz mono
+/// buffer (~230 MB/hr instead of ~1.4 GB/hr raw). The whole move happens
+/// under the compact lock so concurrent drains can't interleave chunks out
+/// of order.
+/// ponytail: per-chunk linear resampling leaves a one-sample seam every
+/// drain; inaudible to ASR at 16 kHz.
+fn drain_captured(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    let channels = (state.device_config.lock().unwrap().channels() as usize).max(1);
+    let src_rate = state.device_config.lock().unwrap().sample_rate().0;
+
+    let mut compact = state.meeting_compact.lock().unwrap();
+    let chunk: Vec<f32> = {
+        let mut raw = state.meeting_captured.lock().unwrap();
+        let take = raw.len() - raw.len() % channels;
+        if take == 0 {
+            return;
+        }
+        raw.drain(..take).collect()
+    };
+    let mono: Vec<f32> = if channels > 1 {
+        chunk
+            .chunks(channels)
+            .map(|frame| frame.iter().sum::<f32>() / channels as f32)
+            .collect()
+    } else {
+        chunk
+    };
+    compact.extend(resample_linear(&mono, src_rate, WHISPER_SAMPLE_RATE));
+}
 
 pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
@@ -22,6 +51,7 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
 
     let settings = state.settings.lock().unwrap().clone();
     *state.meeting_captured.lock().unwrap() = Vec::new();
+    *state.meeting_compact.lock().unwrap() = Vec::new();
 
     if state
         .audio_tx
@@ -31,6 +61,20 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         return Err("Audio thread unavailable".to_string());
     }
     state.is_meeting_recording.store(true, Ordering::SeqCst);
+
+    // Compact the raw buffer every couple of seconds for the whole recording.
+    let app_handle = app.clone();
+    thread::spawn(move || {
+        while app_handle
+            .state::<AppState>()
+            .is_meeting_recording
+            .load(Ordering::SeqCst)
+        {
+            thread::sleep(Duration::from_secs(2));
+            drain_captured(&app_handle);
+        }
+    });
+
     let _ = app.emit("patter://meeting_state", "recording");
     crate::tray::refresh(app);
     Ok(())
@@ -46,30 +90,22 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     let _ = state.audio_tx.send(AudioCommand::Stop);
     crate::tray::refresh(app);
 
-    let raw = std::mem::take(&mut *state.meeting_captured.lock().unwrap());
-    if raw.is_empty() {
+    // Final drain of whatever the loop hasn't picked up yet.
+    drain_captured(app);
+    let audio = std::mem::take(&mut *state.meeting_compact.lock().unwrap());
+    *state.meeting_captured.lock().unwrap() = Vec::new();
+    if audio.is_empty() {
         let _ = app.emit("patter://meeting_state", "idle");
         return Err("No audio captured".to_string());
     }
 
-    let channels = state.device_config.lock().unwrap().channels() as usize;
-    let src_rate = state.device_config.lock().unwrap().sample_rate().0;
     let engine_arc = state.engine.clone();
     let app_handle = app.clone();
 
     thread::spawn(move || {
         let _ = app_handle.emit("patter://meeting_state", "transcribing");
 
-        let mono: Vec<f32> = if channels > 1 {
-            raw.chunks(channels)
-                .map(|frame| frame.iter().sum::<f32>() / channels as f32)
-                .collect()
-        } else {
-            raw
-        };
-        let audio = resample_linear(&mono, src_rate, WHISPER_SAMPLE_RATE);
         let duration_seconds = audio.len() as f32 / WHISPER_SAMPLE_RATE as f32;
-
         if audio.len() < WHISPER_SAMPLE_RATE as usize {
             let _ = app_handle.emit("patter://meeting_state", "error: audio too short");
             return;
@@ -97,40 +133,45 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
             audio
         };
 
-        let transcript = {
-            let mut lock = engine_arc.lock().unwrap();
-            if let Some(engine) = lock.as_mut() {
-                // Speaker labels: diarize + per-segment transcription. Any
-                // diarization failure falls back to plain transcription.
-                let diarized = if settings.diarize_meetings
-                    && crate::diarize::models_downloaded(&app_handle)
-                {
-                    match crate::diarize::diarize_and_transcribe(&app_handle, engine, &audio, &language) {
-                        Ok(t) => Some(t),
-                        Err(e) => {
-                            eprintln!("[diarize] failed, plain transcription: {}", e);
-                            None
-                        }
-                    }
-                } else {
+        // Speaker labels: diarize + per-segment transcription. The engine lock
+        // is taken per segment inside diarize_and_transcribe, so an hour-long
+        // job doesn't freeze dictation. Any diarization failure falls back to
+        // plain transcription.
+        let diarized = if settings.diarize_meetings && crate::diarize::models_downloaded(&app_handle)
+        {
+            match crate::diarize::diarize_and_transcribe(&app_handle, &engine_arc, &audio, &language)
+            {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    eprintln!("[diarize] failed, plain transcription: {}", e);
                     None
-                };
-                match diarized {
-                    Some(t) => t,
-                    None => match engine.transcribe(&audio, None, Some(&language)) {
+                }
+            }
+        } else {
+            None
+        };
+        let transcript = match diarized {
+            Some(t) => t,
+            None => {
+                let mut lock = engine_arc.lock().unwrap();
+                match lock.as_mut() {
+                    Some(engine) => match engine.transcribe(&audio, None, Some(&language)) {
                         Ok(t) => t,
                         Err(e) => {
                             eprintln!("Meeting transcription failed: {}", e);
-                            let _ = app_handle.emit("patter://meeting_state", "error: transcription failed");
+                            let _ = app_handle
+                                .emit("patter://meeting_state", "error: transcription failed");
                             return;
                         }
                     },
+                    None => {
+                        let _ = app_handle.emit("patter://meeting_state", "error: no model loaded");
+                        return;
+                    }
                 }
-            } else {
-                let _ = app_handle.emit("patter://meeting_state", "error: no model loaded");
-                return;
             }
         };
+        let _ = app_handle.emit("patter://meeting_progress", "");
 
         if transcript.is_empty() {
             let _ = app_handle.emit("patter://meeting_state", "error: empty transcript");

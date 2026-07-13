@@ -79,6 +79,50 @@ function Section({ icon: Icon, title, tint, children }: { icon: typeof ListCheck
   );
 }
 
+const SPEAKER_LINE = /^\[(\d{1,2}:\d{2}(?::\d{2})?)\] Speaker (\d+): (.*)$/;
+const SPEAKER_COLORS = [
+  "text-sky-400",
+  "text-violet-400",
+  "text-amber-400",
+  "text-emerald-400",
+  "text-rose-400",
+  "text-cyan-400",
+];
+
+function TranscriptView({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const parsed = lines.map((l) => SPEAKER_LINE.exec(l));
+  if (!parsed.some(Boolean)) {
+    return (
+      <p className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-[12.5px] leading-relaxed text-foreground/70">
+        {text}
+      </p>
+    );
+  }
+  return (
+    <div className="max-h-64 overflow-y-auto rounded-lg bg-black/20 p-3 space-y-2">
+      {lines.map((line, i) => {
+        const m = parsed[i];
+        if (!m) {
+          return line.trim() ? (
+            <p key={i} className="text-[12.5px] leading-relaxed text-foreground/70">{line}</p>
+          ) : null;
+        }
+        const [, ts, speaker, content] = m;
+        const color = SPEAKER_COLORS[(parseInt(speaker, 10) - 1) % SPEAKER_COLORS.length];
+        return (
+          <p key={i} className="text-[12.5px] leading-relaxed text-foreground/70">
+            <span className="font-sans text-[10px] text-muted-foreground/50 tabular-nums mr-2">{ts}</span>
+            <span className={cn("font-medium", color)}>Speaker {speaker}</span>
+            <span className="text-muted-foreground/60"> · </span>
+            {content}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function BulletList({ items }: { items: string[] }) {
   return (
     <ul className="space-y-1.5">
@@ -101,6 +145,7 @@ export function MeetingsView() {
 
   const [diarize, setDiarize] = useState(false);
   const [downloadingDiar, setDownloadingDiar] = useState(false);
+  const [progress, setProgress] = useState("");
 
   const loadMeetings = () => getMeetings().then(setMeetings).catch(console.error);
 
@@ -145,12 +190,17 @@ export function MeetingsView() {
     });
     const unlistenUpdated = listen("patter://meetings_updated", () => {
       loadMeetings();
+      setProgress("");
       toast.success("Meeting notes ready");
+    });
+    const unlistenProgress = listen<string>("patter://meeting_progress", (e) => {
+      setProgress(e.payload);
     });
 
     return () => {
       unlistenState.then((fn) => fn());
       unlistenUpdated.then((fn) => fn());
+      unlistenProgress.then((fn) => fn());
     };
   }, []);
 
@@ -210,7 +260,7 @@ export function MeetingsView() {
     ) : processing ? (
       <div className="flex items-center gap-2 rounded-full border border-steel/20 bg-steel/5 px-3.5 py-2 text-[13px] text-foreground/80">
         <Loader2 size={14} className="animate-spin text-steelIce" />
-        {state === "transcribing" ? "Transcribing…" : "Generating notes…"}
+        {progress || (state === "transcribing" ? "Transcribing…" : "Generating notes…")}
       </div>
     ) : (
       <Button className="rounded-full" onClick={handleStart}>
@@ -306,9 +356,7 @@ export function MeetingsView() {
                     </Section>
                   )}
                   <Section icon={MessagesSquare} title="Transcript">
-                    <p className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-[12.5px] leading-relaxed text-foreground/70">
-                      {m.transcript}
-                    </p>
+                    <TranscriptView text={m.transcript} />
                   </Section>
                   <div className="flex justify-end gap-2">
                     <Button

@@ -17,6 +17,9 @@ pub struct AppState {
     /// App the user was in when recording started — the paste target.
     pub frontmost_app: Arc<Mutex<Option<String>>>,
     pub meeting_captured: Arc<Mutex<Vec<f32>>>,
+    /// Meeting audio incrementally downsampled to 16 kHz mono while recording,
+    /// so long meetings don't hold hours of raw 48 kHz stereo in RAM.
+    pub meeting_compact: Arc<Mutex<Vec<f32>>>,
     pub is_meeting_recording: Arc<AtomicBool>,
     pub engine: Arc<Mutex<Option<Box<dyn ASREngine>>>>,
     pub active_engine_id: Arc<Mutex<Option<String>>>,
