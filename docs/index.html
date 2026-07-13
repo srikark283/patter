@@ -4,174 +4,314 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Patter — local-first dictation for your Mac</title>
-  <meta name="description" content="Patter turns speech into text entirely on your Mac. Whisper and Parakeet transcription, Ollama cleanup, meeting notes with speaker labels. Nothing is ever uploaded." />
+  <meta name="description" content="Patter turns speech into polished text entirely on your Mac. Whisper & Parakeet transcription, Ollama cleanup, meeting notes with speaker labels, voice macros, and a personal memory — nothing ever leaves your device." />
   <link rel="icon" href="logo.png" />
   <style>
     :root {
-      --bg: #0b0d10;
+      --bg: #0a0c0f;
       --card: #12151a;
+      --card-2: #161a20;
       --border: rgba(255, 255, 255, 0.08);
-      --fg: #e8eaed;
+      --fg: #e9ebee;
       --muted: #8b929c;
       --steel: #5b9bd1;
       --steel-ice: #a9c6e0;
+      --green: #34c759;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       background: var(--bg);
       color: var(--fg);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
       -webkit-font-smoothing: antialiased;
       line-height: 1.6;
+      overflow-x: hidden;
     }
     .glow {
-      position: fixed; inset: 0; pointer-events: none;
-      background: radial-gradient(60rem 30rem at 50% -10rem, rgba(91, 155, 209, 0.12), transparent 70%);
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(55rem 28rem at 50% -8rem, rgba(91, 155, 209, 0.14), transparent 70%),
+        radial-gradient(40rem 24rem at 85% 30rem, rgba(217, 70, 239, 0.05), transparent 70%);
     }
-    .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; position: relative; }
+    .wrap { max-width: 1020px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
 
-    nav { display: flex; align-items: center; justify-content: space-between; padding: 24px 0; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; letter-spacing: 0.02em; }
-    .brand img { width: 30px; height: 30px; border-radius: 7px; }
-    nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
-    nav a:hover { color: var(--fg); }
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      background: rgba(10, 12, 15, 0.7);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner { max-width: 1020px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 16px; letter-spacing: 0.02em; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-links { display: flex; gap: 22px; align-items: center; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13.5px; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--fg); }
+    .nav-cta {
+      color: var(--fg) !important; border: 1px solid var(--border); border-radius: 999px;
+      padding: 6px 14px; transition: border-color 0.15s !important;
+    }
+    .nav-cta:hover { border-color: rgba(91, 155, 209, 0.5); }
 
-    header { text-align: center; padding: 72px 0 56px; }
-    h1 { font-size: clamp(34px, 6vw, 54px); line-height: 1.12; letter-spacing: -0.02em; font-weight: 700; }
-    h1 .accent { color: var(--steel-ice); }
-    .sub { margin: 20px auto 0; max-width: 34em; color: var(--muted); font-size: 17px; }
-    .cta { margin-top: 36px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    header { text-align: center; padding: 88px 0 30px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--steel-ice);
+      border: 1px solid rgba(91, 155, 209, 0.3); background: rgba(91, 155, 209, 0.08);
+      border-radius: 999px; padding: 5px 14px; margin-bottom: 26px;
+    }
+    .badge .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--green); box-shadow: 0 0 8px var(--green); }
+    h1 {
+      font-size: clamp(36px, 6.5vw, 62px); line-height: 1.06; letter-spacing: -0.025em; font-weight: 700;
+    }
+    h1 .accent {
+      background: linear-gradient(120deg, var(--steel-ice), var(--steel) 60%, #7cc0f4);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .sub { margin: 22px auto 0; max-width: 36em; color: var(--muted); font-size: 17.5px; }
+    .cta { margin-top: 38px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
     .btn {
-      display: inline-block; padding: 12px 26px; border-radius: 999px; text-decoration: none;
-      font-size: 15px; font-weight: 600; transition: transform 0.15s, box-shadow 0.15s;
+      display: inline-block; padding: 13px 28px; border-radius: 999px; text-decoration: none;
+      font-size: 15px; font-weight: 600; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
     }
-    .btn-primary {
-      background: var(--steel); color: #0b0d10;
-      box-shadow: 0 0 24px rgba(91, 155, 209, 0.35);
-    }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 32px rgba(91, 155, 209, 0.5); }
+    .btn-primary { background: var(--steel); color: #0a0c0f; box-shadow: 0 0 28px rgba(91, 155, 209, 0.35); }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 38px rgba(91, 155, 209, 0.55); }
     .btn-ghost { color: var(--fg); border: 1px solid var(--border); }
-    .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.2); }
-    .fineprint { margin-top: 16px; font-size: 12.5px; color: var(--muted); }
+    .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.25); }
+    .fineprint { margin-top: 18px; font-size: 12.5px; color: var(--muted); }
 
-    .privacy {
-      margin: 24px 0 64px; padding: 18px 22px; border: 1px solid rgba(52, 199, 89, 0.25);
-      border-radius: 14px; background: rgba(52, 199, 89, 0.06);
-      display: flex; gap: 12px; align-items: baseline; font-size: 14.5px;
+    /* HUD mock */
+    .hud-stage { display: flex; justify-content: center; padding: 46px 0 72px; }
+    .hud {
+      display: flex; align-items: center; gap: 14px;
+      background: rgba(18, 21, 26, 0.9); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px; padding: 14px 26px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(91, 155, 209, 0.10);
     }
-    .privacy strong { color: #7ddb96; }
+    .hud .rec { width: 9px; height: 9px; border-radius: 999px; background: #ff453a; animation: pulse 1.6s ease-in-out infinite; }
+    .bars { display: flex; align-items: center; gap: 3px; height: 26px; }
+    .bars span { width: 3.5px; border-radius: 2px; background: var(--steel-ice); animation: wave 1.1s ease-in-out infinite; }
+    .bars span:nth-child(1) { height: 30%; animation-delay: 0s; }
+    .bars span:nth-child(2) { height: 65%; animation-delay: 0.12s; }
+    .bars span:nth-child(3) { height: 95%; animation-delay: 0.24s; }
+    .bars span:nth-child(4) { height: 55%; animation-delay: 0.36s; }
+    .bars span:nth-child(5) { height: 80%; animation-delay: 0.48s; }
+    .bars span:nth-child(6) { height: 40%; animation-delay: 0.6s; }
+    .bars span:nth-child(7) { height: 70%; animation-delay: 0.72s; }
+    .bars span:nth-child(8) { height: 35%; animation-delay: 0.84s; }
+    .hud .txt { font-size: 14px; color: var(--muted); }
+    .hud .txt strong { color: var(--fg); font-weight: 500; }
+    @keyframes wave { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    @media (prefers-reduced-motion: reduce) { .bars span, .hud .rec { animation: none; } }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; padding-bottom: 64px; }
+    .band {
+      margin: 0 0 72px; padding: 20px 26px; border: 1px solid rgba(52, 199, 89, 0.25);
+      border-radius: 16px; background: rgba(52, 199, 89, 0.05);
+      display: flex; gap: 12px; align-items: baseline; font-size: 14.5px; flex-wrap: wrap;
+    }
+    .band strong { color: #7ddb96; }
+
+    .section-label {
+      text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.22em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+    }
+    h2.section-title { text-align: center; font-size: clamp(24px, 4vw, 32px); letter-spacing: -0.02em; margin-bottom: 40px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; padding-bottom: 80px; }
     .card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px;
+      transition: transform 0.18s, border-color 0.18s, background 0.18s;
     }
+    .card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.15); background: var(--card-2); }
     .card .chip {
-      width: 34px; height: 34px; border-radius: 999px; display: flex; align-items: center;
-      justify-content: center; font-size: 16px; margin-bottom: 12px;
+      width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; font-size: 17px; margin-bottom: 14px;
     }
-    .card h3 { font-size: 15px; font-weight: 640; margin-bottom: 6px; }
+    .card h3 { font-size: 15px; font-weight: 640; margin-bottom: 6px; letter-spacing: -0.01em; }
     .card p { font-size: 13.5px; color: var(--muted); }
 
-    .install { padding-bottom: 72px; }
-    .install h2 { font-size: 24px; letter-spacing: -0.01em; margin-bottom: 18px; }
-    .step { display: flex; gap: 14px; margin-bottom: 14px; align-items: baseline; }
-    .step .n {
-      flex: none; width: 24px; height: 24px; border-radius: 999px; background: var(--card);
-      border: 1px solid var(--border); color: var(--steel-ice); font-size: 12.5px; font-weight: 600;
-      display: flex; align-items: center; justify-content: center; transform: translateY(4px);
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; padding-bottom: 80px; }
+    .step-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 26px; }
+    .step-card .n { font-size: 13px; color: var(--steel-ice); font-weight: 700; margin-bottom: 10px; }
+    .step-card h3 { font-size: 15.5px; margin-bottom: 6px; }
+    .step-card p { font-size: 13.5px; color: var(--muted); }
+    kbd {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border);
+      border-bottom-width: 2px; border-radius: 6px; padding: 2px 7px; color: var(--fg);
     }
-    .step p { font-size: 14.5px; color: var(--muted); }
-    .step strong { color: var(--fg); font-weight: 600; }
-    code {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px;
-      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 3px 8px; color: var(--steel-ice);
+
+    .install { padding-bottom: 84px; max-width: 720px; margin: 0 auto; }
+    .code-box {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 18px; margin: 6px 0 10px;
     }
-    .note { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+    .code-box code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px;
+      color: var(--steel-ice); overflow-x: auto; white-space: nowrap;
+    }
+    .copy-btn {
+      flex: none; background: none; border: 1px solid var(--border); color: var(--muted);
+      font-size: 12px; border-radius: 8px; padding: 6px 12px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .copy-btn:hover { color: var(--fg); border-color: rgba(255, 255, 255, 0.25); }
+    .note { font-size: 12.5px; color: var(--muted); }
+    details { margin-top: 22px; }
+    summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+    summary:hover { color: var(--fg); }
+    details .inner { padding: 14px 0 0 4px; font-size: 13.5px; color: var(--muted); }
+    details code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; color: var(--steel-ice);
+    }
 
     footer {
-      border-top: 1px solid var(--border); padding: 28px 0 40px; display: flex;
+      border-top: 1px solid var(--border); padding: 30px 0 44px; display: flex;
       justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted);
     }
     footer a { color: var(--muted); }
     footer a:hover { color: var(--fg); }
+
+    @media (max-width: 640px) { .nav-links a:not(.nav-cta) { display: none; } }
   </style>
 </head>
 <body>
   <div class="glow"></div>
-  <div class="wrap">
-    <nav>
-      <div class="brand"><img src="logo.png" alt="" /> Patter</div>
-      <a href="https://github.com/srikark283/patter">GitHub →</a>
-    </nav>
 
+  <nav>
+    <div class="nav-inner">
+      <div class="brand"><img src="logo.png" alt="" /> Patter</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/srikark283/patter">GitHub</a>
+        <a class="nav-cta" href="https://github.com/srikark283/patter/releases/latest">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="wrap">
     <header>
+      <div class="badge"><span class="dot"></span> 100% on-device · zero cloud</div>
       <h1>Speak anywhere.<br /><span class="accent">Nothing leaves your Mac.</span></h1>
       <p class="sub">
-        Patter is local-first dictation and meeting notes. Press a hotkey, talk, and polished text
-        lands wherever your cursor is — transcribed and cleaned up entirely on-device.
+        Patter is local-first dictation, meeting notes, and voice automation. Press a hotkey, talk,
+        and polished text lands wherever your cursor is — transcribed, cleaned up, and personalized
+        entirely on your machine.
       </p>
       <div class="cta">
         <a class="btn btn-primary" href="https://github.com/srikark283/patter/releases/latest">Download for macOS</a>
-        <a class="btn btn-ghost" href="https://github.com/srikark283/patter">View source</a>
+        <a class="btn btn-ghost" href="#install">Install with one command</a>
       </div>
       <p class="fineprint">Apple Silicon · macOS 11+ · Free &amp; open source · Auto-updates</p>
     </header>
 
-    <div class="privacy">
-      <strong>Private by design.</strong>
-      <span>Whisper and Parakeet run on your Mac's GPU. The LLM is your local Ollama. The only
-      network traffic is downloading models you explicitly ask for.</span>
+    <div class="hud-stage" aria-hidden="true">
+      <div class="hud">
+        <span class="rec"></span>
+        <div class="bars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <span class="txt">Listening… release <strong>F12</strong> to type</span>
+      </div>
     </div>
 
-    <section class="grid">
-      <div class="card">
-        <div class="chip" style="background: rgba(91,155,209,0.12)">🎙️</div>
-        <h3>On-device transcription</h3>
-        <p>OpenAI Whisper and Nvidia Parakeet, Metal-accelerated. Pick fast or accurate — six models, one click.</p>
-      </div>
-      <div class="card">
-        <div class="chip" style="background: rgba(217,70,239,0.12)">✨</div>
-        <h3>AI cleanup</h3>
-        <p>A local Ollama model fixes grammar and strips filler words before the text is typed. Your words, polished.</p>
-      </div>
-      <div class="card">
-        <div class="chip" style="background: rgba(99,102,241,0.12)">👥</div>
-        <h3>Meeting notes</h3>
-        <p>Record a meeting and get a transcript, minutes, decisions, and action items — with optional speaker labels.</p>
-      </div>
-      <div class="card">
-        <div class="chip" style="background: rgba(59,130,246,0.12)">⌨️</div>
-        <h3>Push-to-talk</h3>
-        <p>Toggle with a hotkey or hold-to-record. Types into any app, right where your cursor is.</p>
-      </div>
-      <div class="card">
-        <div class="chip" style="background: rgba(245,158,11,0.12)">🎯</div>
-        <h3>App-aware tone</h3>
-        <p>Per-app cleanup profiles: casual in Slack, precise in your editor. Patter knows where you're dictating.</p>
-      </div>
-      <div class="card">
-        <div class="chip" style="background: rgba(52,199,89,0.12)">📊</div>
-        <h3>Your numbers</h3>
-        <p>Words dictated, time saved, transcription latency — a dashboard of everything, stored only on your disk.</p>
+    <div class="band">
+      <strong>Private by design.</strong>
+      <span>Whisper and Parakeet run on your Mac's GPU. The LLM is your local Ollama. Your voice,
+      your transcripts, and your personal memory never touch a server.</span>
+    </div>
+
+    <section id="features">
+      <p class="section-label">Everything on-device</p>
+      <h2 class="section-title">A complete voice workflow, not just dictation</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="chip" style="background: rgba(91,155,209,0.12)">🎙️</div>
+          <h3>On-device transcription</h3>
+          <p>OpenAI Whisper and Nvidia Parakeet, Metal-accelerated. Six models from 78 MB to 1.6 GB — pick fast or accurate, switch anytime.</p>
+        </div>
+        <div class="card">
+          <div class="chip" style="background: rgba(217,70,239,0.12)">✨</div>
+          <h3>AI cleanup</h3>
+          <p>A local Ollama model fixes grammar and strips filler words before the text is typed. Silence trimmed by on-device VAD so noise never becomes words.</p>
+        </div>
+        <div class="card">
+          <div class="chip" style="background: rgba(99,102,241,0.12)">👥</div>
+          <h3>Meeting notes</h3>
+          <p>Record a meeting, get timestamped speaker-labeled transcripts plus minutes, decisions, and action items. Rename speakers, edit anything.</p>
+        </div>
+        <div class="card">
+          <div class="chip" style="background: rgba(14,165,233,0.12)">🧠</div>
+          <h3>Personal memory</h3>
+          <p>Teach Patter facts about you and your work. It uses them to spell your names, projects, and jargon right — matched on-device with local embeddings.</p>
+        </div>
+        <div class="card">
+          <div class="chip" style="background: rgba(244,63,94,0.12)">⚡</div>
+          <h3>Voice macros</h3>
+          <p>Say a short trigger phrase, get a whole block of text — addresses, sign-offs, boilerplate. Expansion happens as you dictate.</p>
+        </div>
+        <div class="card">
+          <div class="chip" style="background: rgba(59,130,246,0.12)">⌨️</div>
+          <h3>Push-to-talk</h3>
+          <p>Toggle with a hotkey or hold-to-record — even a bare modifier key. Types into any app, right where your cursor is.</p>
+        </div>
+        <div class="card">
+          <div class="chip" style="background: rgba(245,158,11,0.12)">🎯</div>
+          <h3>App-aware tone</h3>
+          <p>Per-app cleanup profiles: casual in Slack, precise in your editor. Patter knows which app you're dictating into.</p>
+        </div>
+        <div class="card">
+          <div class="chip" style="background: rgba(52,199,89,0.12)">📊</div>
+          <h3>Your numbers</h3>
+          <p>Words dictated, time saved, transcription latency — a dashboard of everything, stored only on your disk.</p>
+        </div>
       </div>
     </section>
 
-    <section class="install">
-      <h2>Install in a minute</h2>
-      <p style="font-size: 14.5px; color: var(--muted); margin-bottom: 12px;">
-        One command — downloads the latest release and installs it:
-      </p>
-      <p><code>curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh</code></p>
-      <p class="note" style="margin-bottom: 28px;">
-        Then launch from Spotlight. Onboarding walks you through mic access, a speech model, and
-        your hotkey. Updates install themselves in-app afterwards.
-      </p>
+    <section>
+      <p class="section-label">How it works</p>
+      <h2 class="section-title">Three steps to never typing again</h2>
+      <div class="steps">
+        <div class="step-card">
+          <p class="n">01</p>
+          <h3>Press your hotkey</h3>
+          <p>Anywhere in macOS — <kbd>F12</kbd> by default, or hold a key push-to-talk style. A minimal HUD shows you're live.</p>
+        </div>
+        <div class="step-card">
+          <p class="n">02</p>
+          <h3>Say it</h3>
+          <p>Whisper or Parakeet transcribes on your GPU; your local LLM polishes the result using your memory and app profile.</p>
+        </div>
+        <div class="step-card">
+          <p class="n">03</p>
+          <h3>It's typed</h3>
+          <p>Text appears at your cursor in whatever app you're in. Every dictation lands in History, editable and searchable.</p>
+        </div>
+      </div>
+    </section>
 
-      <h2 style="font-size: 17px;">Prefer the DMG?</h2>
-      <div class="step"><span class="n">1</span><p><strong>Download the DMG</strong> from the latest release and drag Patter to Applications.</p></div>
-      <div class="step"><span class="n">2</span><p><strong>Clear the quarantine flag</strong> — browser downloads get tagged by macOS, and Patter isn't notarized (indie app, no Apple Developer program), so it reads "damaged" until you run:<br /><code>xattr -cr /Applications/patter.app</code></p></div>
-      <div class="step"><span class="n">3</span><p><strong>Launch.</strong> Same onboarding, same app — the curl route just skips step 2.</p></div>
+    <section class="install" id="install">
+      <p class="section-label">Install</p>
+      <h2 class="section-title">One command, no Gatekeeper drama</h2>
+      <div class="code-box">
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh</code>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('install-cmd').textContent).then(() => { this.textContent = 'Copied'; setTimeout(() => this.textContent = 'Copy', 1500); })">Copy</button>
+      </div>
+      <p class="note">
+        Installs the latest release to /Applications. Then launch from Spotlight — onboarding walks
+        you through mic access, a speech model, and your hotkey. Updates install themselves in-app.
+      </p>
+      <details>
+        <summary>Prefer downloading the DMG yourself?</summary>
+        <div class="inner">
+          Grab it from the <a href="https://github.com/srikark283/patter/releases/latest" style="color: var(--steel-ice)">latest release</a>,
+          drag Patter to Applications, then clear the browser's quarantine flag — Patter is an indie
+          app without Apple notarization, so macOS calls the download "damaged" until you run
+          <code>xattr -cr /Applications/patter.app</code>. The curl route skips this entirely
+          (only browsers attach the flag). First install only.
+        </div>
+      </details>
     </section>
 
     <footer>
