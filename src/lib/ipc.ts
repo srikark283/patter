@@ -92,6 +92,10 @@ export function updateMeeting(id: string, title: string, transcript: string) {
   return invoke<boolean>("update_meeting", { id, title, transcript });
 }
 
+export function updateMeetingActionItems(id: string, actionItems: string[]) {
+  return invoke<boolean>("update_meeting_action_items", { id, actionItems });
+}
+
 export function listOllamaModels() {
   return invoke<string[]>("list_ollama_models");
 }

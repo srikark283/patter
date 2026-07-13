@@ -250,6 +250,7 @@ fn main() {
             commands::get_meetings,
             commands::delete_meeting,
             commands::update_meeting,
+            commands::update_meeting_action_items,
             commands::accessibility_trusted,
             commands::open_accessibility_settings,
             commands::restart_app,

@@ -15,6 +15,7 @@ import {
   ClipboardCopy,
   Pencil,
   User,
+  Check,
 } from "lucide-react";
 import { UsersIcon } from '@heroicons/react/24/outline'
 import { MeetingRecord } from "../../../types";
@@ -29,6 +30,7 @@ import {
   updateSettings,
   isModelDownloaded,
   downloadModel,
+  updateMeetingActionItems,
 } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -189,6 +191,27 @@ export function MeetingsView() {
       toast.error("Failed to save: " + e);
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const toggleActionItem = async (meeting: MeetingRecord, index: number) => {
+    const items = [...meeting.action_items];
+    let text = items[index];
+    if (text.startsWith("[x] ")) {
+      text = text.slice(4);
+    } else if (text.startsWith("[ ] ")) {
+      text = "[x] " + text.slice(4);
+    } else {
+      text = "[x] " + text;
+    }
+    items[index] = text;
+
+    setMeetings((ms) => ms?.map((x) => (x.id === meeting.id ? { ...x, action_items: items } : x)) ?? null);
+    
+    try {
+      await updateMeetingActionItems(meeting.id, items);
+    } catch (e) {
+      toast.error("Failed to update action item: " + e);
     }
   };
 
@@ -410,7 +433,34 @@ export function MeetingsView() {
                   )}
                   {m.action_items.length > 0 && (
                     <Section icon={ListChecks} title="Action Items" tint="text-emerald-400">
-                      <BulletList items={m.action_items} />
+                      <ul className="space-y-1.5">
+                        {m.action_items.map((item, i) => {
+                          const isChecked = item.startsWith("[x] ");
+                          const text = item.replace(/^\[[ x]\] /, "");
+                          return (
+                            <li
+                              key={i}
+                              className={cn(
+                                "flex gap-2.5 text-[13px] leading-relaxed cursor-pointer transition-colors hover:text-foreground",
+                                isChecked ? "text-muted-foreground/60 line-through" : "text-foreground/85"
+                              )}
+                              onClick={() => toggleActionItem(m, i)}
+                            >
+                              <div
+                                className={cn(
+                                  "mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
+                                  isChecked
+                                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-500"
+                                    : "border-steel/30 bg-white/5"
+                                )}
+                              >
+                                {isChecked && <Check size={10} strokeWidth={3} />}
+                              </div>
+                              <span className="flex-1">{text}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </Section>
                   )}
                   {editingId === m.id ? (

@@ -278,6 +278,16 @@ impl Db {
         true
     }
 
+    pub fn update_meeting_action_items(&self, id: &str, action_items: Vec<String>) -> bool {
+        let mut meetings = self.get_meetings();
+        let Some(meeting) = meetings.iter_mut().find(|m| m.id == id) else {
+            return false;
+        };
+        meeting.action_items = action_items;
+        self.save_meetings(&meetings);
+        true
+    }
+
     pub fn delete_meeting(&self, id: &str) -> bool {
         let mut meetings = self.get_meetings();
         let initial_len = meetings.len();

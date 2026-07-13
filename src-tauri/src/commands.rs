@@ -74,6 +74,15 @@ pub fn update_meeting(
 }
 
 #[tauri::command]
+pub fn update_meeting_action_items(
+    app: tauri::AppHandle,
+    id: String,
+    action_items: Vec<String>,
+) -> Result<bool, String> {
+    Ok(db::Db::new(&app).update_meeting_action_items(&id, action_items))
+}
+
+#[tauri::command]
 pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
     app.state::<AppState>().settings.lock().unwrap().clone()
 }
