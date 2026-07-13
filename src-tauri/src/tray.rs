@@ -5,6 +5,8 @@ use tauri::menu::{
     Submenu,
 };
 use tauri::{AppHandle, Emitter, Manager, Wry};
+use tauri::path::BaseDirectory;
+use tauri::image::Image;
 
 use crate::state::AppState;
 use crate::{commands, db, paste};
@@ -46,36 +48,56 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 
     let mut items: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
 
-    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+    // Load custom Phosphor icons
+    let icon_users = Image::from_path(app.path().resolve("icons/menu/users.png", BaseDirectory::Resource)?)?;
+    let icon_copy = Image::from_path(app.path().resolve("icons/menu/copy.png", BaseDirectory::Resource)?)?;
+    let icon_pause = Image::from_path(app.path().resolve("icons/menu/pause.png", BaseDirectory::Resource)?)?;
+    let icon_play = Image::from_path(app.path().resolve("icons/menu/play.png", BaseDirectory::Resource)?)?;
+    let icon_gear = Image::from_path(app.path().resolve("icons/menu/gear.png", BaseDirectory::Resource)?)?;
+    let icon_dict = Image::from_path(app.path().resolve("icons/menu/dictionary.png", BaseDirectory::Resource)?)?;
+    let icon_sparkle = Image::from_path(app.path().resolve("icons/menu/sparkle.png", BaseDirectory::Resource)?)?;
+    let icon_folder = Image::from_path(app.path().resolve("icons/menu/folder.png", BaseDirectory::Resource)?)?;
+    let icon_history = Image::from_path(app.path().resolve("icons/menu/history.png", BaseDirectory::Resource)?)?;
+
+    // ── Group 1: Core Actions ───────────────────────────────────────
+    items.push(Box::new(IconMenuItem::with_id(
         app,
         "meeting",
         if meeting_active { "Stop Meeting Notes" } else { "Start Meeting Notes" },
         true,
-        Some(NativeIcon::UserGroup),
+        Some(icon_users),
         None::<&str>,
     )?));
 
-    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+    items.push(Box::new(IconMenuItem::with_id(
         app,
         "copy-last",
         "Copy Last Transcription",
         !history.is_empty(),
-        Some(NativeIcon::MultipleDocuments),
+        Some(icon_copy),
         None::<&str>,
     )?));
 
-    items.push(Box::new(PredefinedMenuItem::separator(app)?));
-
-    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
+    items.push(Box::new(IconMenuItem::with_id(
         app,
         "pause",
         if paused { "Resume Dictation" } else { "Pause Dictation" },
         true,
-        Some(if paused { NativeIcon::StatusUnavailable } else { NativeIcon::StatusAvailable }),
+        Some(if paused { icon_play } else { icon_pause }),
         None::<&str>,
     )?));
 
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
+
+    // ── Group 2: Configuration & Models ─────────────────────────────
+    items.push(Box::new(IconMenuItem::with_id(
+        app,
+        "nav:preferences",
+        "General Settings",
+        true,
+        Some(icon_gear),
+        Some("CmdOrCtrl+,"),
+    )?));
 
     if !downloaded.is_empty() {
         let model_items: Vec<CheckMenuItem<Wry>> = downloaded
@@ -93,7 +115,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             .collect::<Result<_, _>>()?;
         let refs: Vec<&dyn IsMenuItem<Wry>> =
             model_items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
-        items.push(Box::new(Submenu::with_items(app, "Speech Model", true, &refs)?));
+        items.push(Box::new(Submenu::with_items(app, "Speech Models", true, &refs)?));
     }
 
     if let Ok(mics) = commands::get_microphones() {
@@ -119,6 +141,48 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             mic_items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
         items.push(Box::new(Submenu::with_items(app, "Microphone", true, &refs)?));
     }
+
+    items.push(Box::new(IconMenuItem::with_id(
+        app,
+        "nav:dictionary",
+        "Dictionary",
+        true,
+        Some(icon_dict),
+        None::<&str>,
+    )?));
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+
+    // ── Group 3: AI & Workflows ─────────────────────────────────────
+    items.push(Box::new(IconMenuItem::with_id(
+        app,
+        "nav:ai",
+        "Intelligence Setup",
+        true,
+        Some(icon_sparkle),
+        None::<&str>,
+    )?));
+
+    items.push(Box::new(IconMenuItem::with_id(
+        app,
+        "nav:meetings",
+        "Meetings & Notes",
+        true,
+        Some(icon_folder),
+        None::<&str>,
+    )?));
+
+    items.push(Box::new(PredefinedMenuItem::separator(app)?));
+
+    // ── Group 4: History & Logs ─────────────────────────────────────
+    items.push(Box::new(IconMenuItem::with_id(
+        app,
+        "nav:history",
+        "History",
+        true,
+        Some(icon_history),
+        None::<&str>,
+    )?));
 
     if !history.is_empty() {
         let recent_items: Vec<MenuItem<Wry>> = history
@@ -146,33 +210,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
 
-    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
-        app,
-        "nav:preferences",
-        "Settings…",
-        true,
-        Some(NativeIcon::PreferencesGeneral),
-        None::<&str>,
-    )?));
-    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
-        app,
-        "nav:history",
-        "History",
-        true,
-        Some(NativeIcon::ListView),
-        None::<&str>,
-    )?));
-    items.push(Box::new(IconMenuItem::with_id_and_native_icon(
-        app,
-        "nav:meetings",
-        "Meetings",
-        true,
-        Some(NativeIcon::Bookmarks),
-        None::<&str>,
-    )?));
-
-    items.push(Box::new(PredefinedMenuItem::separator(app)?));
-
+    // ── Group 5: Quit ───────────────────────────────────────────────
     items.push(Box::new(MenuItem::with_id(
         app,
         "quit",
