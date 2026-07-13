@@ -26,6 +26,7 @@ import { AppStats, TranscriptionRecord } from "../../types";
 import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate } from "../../lib/ipc";
 import { promptUpdateInstall } from "../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 import { Onboarding } from "../onboarding/Onboarding";
 import { cn } from "@/lib/utils";
@@ -140,8 +141,12 @@ export default function Dashboard() {
     <SidebarProvider style={{ "--sidebar-width": "14rem" } as React.CSSProperties}>
       <div className="relative flex h-screen w-full bg-background text-foreground overflow-hidden">
         <div 
-          data-tauri-drag-region
-          className="absolute top-0 left-0 right-0 h-12 z-50 cursor-grab" 
+          onPointerDown={(e) => {
+            if (e.buttons === 1) {
+              getCurrentWindow().startDragging();
+            }
+          }}
+          className="absolute top-0 left-20 right-0 h-12 z-50 cursor-default" 
         />
 
         {/* Atmosphere: single cold top-glow + film grain */}
