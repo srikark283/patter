@@ -64,6 +64,16 @@ pub fn delete_meeting(app: tauri::AppHandle, id: String) -> Result<bool, String>
 }
 
 #[tauri::command]
+pub fn update_meeting(
+    app: tauri::AppHandle,
+    id: String,
+    title: String,
+    transcript: String,
+) -> Result<bool, String> {
+    Ok(db::Db::new(&app).update_meeting(&id, &title, &transcript))
+}
+
+#[tauri::command]
 pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
     app.state::<AppState>().settings.lock().unwrap().clone()
 }

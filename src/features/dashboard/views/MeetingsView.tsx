@@ -13,6 +13,7 @@ import {
   ScrollText,
   AlignLeft,
   ClipboardCopy,
+  Pencil,
   User,
 } from "lucide-react";
 import { UsersIcon } from '@heroicons/react/24/outline'
@@ -20,6 +21,7 @@ import { MeetingRecord } from "../../../types";
 import {
   getMeetings,
   deleteMeeting,
+  updateMeeting,
   startMeetingRecording,
   stopMeetingRecording,
   isMeetingRecording,
@@ -79,7 +81,17 @@ function Section({ icon: Icon, title, tint, children }: { icon: typeof ListCheck
   );
 }
 
-const SPEAKER_LINE = /^\[(\d{1,2}:\d{2}(?::\d{2})?)\] Speaker (\d+): (.*)$/;
+// Any "[mm:ss] Label: text" line — labels may be renamed ("Srikar"), not just "Speaker N".
+const SPEAKER_LINE = /^\[(\d{1,2}:\d{2}(?::\d{2})?)\] ([^:]{1,40}): (.*)$/;
+
+function speakerLabels(text: string): string[] {
+  const labels: string[] = [];
+  for (const line of text.split("\n")) {
+    const m = SPEAKER_LINE.exec(line);
+    if (m && !labels.includes(m[2])) labels.push(m[2]);
+  }
+  return labels;
+}
 const SPEAKER_COLORS = [
   "text-sky-400",
   "text-violet-400",
@@ -92,6 +104,7 @@ const SPEAKER_COLORS = [
 function TranscriptView({ text }: { text: string }) {
   const lines = text.split("\n");
   const parsed = lines.map((l) => SPEAKER_LINE.exec(l));
+  const order = speakerLabels(text);
   if (!parsed.some(Boolean)) {
     return (
       <p className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-[12.5px] leading-relaxed text-foreground/70">
@@ -109,11 +122,11 @@ function TranscriptView({ text }: { text: string }) {
           ) : null;
         }
         const [, ts, speaker, content] = m;
-        const color = SPEAKER_COLORS[(parseInt(speaker, 10) - 1) % SPEAKER_COLORS.length];
+        const color = SPEAKER_COLORS[Math.max(order.indexOf(speaker), 0) % SPEAKER_COLORS.length];
         return (
           <p key={i} className="text-[12.5px] leading-relaxed text-foreground/70">
             <span className="font-sans text-[10px] text-muted-foreground/50 tabular-nums mr-2">{ts}</span>
-            <span className={cn("font-medium", color)}>Speaker {speaker}</span>
+            <span className={cn("font-medium", color)}>{speaker}</span>
             <span className="text-muted-foreground/60"> · </span>
             {content}
           </p>
@@ -146,6 +159,51 @@ export function MeetingsView() {
   const [diarize, setDiarize] = useState(false);
   const [downloadingDiar, setDownloadingDiar] = useState(false);
   const [progress, setProgress] = useState("");
+
+  // Edit mode: title, transcript, and speaker renames are user-correctable.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editTranscript, setEditTranscript] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const startEdit = (m: MeetingRecord) => {
+    setEditingId(m.id);
+    setEditTitle(m.title);
+    setEditTranscript(m.transcript);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const title = editTitle.trim() || "Untitled meeting";
+    setSavingEdit(true);
+    try {
+      await updateMeeting(editingId, title, editTranscript);
+      setMeetings(
+        (ms) =>
+          ms?.map((x) => (x.id === editingId ? { ...x, title, transcript: editTranscript } : x)) ??
+          null
+      );
+      setEditingId(null);
+      toast.success("Meeting updated");
+    } catch (e) {
+      toast.error("Failed to save: " + e);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const renameSpeaker = (oldLabel: string, newName: string) => {
+    const name = newName.trim();
+    if (!name || name === oldLabel) return;
+    const escaped = oldLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`^(\\[\\d{1,2}:\\d{2}(?::\\d{2})?\\] )${escaped}: `);
+    setEditTranscript((t) =>
+      t
+        .split("\n")
+        .map((line) => line.replace(re, `$1${name}: `))
+        .join("\n")
+    );
+  };
 
   const loadMeetings = () => getMeetings().then(setMeetings).catch(console.error);
 
@@ -355,10 +413,76 @@ export function MeetingsView() {
                       <BulletList items={m.action_items} />
                     </Section>
                   )}
-                  <Section icon={MessagesSquare} title="Transcript">
-                    <TranscriptView text={m.transcript} />
-                  </Section>
+                  {editingId === m.id ? (
+                    <Section icon={MessagesSquare} title="Edit meeting">
+                      <div className="space-y-4">
+                        <input
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="Meeting title"
+                          className="w-full bg-background border border-white/10 rounded-md text-[13px] font-medium px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
+                        />
+                        {speakerLabels(editTranscript).length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] text-muted-foreground">
+                              Rename speakers (press Enter to apply everywhere):
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {speakerLabels(editTranscript).map((label, i) => (
+                                <input
+                                  key={label}
+                                  defaultValue={label}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") renameSpeaker(label, e.currentTarget.value);
+                                  }}
+                                  onBlur={(e) => renameSpeaker(label, e.target.value)}
+                                  className={cn(
+                                    "w-32 bg-background border border-white/10 rounded-md text-[12px] font-medium px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel",
+                                    SPEAKER_COLORS[i % SPEAKER_COLORS.length]
+                                  )}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <textarea
+                          value={editTranscript}
+                          onChange={(e) => setEditTranscript(e.target.value)}
+                          spellCheck={false}
+                          className="w-full h-64 bg-background border border-white/10 rounded-md text-[12.5px] leading-relaxed font-sans px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80 resize-y"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground"
+                            onClick={() => setEditingId(null)}
+                            disabled={savingEdit}
+                          >
+                            Cancel
+                          </Button>
+                          <Button size="sm" onClick={saveEdit} disabled={savingEdit}>
+                            {savingEdit && <Loader2 size={13} className="animate-spin" />}
+                            Save changes
+                          </Button>
+                        </div>
+                      </div>
+                    </Section>
+                  ) : (
+                    <Section icon={MessagesSquare} title="Transcript">
+                      <TranscriptView text={m.transcript} />
+                    </Section>
+                  )}
+                  {editingId !== m.id && (
                   <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground"
+                      onClick={() => startEdit(m)}
+                    >
+                      <Pencil size={14} /> Edit
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -379,6 +503,7 @@ export function MeetingsView() {
                       <Trash2 size={14} /> Delete meeting
                     </Button>
                   </div>
+                  )}
                 </div>
               )}
             </div>

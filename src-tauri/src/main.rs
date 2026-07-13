@@ -249,6 +249,7 @@ fn main() {
             commands::is_meeting_recording,
             commands::get_meetings,
             commands::delete_meeting,
+            commands::update_meeting,
             commands::accessibility_trusted,
             commands::open_accessibility_settings,
             commands::restart_app,

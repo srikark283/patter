@@ -88,6 +88,10 @@ export function deleteMeeting(id: string) {
   return invoke<boolean>("delete_meeting", { id });
 }
 
+export function updateMeeting(id: string, title: string, transcript: string) {
+  return invoke<boolean>("update_meeting", { id, title, transcript });
+}
+
 export function listOllamaModels() {
   return invoke<string[]>("list_ollama_models");
 }

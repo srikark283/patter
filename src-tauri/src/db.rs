@@ -266,6 +266,18 @@ impl Db {
         self.save_meetings(&meetings);
     }
 
+    /// Edit the user-correctable fields of a meeting (title, transcript).
+    pub fn update_meeting(&self, id: &str, title: &str, transcript: &str) -> bool {
+        let mut meetings = self.get_meetings();
+        let Some(meeting) = meetings.iter_mut().find(|m| m.id == id) else {
+            return false;
+        };
+        meeting.title = title.to_string();
+        meeting.transcript = transcript.to_string();
+        self.save_meetings(&meetings);
+        true
+    }
+
     pub fn delete_meeting(&self, id: &str) -> bool {
         let mut meetings = self.get_meetings();
         let initial_len = meetings.len();
