@@ -21,6 +21,7 @@ use tauri_plugin_autostart::ManagerExt;
 use tauri::tray::TrayIconBuilder;
 use tauri_nspanel::{tauri_panel, PanelBuilder, PanelLevel};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use rdev::{Event, EventType, Button};
 
 tauri_panel! {
     panel!(HUDPanel {
@@ -137,6 +138,49 @@ fn main() {
 
             app.manage(app_state);
 
+            // Spawn global hook thread for single-key hotkey binding (e.g. "ControlLeft")
+            let app_handle_for_rdev = app.handle().clone();
+            std::thread::spawn(move || {
+                let callback = move |event: Event| {
+                    let state = app_handle_for_rdev.state::<AppState>();
+                    let (hotkey, push_to_talk) = {
+                        let s = state.settings.lock().unwrap();
+                        (s.hotkey.clone(), s.push_to_talk)
+                    };
+                    
+                    // Only use rdev if hotkey doesn't contain a plus (meaning it's a single key)
+                    if !hotkey.contains('+') {
+                        match event.event_type {
+                            EventType::KeyPress(key) => {
+                                let key_str = format!("{:?}", key);
+                                if key_str == hotkey {
+                                    if state.is_recording.load(Ordering::SeqCst) {
+                                        if !push_to_talk {
+                                            recording::stop_and_transcribe(&app_handle_for_rdev);
+                                        }
+                                    } else if !state.is_paused.load(Ordering::SeqCst) {
+                                        recording::start_recording(&app_handle_for_rdev);
+                                    }
+                                }
+                            }
+                            EventType::KeyRelease(key) => {
+                                let key_str = format!("{:?}", key);
+                                if key_str == hotkey && push_to_talk {
+                                    if state.is_recording.load(Ordering::SeqCst) {
+                                        recording::stop_and_transcribe(&app_handle_for_rdev);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                };
+
+                if let Err(error) = rdev::listen(callback) {
+                    eprintln!("rdev listen error: {:?}", error);
+                }
+            });
+
             // Tray needs AppState (history, model list, pause flag) to build its menu.
             let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).unwrap();
             let _tray = TrayIconBuilder::with_id(tray::TRAY_ID)
@@ -145,9 +189,11 @@ fn main() {
                 .on_menu_event(|app, event| tray::on_menu_event(app, event))
                 .build(app)?;
 
-            let shortcut = hotkey_str.parse::<tauri_plugin_global_shortcut::Shortcut>()
-                .unwrap_or_else(|_| "Alt+Space".parse().unwrap());
-            let _ = app.global_shortcut().register(shortcut);
+            if hotkey_str.contains('+') {
+                let shortcut = hotkey_str.parse::<tauri_plugin_global_shortcut::Shortcut>()
+                    .unwrap_or_else(|_| "Alt+Space".parse().unwrap());
+                let _ = app.global_shortcut().register(shortcut);
+            }
 
             let panel = PanelBuilder::<_, HUDPanel>::new(app.handle(), "main")
                 .url(WebviewUrl::App("hud.html".into()))
@@ -167,6 +213,7 @@ fn main() {
                 .build()?;
 
             let window = app.get_webview_window("main").unwrap();
+            let _ = window.set_ignore_cursor_events(true);
             if let Some(monitor) = window.primary_monitor()? {
                 let size = monitor.size();
                 let window_size = window.outer_size()?;
@@ -248,6 +295,7 @@ fn main() {
             commands::stop_meeting_recording,
             commands::is_meeting_recording,
             commands::get_meetings,
+            commands::get_ollama_embedding,
             commands::delete_meeting,
             commands::update_meeting,
             commands::update_meeting_action_items,

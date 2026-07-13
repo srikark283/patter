@@ -78,8 +78,16 @@ export function PreferencesView() {
     e.preventDefault();
     if (!recordingHotkey) return;
     
-    // Ignore standalone modifiers
-    if (["Meta", "Shift", "Control", "Alt"].includes(e.key)) return;
+    // If standalone modifier, just use the exact modifier code
+    if (["Meta", "Shift", "Control", "Alt"].includes(e.key)) {
+      // Map JS code to rdev keys
+      let key = e.code;
+      if (key === "AltLeft") key = "Alt";
+      if (key === "AltRight") key = "AltGr";
+      setRecordingHotkey(false);
+      update({ hotkey: key });
+      return;
+    }
     
     let key = e.key;
     if (key === " ") key = "Space";
@@ -167,6 +175,7 @@ export function PreferencesView() {
               )}
             />
           </div>
+
 
           {/* Push to Talk */}
           <div className="flex items-center justify-between p-4">

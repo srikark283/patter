@@ -1,6 +1,6 @@
 [package]
 name = "patter"
-version = "0.1.12"
+version = "0.2.0"
 description = "Patter - Open Source Voice-to-Text Transcriber"
 authors = ["Srikar"]
 edition = "2021"
@@ -24,6 +24,7 @@ futures-util = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.150"
 window-vibrancy = "0.7"
+rdev = { path = "./rdev-local" }
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
  

@@ -49,6 +49,12 @@ pub struct Settings {
     /// Check GitHub releases for updates on launch.
     #[serde(default = "default_auto_update")]
     pub auto_update: bool,
+    /// Voice macro snippets
+    #[serde(default)]
+    pub snippets: Vec<Snippet>,
+    /// Facts for RAG
+    #[serde(default)]
+    pub memories: Vec<MemoryFact>,
 }
 
 fn default_auto_update() -> bool {
@@ -61,6 +67,20 @@ pub struct AppProfile {
     pub app: String,
     /// Extra instruction for the Ollama cleanup pass in that app.
     pub prompt: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Snippet {
+    pub trigger: String,
+    pub content: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MemoryFact {
+    pub id: String,
+    pub content: String,
+    #[serde(default)]
+    pub embedding: Vec<f32>,
 }
 
 fn default_trim_silence() -> bool {
@@ -89,6 +109,8 @@ impl Default for Settings {
             diarize_meetings: false,
             app_profiles: Vec::new(),
             auto_update: true,
+            snippets: Vec::new(),
+            memories: Vec::new(),
         }
     }
 }

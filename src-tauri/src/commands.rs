@@ -163,6 +163,11 @@ pub fn get_stats(app: tauri::AppHandle) -> db::AppStats {
 }
 
 #[tauri::command]
+pub fn get_ollama_embedding(model: String, prompt: String) -> Result<Vec<f32>, String> {
+    crate::ollama::get_embedding(&model, &prompt)
+}
+
+#[tauri::command]
 pub fn get_history(app: tauri::AppHandle) -> Vec<db::TranscriptionRecord> {
     db::Db::new(&app).get_history()
 }

@@ -66,6 +66,26 @@ struct GenerateResponse {
     response: String,
 }
 
+#[derive(Deserialize)]
+struct EmbeddingResponse {
+    embedding: Vec<f32>,
+}
+
+pub fn get_embedding(model: &str, prompt: &str) -> Result<Vec<f32>, String> {
+    let resp: EmbeddingResponse = reqwest::blocking::Client::new()
+        .post(format!("{}/api/embeddings", OLLAMA_URL))
+        .timeout(Duration::from_secs(10))
+        .json(&serde_json::json!({
+            "model": model,
+            "prompt": prompt,
+        }))
+        .send()
+        .map_err(|e| format!("Ollama not reachable: {}", e))?
+        .json()
+        .map_err(|e| format!("Bad response from Ollama: {}", e))?;
+    Ok(resp.embedding)
+}
+
 /// List locally downloaded Ollama models. Errors if Ollama isn't running.
 pub fn list_models() -> Result<Vec<String>, String> {
     let resp: TagsResponse = reqwest::blocking::Client::new()

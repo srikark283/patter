@@ -1,7 +1,7 @@
 use std::sync::atomic::Ordering;
 
 use tauri::menu::{
-    CheckMenuItem, IconMenuItem, IsMenuItem, Menu, MenuItem, NativeIcon, PredefinedMenuItem,
+    CheckMenuItem, IconMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem,
     Submenu,
 };
 use tauri::{AppHandle, Emitter, Manager, Wry};

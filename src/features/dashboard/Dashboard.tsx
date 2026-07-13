@@ -4,6 +4,8 @@ import {
   // ScrollText as HistoryIcon,
   CaseSensitive as DictionaryIcon,
   Cog as SettingsIcon,
+  // Scissors as SnippetsIcon,
+  Brain as MemoryIcon,
   // BrainCircuit as ModelsIcon,
   // Sparkles as AIIcon,
   // UsersRound as MeetingsIcon,
@@ -18,6 +20,7 @@ import {
   WaveformIcon as ModelsIcon, 
   SparkleIcon as AIIcon,
   ClockCounterClockwiseIcon as HistoryIcon,
+  LightningIcon as SnippetsIcon,
 } from '@phosphor-icons/react'
 
 
@@ -34,6 +37,8 @@ import { DashboardView } from "./views/DashboardView";
 import { MeetingsView } from "./views/MeetingsView";
 import { HistoryView } from "./views/HistoryView";
 import { DictionaryView } from "./views/DictionaryView";
+import { SnippetsView } from "./views/SnippetsView";
+import { MemoryView } from "./views/MemoryView";
 import { ModelsView, ALL_MODEL_IDS, MODEL_NAMES } from "./views/ModelsView";
 import { AIView } from "./views/AIView";
 import { PreferencesView } from "./views/PreferencesView";
@@ -131,7 +136,9 @@ export default function Dashboard() {
     { id: "dashboard", label: "Home", icon: HomeIcon },
     { id: "meetings", label: "Meetings", icon: MeetingsIcon },
     { id: "history", label: "History", icon: HistoryIcon },
+    { id: "memory", label: "Memory", icon: MemoryIcon },
     { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
+    { id: "snippets", label: "Voice Macros", icon: SnippetsIcon },
     { id: "models", label: "Speech Models", icon: ModelsIcon },
     { id: "ai", label: "Intelligence", icon: AIIcon },
     { id: "preferences", label: "Preferences", icon: SettingsIcon },
@@ -230,7 +237,9 @@ export default function Dashboard() {
           {activeTab === "dashboard" && <DashboardView stats={stats} history={history} onViewAll={() => setActiveTab("history")} />}
           {activeTab === "meetings" && <MeetingsView />}
           {activeTab === "history" && <HistoryView history={history} setHistory={setHistory} />}
+          {activeTab === "memory" && <MemoryView />}
           {activeTab === "dictionary" && <DictionaryView />}
+          {activeTab === "snippets" && <SnippetsView />}
           {activeTab === "models" && (
             <ModelsView
               activeEngine={activeEngine}

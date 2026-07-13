@@ -26,6 +26,19 @@ export interface Settings {
   diarize_meetings: boolean;
   app_profiles: AppProfile[];
   auto_update: boolean;
+  snippets: Snippet[];
+  memories: MemoryFact[];
+}
+
+export interface Snippet {
+  trigger: string;
+  content: string;
+}
+
+export interface MemoryFact {
+  id: string;
+  content: string;
+  embedding?: number[];
 }
 
 export function getStats() {
@@ -38,6 +51,10 @@ export function getHistory() {
 
 export async function clearHistory(): Promise<void> {
   return invoke("clear_history");
+}
+
+export function getEmbedding(model: string, prompt: string): Promise<number[]> {
+  return invoke<number[]>("get_ollama_embedding", { model, prompt });
 }
 
 export async function deleteHistoryRecord(id: string): Promise<boolean> {

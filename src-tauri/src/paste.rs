@@ -21,9 +21,9 @@ pub fn accessibility_trusted() -> bool {
 #[cfg(target_os = "macos")]
 pub fn frontmost_app_name() -> Option<String> {
     use objc2_app_kit::NSWorkspace;
-    let ws = unsafe { NSWorkspace::sharedWorkspace() };
-    let app = unsafe { ws.frontmostApplication() }?;
-    unsafe { app.localizedName() }.map(|s| s.to_string())
+    let ws = { NSWorkspace::sharedWorkspace() };
+    let app = { ws.frontmostApplication() }?;
+    { app.localizedName() }.map(|s| s.to_string())
 }
 
 #[cfg(not(target_os = "macos"))]

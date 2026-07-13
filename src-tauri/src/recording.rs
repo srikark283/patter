@@ -236,7 +236,48 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         let text = if settings.llm_cleanup_enabled {
             if let Some(model) = settings.ollama_model.as_deref() {
                 let _ = app_handle.emit("patter://state", "Cleaning up…");
-                match crate::ollama::cleanup(model, &text, profile_prompt.as_deref()) {
+                
+                // RAG: Find relevant memories
+                let mut context_prompt = profile_prompt.unwrap_or_default();
+                if !settings.memories.is_empty() {
+                    // Embed the current text
+                    if let Ok(text_emb) = crate::ollama::get_embedding("nomic-embed-text", &text) {
+                        let mut scored_memories: Vec<(&db::MemoryFact, f32)> = settings.memories.iter().filter_map(|m| {
+                            if m.embedding.is_empty() || text_emb.len() != m.embedding.len() {
+                                None
+                            } else {
+                                // Cosine similarity
+                                let dot: f32 = text_emb.iter().zip(m.embedding.iter()).map(|(a, b)| a * b).sum();
+                                let norm_a: f32 = text_emb.iter().map(|a| a * a).sum::<f32>().sqrt();
+                                let norm_b: f32 = m.embedding.iter().map(|b| b * b).sum::<f32>().sqrt();
+                                let sim = if norm_a > 0.0 && norm_b > 0.0 { dot / (norm_a * norm_b) } else { 0.0 };
+                                Some((m, sim))
+                            }
+                        }).collect();
+                        
+                        // Sort by similarity descending
+                        scored_memories.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                        
+                        // Take top 3 relevant memories with similarity > 0.4
+                        let relevant: Vec<String> = scored_memories.into_iter()
+                            .filter(|(_, sim)| *sim > 0.4)
+                            .take(3)
+                            .map(|(m, _)| format!("- {}", m.content))
+                            .collect();
+                            
+                        if !relevant.is_empty() {
+                            if !context_prompt.is_empty() {
+                                context_prompt.push_str("\n\n");
+                            }
+                            context_prompt.push_str("Relevant facts from user's memory:\n");
+                            context_prompt.push_str(&relevant.join("\n"));
+                        }
+                    }
+                }
+                
+                let final_extra = if context_prompt.is_empty() { None } else { Some(context_prompt.as_str()) };
+                
+                match crate::ollama::cleanup(model, &text, final_extra) {
                     Ok(cleaned) => {
                         println!("Cleaned: {}", cleaned);
                         cleaned
@@ -252,6 +293,17 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             }
         } else {
             text
+        };
+
+        // --- Snippet Expansion ---
+        let text = {
+            let clean_text = text.trim().trim_matches(|c: char| c.is_ascii_punctuation()).to_lowercase();
+            if let Some(snippet) = settings.snippets.iter().find(|s| s.trigger.trim().to_lowercase() == clean_text) {
+                println!("[snippet] Expanding macro: {}", snippet.trigger);
+                snippet.content.clone()
+            } else {
+                text
+            }
         };
 
         let word_count = text.split_whitespace().count();
