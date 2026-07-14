@@ -93,7 +93,7 @@ def main():
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             path = tmp.name
         print(f"fetch   {asset_name} ({f['size']:,} B)")
-        if subprocess.run(["curl", "-fsSL", "--retry", "3", "-o", path, url]).returncode != 0:
+        if subprocess.run(["curl", "-fsSL", "-A", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Patter/0.2.1", "--retry", "3", "-o", path, url]).returncode != 0:
             print(f"FAIL fetch {asset_name}")
             failures += 1
             continue
@@ -110,7 +110,7 @@ def main():
                 "curl", "-fsS", "-X", "POST",
                 "-H", f"Authorization: Bearer {TOKEN}",
                 "-H", "Content-Type: application/octet-stream",
-                "--data-binary", f"@{path}",
+                "-T", path,
                 f"https://uploads.github.com/repos/{REPO}/releases/{rid}/assets?name={asset_name}",
                 "-o", "/dev/null",
             ]
