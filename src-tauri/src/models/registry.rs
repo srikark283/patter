@@ -112,6 +112,16 @@ fn find_variant(id: &str) -> Option<&'static ModelVariant> {
     CATALOG.iter().find(|v| v.id == id)
 }
 
+/// Mirror of every catalog file on the app's own GitHub release, for networks
+/// where huggingface.co is blocked (corporate proxies often block the AI/ML
+/// category wholesale). Assets are prefixed with the variant id because
+/// parakeet v2/v3 file names collide.
+const MIRROR_BASE: &str = "https://github.com/srikark283/patter/releases/download/models-v1";
+
+fn mirror_url(variant_id: &str, file_name: &str) -> String {
+    format!("{}/{}-{}", MIRROR_BASE, variant_id, file_name)
+}
+
 pub struct ModelManager {
     models_dir: PathBuf,
 }
@@ -188,25 +198,62 @@ impl ModelManager {
                 continue;
             }
 
-            let url = format!("{}/{}?download=true", variant.base_url, file.name);
-            let res = client.get(&url).send().await?;
-            if !res.status().is_success() {
-                bail!("Failed to download {}: HTTP {}", file.name, res.status());
-            }
+            // Primary source first, then the GitHub mirror (see MIRROR_BASE).
+            let urls = [
+                format!("{}/{}?download=true", variant.base_url, file.name),
+                mirror_url(variant.id, file.name),
+            ];
+            let mut last_err: Option<anyhow::Error> = None;
+            let mut done = false;
+            for url in &urls {
+                let attempt = async {
+                    let res = client.get(url).send().await?;
+                    if !res.status().is_success() {
+                        bail!("HTTP {}", res.status());
+                    }
+                    let mut written = 0f64;
+                    let mut stream = res.bytes_stream();
+                    let mut out = File::create(&dest_path)?;
+                    let result: Result<()> = async {
+                        while let Some(item) = stream.next().await {
+                            let chunk = item?;
+                            out.write_all(&chunk)?;
+                            written += chunk.len() as f64;
+                            overall_downloaded += chunk.len() as f64;
 
-            let mut stream = res.bytes_stream();
-            let mut out = File::create(&dest_path)?;
-
-            while let Some(item) = stream.next().await {
-                let chunk = item?;
-                out.write_all(&chunk)?;
-                overall_downloaded += chunk.len() as f64;
-
-                let pct = (overall_downloaded / total_bytes).min(0.99);
-                if pct - last_emitted_pct >= 0.01 {
-                    progress_callback(pct as f32);
-                    last_emitted_pct = pct;
+                            let pct = (overall_downloaded / total_bytes).min(0.99);
+                            if pct - last_emitted_pct >= 0.01 {
+                                progress_callback(pct as f32);
+                                last_emitted_pct = pct;
+                            }
+                        }
+                        Ok(())
+                    }
+                    .await;
+                    if result.is_err() {
+                        // Roll back the partial file so the next source restarts clean.
+                        overall_downloaded -= written;
+                        let _ = std::fs::remove_file(&dest_path);
+                    }
+                    result
+                };
+                match attempt.await {
+                    Ok(()) => {
+                        done = true;
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("[models] {} failed from {}: {}", file.name, url, e);
+                        last_err = Some(e);
+                    }
                 }
+            }
+            if !done {
+                bail!(
+                    "Failed to download {} from all sources: {}",
+                    file.name,
+                    last_err.map(|e| e.to_string()).unwrap_or_default()
+                );
             }
         }
 

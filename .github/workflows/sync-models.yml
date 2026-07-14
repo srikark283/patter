@@ -1,0 +1,23 @@
+name: Sync model mirror
+
+# Keeps the models-v1 mirror release in step with the catalog in
+# registry.rs. Add a model to CATALOG, push — the mirror follows.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src-tauri/src/models/registry.rs
+      - .github/scripts/sync_model_mirror.py
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/sync_model_mirror.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
