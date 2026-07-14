@@ -226,7 +226,9 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             settings
                 .app_profiles
                 .iter()
-                .find(|p| !p.app.is_empty() && lower.contains(&p.app.to_lowercase()))
+                .find(|p| {
+                    !p.app.is_empty() && p.app.to_lowercase().split(',').map(str::trim).any(|s| !s.is_empty() && lower.contains(s))
+                })
                 .map(|p| {
                     println!("[cleanup] app profile matched: {} ({})", p.app, name);
                     p.prompt.clone()

@@ -14,6 +14,39 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+const APP_PROFILE_TEMPLATES = [
+  {
+    name: "Coding",
+    app: "VS Code, Xcode, Cursor, Antigravity, IntelliJ, Claude Code, Codex, Windsurf, Zed",
+    prompt: "Format code blocks and syntax correctly. Do not use markdown lists for code. Prefer camelCase or snake_case if dictating variables. Do not fix grammar inside code."
+  },
+  {
+    name: "AI Chat",
+    app: "ChatGPT, Gemini, Claude, Copilot, Perplexity",
+    prompt: "Format as a clear prompt or question for an AI assistant. Use markdown backticks for any technical terms or code snippets. Keep the intent direct."
+  },
+  {
+    name: "Email",
+    app: "Mail, Outlook, Spark, Gmail",
+    prompt: "Format as a professional email. Use standard paragraphs and clear bullet points. Fix grammar thoroughly. Be polite and concise."
+  },
+  {
+    name: "Chat",
+    app: "Slack, Discord, Messages, WhatsApp, Teams",
+    prompt: "Format casually. Do not be overly formal. Add line breaks naturally. Do not end short messages with a period."
+  },
+  {
+    name: "Terminal",
+    app: "Terminal, iTerm, Alacritty, Ghostty",
+    prompt: "This is a terminal command line. Do not use punctuation like periods or capital letters at the start. Output exactly what should be typed into a bash shell."
+  },
+  {
+    name: "Notes",
+    app: "Obsidian, Sublime Text, Apple Notes, Goodnotes, Notion",
+    prompt: "Format as clear, structured notes. Use markdown headers and bullet points where appropriate."
+  }
+];
+
 export function AIView() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
@@ -224,14 +257,31 @@ export function AIView() {
               </button>
             </div>
           ))}
-          <button
-            onClick={() =>
-              update({ app_profiles: [...settings.app_profiles, { app: "", prompt: "" }] })
-            }
-            className="text-[12px] text-steelIce/80 hover:text-steelIce transition-colors"
-          >
-            + Add profile
-          </button>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={() =>
+                update({ app_profiles: [...settings.app_profiles, { app: "", prompt: "" }] })
+              }
+              className="text-[12px] font-medium text-steelIce hover:text-steelIce/80 transition-colors"
+            >
+              + Add blank
+            </button>
+            <div className="w-px h-3 bg-white/10" />
+            <span className="text-[11px] text-muted-foreground">Add template:</span>
+            <div className="flex flex-wrap gap-2">
+              {APP_PROFILE_TEMPLATES.map((t) => (
+                <button
+                  key={t.name}
+                  onClick={() =>
+                    update({ app_profiles: [...settings.app_profiles, { app: t.app, prompt: t.prompt }] })
+                  }
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded-md border border-white/5"
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </div>
