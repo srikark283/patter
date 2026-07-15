@@ -183,7 +183,15 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         let meeting_model = settings.meeting_ollama_model.or(settings.ollama_model);
         let analysis = if let Some(model) = meeting_model.as_deref() {
             let _ = app_handle.emit("patter://meeting_state", "summarizing");
-            match crate::ollama::summarize_meeting(model, &transcript) {
+            match crate::ollama::summarize_meeting(model, &transcript, |current, total| {
+                if total > 1 {
+                    if current < total {
+                        let _ = app_handle.emit("patter://meeting_state", format!("summarizing (part {}/{})", current, total - 1));
+                    } else {
+                        let _ = app_handle.emit("patter://meeting_state", "synthesizing final summary".to_string());
+                    }
+                }
+            }) {
                 Ok(a) => a,
                 Err(e) => {
                     eprintln!("Meeting analysis failed: {}", e);

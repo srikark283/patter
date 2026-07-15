@@ -16,6 +16,7 @@ import {
   Pencil,
   User,
   Check,
+  RefreshCcw,
 } from "lucide-react";
 import { UsersIcon } from '@heroicons/react/24/outline'
 import { MeetingRecord } from "../../../types";
@@ -31,6 +32,7 @@ import {
   isModelDownloaded,
   downloadModel,
   updateMeetingActionItems,
+  regenerateMeetingSummary,
 } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -161,6 +163,7 @@ export function MeetingsView() {
   const [diarize, setDiarize] = useState(false);
   const [downloadingDiar, setDownloadingDiar] = useState(false);
   const [progress, setProgress] = useState("");
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   // Edit mode: title, transcript, and speaker renames are user-correctable.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -272,6 +275,7 @@ export function MeetingsView() {
     const unlistenUpdated = listen("patter://meetings_updated", () => {
       loadMeetings();
       setProgress("");
+      setRegeneratingId(null);
       toast.success("Meeting notes ready");
     });
     const unlistenProgress = listen<string>("patter://meeting_progress", (e) => {
@@ -389,6 +393,20 @@ export function MeetingsView() {
       )}
 
       <div className="flex flex-col gap-3">
+        {processing && !regeneratingId && (
+          <div className="group rounded-xl border border-border bg-white/[0.015] px-5 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-4 w-1/3 rounded bg-white/[0.04] animate-pulse" />
+                <div className="h-3 w-1/4 rounded bg-white/[0.02] animate-pulse" />
+              </div>
+              <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-white/[0.02] px-3 py-1.5 rounded-full border border-border">
+                <Loader2 size={13} className="animate-spin text-steelIce" />
+                {progress || (state === "transcribing" ? "Transcribing…" : "Generating notes…")}
+              </div>
+            </div>
+          </div>
+        )}
         {meetings?.map((m) => {
           const expanded = expandedId === m.id;
           const hasNotes = m.summary || m.minutes.length > 0 || m.decisions.length > 0 || m.action_items.length > 0;
@@ -416,16 +434,38 @@ export function MeetingsView() {
 
               {expanded && (
                 <div className="space-y-6 border-t border-border/60 px-5 py-5">
-                  {m.summary && (
-                    <Section icon={AlignLeft} title="Summary" tint="text-sky-400">
-                      <p className="text-[13px] leading-relaxed text-foreground/85">{m.summary}</p>
-                    </Section>
-                  )}
-                  {m.minutes.length > 0 && (
-                    <Section icon={ScrollText} title="Minutes" tint="text-violet-400">
-                      <BulletList items={m.minutes} />
-                    </Section>
-                  )}
+                  {regeneratingId === m.id ? (
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <div className="h-3 w-20 rounded bg-sky-400/20 animate-pulse" />
+                        <div className="h-14 w-full rounded bg-white/[0.03] animate-pulse" />
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-3 w-24 rounded bg-violet-400/20 animate-pulse" />
+                        <div className="space-y-2">
+                          <div className="h-4 w-3/4 rounded bg-white/[0.03] animate-pulse" />
+                          <div className="h-4 w-1/2 rounded bg-white/[0.03] animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-3 w-24 rounded bg-emerald-400/20 animate-pulse" />
+                        <div className="space-y-2">
+                          <div className="h-4 w-2/3 rounded bg-white/[0.03] animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {m.summary && (
+                        <Section icon={AlignLeft} title="Summary" tint="text-sky-400">
+                          <p className="text-[13px] leading-relaxed text-foreground/85">{m.summary}</p>
+                        </Section>
+                      )}
+                      {m.minutes.length > 0 && (
+                        <Section icon={ScrollText} title="Minutes" tint="text-violet-400">
+                          <BulletList items={m.minutes} />
+                        </Section>
+                      )}
                   {m.decisions.length > 0 && (
                     <Section icon={Gavel} title="Decisions" tint="text-amber-400">
                       <BulletList items={m.decisions} />
@@ -536,6 +576,21 @@ export function MeetingsView() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setRegeneratingId(m.id);
+                        regenerateMeetingSummary(m.id).catch(e => {
+                          toast.error(String(e));
+                          setRegeneratingId(null);
+                        });
+                      }}
+                      disabled={processing}
+                    >
+                      <RefreshCcw size={14} /> Regenerate Notes
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="text-muted-foreground"
                       onClick={() => {
                         navigator.clipboard.writeText(toMarkdown(m));
@@ -553,6 +608,8 @@ export function MeetingsView() {
                       <Trash2 size={14} /> Delete meeting
                     </Button>
                   </div>
+                  )}
+                  </>
                   )}
                 </div>
               )}

@@ -109,8 +109,12 @@ export function updateMeeting(id: string, title: string, transcript: string) {
   return invoke<boolean>("update_meeting", { id, title, transcript });
 }
 
-export function updateMeetingActionItems(id: string, actionItems: string[]) {
+export async function updateMeetingActionItems(id: string, actionItems: string[]): Promise<boolean> {
   return invoke<boolean>("update_meeting_action_items", { id, actionItems });
+}
+
+export async function regenerateMeetingSummary(id: string): Promise<void> {
+  return invoke<void>("regenerate_meeting_summary", { id });
 }
 
 export function listOllamaModels() {

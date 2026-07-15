@@ -116,7 +116,7 @@ export function AIView() {
           className="flex items-center gap-1.5 text-[12px] text-steelIce/80 hover:text-steelIce disabled:opacity-50 transition-colors"
         >
           <RefreshCw size={12} className={checkingOllama ? "animate-spin" : ""} />
-          Retry
+          Refresh
         </button>
       </div>
 

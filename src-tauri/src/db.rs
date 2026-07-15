@@ -310,6 +310,19 @@ impl Db {
         true
     }
 
+    pub fn update_meeting_analysis(&self, id: &str, analysis: crate::ollama::MeetingAnalysis) -> bool {
+        let mut meetings = self.get_meetings();
+        let Some(meeting) = meetings.iter_mut().find(|m| m.id == id) else {
+            return false;
+        };
+        meeting.summary = analysis.summary;
+        meeting.minutes = analysis.minutes;
+        meeting.decisions = analysis.decisions;
+        meeting.action_items = analysis.action_items;
+        self.save_meetings(&meetings);
+        true
+    }
+
     pub fn delete_meeting(&self, id: &str) -> bool {
         let mut meetings = self.get_meetings();
         let initial_len = meetings.len();

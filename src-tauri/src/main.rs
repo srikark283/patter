@@ -299,6 +299,7 @@ fn main() {
             commands::delete_meeting,
             commands::update_meeting,
             commands::update_meeting_action_items,
+            commands::regenerate_meeting_summary,
             commands::accessibility_trusted,
             commands::open_accessibility_settings,
             commands::restart_app,

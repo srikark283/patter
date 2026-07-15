@@ -74,6 +74,48 @@ pub fn update_meeting(
 }
 
 #[tauri::command]
+pub fn regenerate_meeting_summary(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<(), String> {
+    let meetings = db::Db::new(&app).get_meetings();
+    let meeting = meetings.into_iter().find(|m| m.id == id).ok_or("Meeting not found")?;
+    
+    let state = app.state::<AppState>();
+    let settings = state.settings.lock().unwrap().clone();
+    let meeting_model = settings.meeting_ollama_model.or(settings.ollama_model);
+    let model = meeting_model.ok_or("No Ollama model selected")?;
+    
+    let app_handle = app.clone();
+    std::thread::spawn(move || {
+        let _ = app_handle.emit("patter://meeting_state", "summarizing");
+        let transcript = meeting.transcript.clone();
+        let meeting_id = meeting.id.clone();
+        
+        match crate::ollama::summarize_meeting(&model, &transcript, |current, total| {
+            if total > 1 {
+                if current < total {
+                    let _ = app_handle.emit("patter://meeting_state", format!("summarizing (part {}/{})", current, total - 1));
+                } else {
+                    let _ = app_handle.emit("patter://meeting_state", "synthesizing final summary".to_string());
+                }
+            }
+        }) {
+            Ok(analysis) => {
+                db::Db::new(&app_handle).update_meeting_analysis(&meeting_id, analysis);
+                let _ = app_handle.emit("patter://meetings_updated", ());
+            }
+            Err(e) => {
+                let _ = app_handle.emit("patter://meeting_state", format!("error: summary failed ({})", e));
+            }
+        }
+        let _ = app_handle.emit("patter://meeting_state", "idle");
+    });
+    
+    Ok(())
+}
+
+#[tauri::command]
 pub fn update_meeting_action_items(
     app: tauri::AppHandle,
     id: String,
