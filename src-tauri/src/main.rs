@@ -185,6 +185,9 @@ fn main() {
             let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).unwrap();
             let _tray = TrayIconBuilder::with_id(tray::TRAY_ID)
                 .icon(tray_icon)
+                // Template image: macOS tints the black glyph for light/dark
+                // menubars — a fixed-color icon vanishes on light wallpapers.
+                .icon_as_template(true)
                 .menu(&tray::build_menu(app.handle())?)
                 .on_menu_event(|app, event| tray::on_menu_event(app, event))
                 .build(app)?;
