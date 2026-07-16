@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { AppWindow, Code2, Mail, MessageSquare, TerminalSquare, FileText, Sparkles } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { AppLogos } from "../components/AppLogos";
 
 // Local cache to avoid re-fetching the same icon across component unmounts
