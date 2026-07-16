@@ -286,14 +286,22 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
     apply_dock_icon();
 
     if app.get_webview_window("dashboard").is_none() {
-        let window = tauri::WebviewWindowBuilder::new(&app, "dashboard", WebviewUrl::App("dashboard.html".into()))
+        #[allow(unused_mut)]
+        let mut builder = tauri::WebviewWindowBuilder::new(&app, "dashboard", WebviewUrl::App("dashboard.html".into()))
             .title("Patter Dashboard")
             .inner_size(800.0, 600.0)
-            .transparent(true)
-            .title_bar_style(tauri::TitleBarStyle::Overlay)
-            .hidden_title(true)
-            .build()
-            .map_err(|e| e.to_string())?;
+            .transparent(true);
+
+        #[cfg(target_os = "macos")]
+        {
+            builder = builder
+                .title_bar_style(tauri::TitleBarStyle::Overlay)
+                .hidden_title(true);
+        }
+
+        let window = builder.build().map_err(|e| e.to_string())?;
+
+        #[cfg(target_os = "macos")]
         let _ = apply_vibrancy(&window, NSVisualEffectMaterial::UnderWindowBackground, None, None);
     } else {
         app.get_webview_window("dashboard").unwrap().set_focus().unwrap();

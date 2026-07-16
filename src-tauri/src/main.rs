@@ -37,6 +37,7 @@ tauri_panel! {
 fn main() {
     let (tx, shared_config) = audio::capture::init_audio();
 
+    #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build());
@@ -264,7 +265,7 @@ fn main() {
 
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|#[allow(unused_variables)] window, #[allow(unused_variables)] event| {
             #[cfg(target_os = "macos")]
             if window.label() == "dashboard" {
                 if let tauri::WindowEvent::Destroyed = event {
