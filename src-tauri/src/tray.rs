@@ -58,6 +58,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let icon_sparkle = Image::from_path(app.path().resolve("icons/menu/sparkle.png", BaseDirectory::Resource)?)?;
     let icon_folder = Image::from_path(app.path().resolve("icons/menu/folder.png", BaseDirectory::Resource)?)?;
     let icon_history = Image::from_path(app.path().resolve("icons/menu/history.png", BaseDirectory::Resource)?)?;
+    let icon_home = Image::from_path(app.path().resolve("icons/menu/home.png", BaseDirectory::Resource)?)?;
 
     // ── Group 1: Core Actions ───────────────────────────────────────
     items.push(Box::new(IconMenuItem::with_id(
@@ -90,6 +91,15 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
 
     // ── Group 2: Configuration & Models ─────────────────────────────
+    items.push(Box::new(IconMenuItem::with_id(
+        app,
+        "nav:dashboard",
+        "Home",
+        true,
+        Some(icon_home),
+        None::<&str>,
+    )?));
+
     items.push(Box::new(IconMenuItem::with_id(
         app,
         "nav:preferences",
@@ -175,6 +185,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
 
     // ── Group 4: History & Logs ─────────────────────────────────────
+
     items.push(Box::new(IconMenuItem::with_id(
         app,
         "nav:history",
