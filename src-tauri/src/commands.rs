@@ -299,10 +299,10 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
                 .hidden_title(true);
         }
 
-        let window = builder.build().map_err(|e| e.to_string())?;
+        let _window = builder.build().map_err(|e| e.to_string())?;
 
         #[cfg(target_os = "macos")]
-        let _ = apply_vibrancy(&window, NSVisualEffectMaterial::UnderWindowBackground, None, None);
+        let _ = apply_vibrancy(&_window, NSVisualEffectMaterial::UnderWindowBackground, None, None);
     } else {
         app.get_webview_window("dashboard").unwrap().set_focus().unwrap();
     }

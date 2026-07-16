@@ -35,7 +35,7 @@ pub fn frontmost_app_name() -> Option<String> {
 
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd.0 == 0 {
+        if hwnd.0.is_null() {
             return None;
         }
         let mut process_id = 0;
