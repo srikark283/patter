@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Trash2, RefreshCw } from "lucide-react";
+import { NativeAppIcon } from "../components/NativeAppIcon";
 import { MagicWandIcon, LightningAIcon, SparkleIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
@@ -224,6 +225,9 @@ export function AIView() {
           </p>
           {settings.app_profiles.map((profile, i) => (
             <div key={i} className="flex items-center gap-2">
+              <div className="min-w-7 h-7 px-1.5 rounded-md bg-white/5 border border-white/5 flex items-center justify-center flex-none text-muted-foreground" title="Category icon">
+                <NativeAppIcon appName={profile.app} />
+              </div>
               <input
                 value={profile.app}
                 placeholder="App name"
@@ -268,15 +272,16 @@ export function AIView() {
             </button>
             <div className="w-px h-3 bg-white/10" />
             <span className="text-[11px] text-muted-foreground">Add template:</span>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               {APP_PROFILE_TEMPLATES.map((t) => (
                 <button
                   key={t.name}
                   onClick={() =>
                     update({ app_profiles: [...settings.app_profiles, { app: t.app, prompt: t.prompt }] })
                   }
-                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded-md border border-white/5"
+                  className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md border border-white/5 [&>svg]:opacity-70"
                 >
+                  <NativeAppIcon appName={t.app} />
                   {t.name}
                 </button>
               ))}

@@ -172,7 +172,7 @@ export default function Dashboard() {
               <img src={icon} alt="Patter Logo" className="w-9 h-9 rounded-md pointer-events-none" />
 
               <div className="leading-none pointer-events-none">
-                <h1 className="text-[28px] font-normal tracking-[2px] font-['Cabinet Grotesk']">Patter</h1>
+                <h1 className="text-[22px] font-normal tracking-[1px] font-['Cabinet Grotesk']">Patter</h1>
               </div>
             </div>
 

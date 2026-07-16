@@ -368,3 +368,80 @@ pub fn apply_dock_icon() {
 
 #[cfg(not(target_os = "macos"))]
 pub fn apply_dock_icon() {}
+
+#[tauri::command]
+pub async fn get_app_icon(app_name: String) -> Result<Vec<u8>, String> {
+    use std::process::Command;
+    use std::path::PathBuf;
+    use std::fs;
+
+    let safe_name: String = app_name
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect::<String>()
+        .to_lowercase();
+    
+    if safe_name.is_empty() {
+        return Err("Invalid app name".to_string());
+    }
+
+    let cache_dir = std::env::temp_dir().join("patter_icons");
+    let _ = fs::create_dir_all(&cache_dir);
+    let cache_path = cache_dir.join(format!("{}.png", safe_name));
+
+    if cache_path.exists() {
+        if let Ok(bytes) = fs::read(&cache_path) {
+            return Ok(bytes);
+        }
+    }
+
+    let mdfind_query = format!("kMDItemKind == 'Application' && (kMDItemFSName == '*{}*.app'cd || kMDItemAlternateNames == '*{}*.app'cd)", app_name, app_name);
+    let output = Command::new("mdfind")
+        .arg(&mdfind_query)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let app_path = stdout.lines().next().ok_or("App not found")?;
+
+    let info_plist_path = format!("{}/Contents/Info.plist", app_path);
+    
+    let plist_output = Command::new("/usr/libexec/PlistBuddy")
+        .arg("-c")
+        .arg("Print :CFBundleIconFile")
+        .arg(&info_plist_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+    
+    let mut icon_name = String::from_utf8_lossy(&plist_output.stdout).trim().to_string();
+    if icon_name.is_empty() {
+        icon_name = "AppIcon".to_string();
+    }
+    if !icon_name.ends_with(".icns") {
+        icon_name.push_str(".icns");
+    }
+
+    let icns_path = format!("{}/Contents/Resources/{}", app_path, icon_name);
+
+    let sips_output = Command::new("sips")
+        .arg("-Z")
+        .arg("128")
+        .arg("-s")
+        .arg("format")
+        .arg("png")
+        .arg(&icns_path)
+        .arg("--out")
+        .arg(&cache_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !sips_output.status.success() {
+        return Err("Failed to extract icon".to_string());
+    }
+
+    if let Ok(bytes) = fs::read(&cache_path) {
+        return Ok(bytes);
+    }
+
+    Err("Could not read generated png".to_string())
+}

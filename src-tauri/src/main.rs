@@ -282,6 +282,7 @@ fn main() {
             commands::delete_model,
             commands::is_model_downloaded,
             commands::set_engine,
+            commands::get_app_icon,
             commands::get_active_engine,
             commands::get_settings,
             commands::update_settings,
