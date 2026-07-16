@@ -322,6 +322,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             duration_seconds,
             words: word_count as u32,
             transcribe_ms,
+            app_name: frontmost,
         });
         let _ = app_handle.emit("patter://db_updated", ());
         tray::refresh(&app_handle);

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "../components/PageHeader";
+import { NativeAppIcon } from "../components/NativeAppIcon";
 import {
   Dialog,
   DialogContent,
@@ -230,7 +231,17 @@ export function HistoryView({ history, setHistory }: Props) {
                             </div>
                           </div>
                         ) : (
-                          <p className="text-[13px] leading-relaxed text-foreground/90 break-words">{record.text}</p>
+                          <div className="flex flex-col gap-1">
+                            <p className="text-[13px] leading-relaxed text-foreground/90 break-words">{record.text}</p>
+                            {record.app_name && (
+                              <div className="flex items-center gap-1.5 mt-1 opacity-80" title={`Pasted in ${record.app_name}`}>
+                                <NativeAppIcon appName={record.app_name} />
+                                <span className="text-[11px] text-muted-foreground/80 font-medium">
+                                  {record.app_name}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
 

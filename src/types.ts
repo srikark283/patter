@@ -11,6 +11,7 @@ export interface TranscriptionRecord {
   duration_seconds: number;
   words: number;
   transcribe_ms: number;
+  app_name?: string | null;
 }
 
 export interface MeetingRecord {

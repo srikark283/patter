@@ -1,6 +1,6 @@
 [package]
 name = "patter"
-version = "0.2.10"
+version = "0.2.11"
 description = "Patter - Open Source Voice-to-Text Transcriber"
 authors = ["Srikar"]
 edition = "2021"
@@ -25,6 +25,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.150"
 window-vibrancy = "0.7"
 rdev = { path = "./rdev-local" }
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"
+objc2 = "0.6"
+base64 = "0.22.1"
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
  

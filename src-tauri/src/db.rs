@@ -148,6 +148,8 @@ pub struct TranscriptionRecord {
     /// Engine inference time; 0 for records predating this field.
     #[serde(default)]
     pub transcribe_ms: u32,
+    #[serde(default)]
+    pub app_name: Option<String>,
 }
 
 pub struct Db {
