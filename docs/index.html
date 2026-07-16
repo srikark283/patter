@@ -1,404 +1,531 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Patter — local-first dictation for your Mac</title>
-  <meta name="description" content="Patter turns speech into polished text entirely on your Mac. Whisper & Parakeet transcription, Ollama cleanup, meeting notes with speaker labels, voice macros, and a personal memory — nothing ever leaves your device." />
-  <link rel="icon" href="logo.png" />
-  <style>
-    :root {
-      --bg: #0a0c0f;
-      --card: #12151a;
-      --card-2: #161a20;
-      --border: rgba(255, 255, 255, 0.08);
-      --fg: #e9ebee;
-      --muted: #8b929c;
-      --steel: #5b9bd1;
-      --steel-ice: #a9c6e0;
-      --green: #34c759;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--bg);
-      color: var(--fg);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-      -webkit-font-smoothing: antialiased;
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
-    .glow {
-      position: fixed; inset: 0; pointer-events: none; z-index: 0;
-      background:
-        radial-gradient(55rem 28rem at 50% -8rem, rgba(91, 155, 209, 0.14), transparent 70%),
-        radial-gradient(40rem 24rem at 85% 30rem, rgba(217, 70, 239, 0.05), transparent 70%);
-    }
-    .wrap { max-width: 1020px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
-
-    nav {
-      position: sticky; top: 0; z-index: 10;
-      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-      background: rgba(10, 12, 15, 0.7);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-inner { max-width: 1020px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 16px; letter-spacing: 0.02em; }
-    .brand img { width: 28px; height: 28px; border-radius: 7px; }
-    .nav-links { display: flex; gap: 22px; align-items: center; }
-    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13.5px; transition: color 0.15s; }
-    .nav-links a:hover { color: var(--fg); }
-    .nav-cta {
-      color: var(--fg) !important; border: 1px solid var(--border); border-radius: 999px;
-      padding: 6px 14px; transition: border-color 0.15s !important;
-    }
-    .nav-cta:hover { border-color: rgba(91, 155, 209, 0.5); }
-
-    header { text-align: center; padding: 88px 0 30px; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--steel-ice);
-      border: 1px solid rgba(91, 155, 209, 0.3); background: rgba(91, 155, 209, 0.08);
-      border-radius: 999px; padding: 5px 14px; margin-bottom: 26px;
-    }
-    .badge .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--green); box-shadow: 0 0 8px var(--green); }
-    h1 {
-      font-size: clamp(36px, 6.5vw, 62px); line-height: 1.06; letter-spacing: -0.025em; font-weight: 700;
-    }
-    h1 .accent {
-      background: linear-gradient(120deg, var(--steel-ice), var(--steel) 60%, #7cc0f4);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-    }
-    .sub { margin: 22px auto 0; max-width: 36em; color: var(--muted); font-size: 17.5px; }
-    .cta { margin-top: 38px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-    .btn {
-      display: inline-block; padding: 13px 28px; border-radius: 999px; text-decoration: none;
-      font-size: 15px; font-weight: 600; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-    }
-    .btn-primary { background: var(--steel); color: #0a0c0f; box-shadow: 0 0 28px rgba(91, 155, 209, 0.35); }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 38px rgba(91, 155, 209, 0.55); }
-    .btn-ghost { color: var(--fg); border: 1px solid var(--border); }
-    .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.25); }
-    .fineprint { margin-top: 18px; font-size: 12.5px; color: var(--muted); }
-
-    /* HUD replica — same pill, dot, and waveform as src/features/hud/Hud.tsx */
-    .hud-stage { display: flex; justify-content: center; padding: 52px 0 78px; }
-    .hud-pill {
-      transform: scale(1.7); transform-origin: center;
-      width: max-content; min-width: 116px; height: 36px;
-      display: flex; align-items: center; gap: 8px;
-      padding: 0 8px 0 14px; border-radius: 18px; overflow: hidden;
-      background:
-        linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 40%),
-        rgba(12, 13, 16, 0.82);
-      backdrop-filter: blur(24px) saturate(1.4);
-      -webkit-backdrop-filter: blur(24px) saturate(1.4);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.09),
-        0 2px 8px rgba(0, 0, 0, 0.35),
-        0 12px 32px rgba(0, 0, 0, 0.5);
-    }
-    .hud-dot {
-      width: 6px; height: 6px; border-radius: 50%; flex: none;
-      background: #f0555f; animation: hud-breathe 2.2s ease-in-out infinite;
-    }
-    @keyframes hud-breathe {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(240, 85, 95, 0.45); opacity: 1; }
-      50% { box-shadow: 0 0 6px 2px rgba(240, 85, 95, 0.25); opacity: 0.75; }
-    }
-    .hud-wave { display: block; }
-    .hud-cancel {
-      width: 22px; height: 22px; border-radius: 50%; flex: none;
-      display: flex; align-items: center; justify-content: center;
-      color: rgba(231, 234, 238, 0.4); opacity: 0.35;
-    }
-    @media (prefers-reduced-motion: reduce) { .hud-dot { animation: none; } }
-
-    .band {
-      margin: 0 0 72px; padding: 20px 26px; border: 1px solid rgba(52, 199, 89, 0.25);
-      border-radius: 16px; background: rgba(52, 199, 89, 0.05);
-      display: flex; gap: 12px; align-items: baseline; font-size: 14.5px; flex-wrap: wrap;
-    }
-    .band strong { color: #7ddb96; }
-
-    .section-label {
-      text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.22em;
-      text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
-    }
-    h2.section-title { text-align: center; font-size: clamp(24px, 4vw, 32px); letter-spacing: -0.02em; margin-bottom: 40px; }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; padding-bottom: 80px; }
-    .card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px;
-      transition: transform 0.18s, border-color 0.18s, background 0.18s;
-    }
-    .card:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.15); background: var(--card-2); }
-    .card .chip {
-      width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
-      justify-content: center; font-size: 17px; margin-bottom: 14px;
-    }
-    .card h3 { font-size: 15px; font-weight: 640; margin-bottom: 6px; letter-spacing: -0.01em; }
-    .card p { font-size: 13.5px; color: var(--muted); }
-
-    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; padding-bottom: 80px; }
-    .step-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 26px; }
-    .step-card .n { font-size: 13px; color: var(--steel-ice); font-weight: 700; margin-bottom: 10px; }
-    .step-card h3 { font-size: 15.5px; margin-bottom: 6px; }
-    .step-card p { font-size: 13.5px; color: var(--muted); }
-    kbd {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
-      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border);
-      border-bottom-width: 2px; border-radius: 6px; padding: 2px 7px; color: var(--fg);
-    }
-
-    .install { padding-bottom: 84px; max-width: 720px; margin: 0 auto; }
-    .code-box {
-      display: flex; align-items: center; justify-content: space-between; gap: 14px;
-      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-      padding: 14px 18px; margin: 6px 0 10px;
-    }
-    .code-box code {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px;
-      color: var(--steel-ice); overflow-x: auto; white-space: nowrap;
-    }
-    .copy-btn {
-      flex: none; background: none; border: 1px solid var(--border); color: var(--muted);
-      font-size: 12px; border-radius: 8px; padding: 6px 12px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
-    }
-    .copy-btn:hover { color: var(--fg); border-color: rgba(255, 255, 255, 0.25); }
-    .note { font-size: 12.5px; color: var(--muted); }
-    details { margin-top: 22px; }
-    summary { cursor: pointer; font-size: 14px; color: var(--muted); }
-    summary:hover { color: var(--fg); }
-    details .inner { padding: 14px 0 0 4px; font-size: 13.5px; color: var(--muted); }
-    details code {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
-      background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; color: var(--steel-ice);
-    }
-
-    footer {
-      border-top: 1px solid var(--border); padding: 30px 0 44px; display: flex;
-      justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted);
-    }
-    footer a { color: var(--muted); }
-    footer a:hover { color: var(--fg); }
-
-    @media (max-width: 640px) { .nav-links a:not(.nav-cta) { display: none; } }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patter — Local Intelligence</title>
+<link rel="icon" href="logo.png" />
+<meta name="description" content="Patter turns speech into polished text entirely on your Mac. Whisper & Parakeet transcription, Ollama cleanup, meeting notes with speaker labels, voice macros, and a personal memory — nothing ever leaves your device.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background-color: oklch(98% 0.007 90); color: oklch(22% 0.008 90);
+    font-family: 'Public Sans', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6;
+    background-image:
+      radial-gradient(ellipse 900px 500px at 12% -6%, oklch(50% 0.09 254 / 0.06), transparent 60%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+  a { color: oklch(45% 0.09 254); }
+  a:hover { color: oklch(35% 0.1 254); }
+  @keyframes hud-breathe { 0%,100% { box-shadow: 0 0 0 0 rgba(224,90,90,.4); opacity: 1; } 50% { box-shadow: 0 0 6px 2px rgba(224,90,90,.22); opacity: .8; } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes hudFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes caretBlink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+  
+  .nav-link { text-decoration: none; color: oklch(45% 0.012 90); transition: color .2s ease; }
+  .nav-link:hover { color: oklch(22% 0.008 90); }
+  .nav-cta { text-decoration: none; color: oklch(22% 0.008 90); border: 1px solid oklch(22% 0.008 90 / 0.2); border-radius: 999px; padding: 7px 16px; transition: background .2s ease, color .2s ease, transform .2s ease; }
+  .nav-cta:hover { background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); transform: translateY(-1px); }
+  
+  .download-btn { text-decoration: none; background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); font-size: 14.5px; font-weight: 600; padding: 14px 26px; border-radius: 3px; display: inline-block; transition: transform .2s ease, box-shadow .2s ease; }
+  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px oklch(22% 0.008 90 / 0.25); }
+  
+  .install-link { text-decoration: none; border-bottom: 1px solid oklch(22% 0.008 90 / 0.3); font-size: 14.5px; padding: 14px 2px; color: oklch(28% 0.01 90); transition: border-color .2s ease; }
+  .install-link:hover { border-color: oklch(50% 0.09 254); }
+  
+  .feature-card { border-right: 1px solid oklch(22% 0.008 90 / 0.16); border-bottom: 1px solid oklch(22% 0.008 90 / 0.16); padding: 26px 22px; min-height: 190px; display: flex; flex-direction: column; transition: background .25s ease, box-shadow .25s ease, transform .25s ease; position: relative; z-index: 0; }
+  .feature-card:hover { background: oklch(100% 0 0 / 0.6); box-shadow: 0 18px 34px oklch(22% 0.008 90 / 0.1); transform: translateY(-3px); z-index: 1; }
+  
+  .step-card { position: relative; padding-left: 26px; border-left: 1px solid oklch(22% 0.008 90 / 0.14); transition: border-color .25s ease; }
+  .step-card:hover { border-color: oklch(50% 0.09 254 / 0.6); }
+  
+  .copy-btn { flex: none; background: none; border: 1px solid oklch(22% 0.008 90 / 0.18); color: oklch(40% 0.012 90); font-size: 12px; border-radius: 4px; padding: 7px 14px; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
+  .copy-btn:hover { background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); border-color: oklch(22% 0.008 90); }
+</style>
 </head>
 <body>
-  <div class="glow"></div>
 
-  <nav>
-    <div class="nav-inner">
-      <div class="brand"><img src="logo.png" alt="" /> Patter</div>
-      <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#install">Install</a>
-        <a href="https://github.com/srikark283/patter">GitHub</a>
-        <a class="nav-cta" href="https://github.com/srikark283/patter/releases/latest">Download</a>
+<div style="max-width: 1040px; margin: 0 auto;">
+
+  <nav style="position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: oklch(98% 0.007 90 / 0.82); border-bottom: 1px solid oklch(22% 0.008 90 / 0.1);">
+    <div style="max-width: 1040px; margin: 0 auto; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="font: 600 19px 'Source Serif 4', serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
+        <img src="logo.png" alt="" style="width: 28px; height: 28px; border-radius: 7px;"> Patter
+      </div>
+      <div style="display: flex; gap: 28px; align-items: center; font-size: 13.5px;">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#install" class="nav-link">Install</a>
+        <a href="https://github.com/srikark283/patter" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+          GitHub
+        </a>
+        <a href="https://github.com/srikark283/patter/releases/latest" class="nav-cta">Download</a>
       </div>
     </div>
   </nav>
 
-  <div class="wrap">
-    <header>
-      <div class="badge"><span class="dot"></span> 100% on-device · zero cloud</div>
-      <h1>Speak anywhere.<br /><span class="accent">Nothing leaves your Mac.</span></h1>
-      <p class="sub">
-        Patter is local-first dictation, meeting notes, and voice automation. Press a hotkey, talk,
-        and polished text lands wherever your cursor is — transcribed, cleaned up, and personalized
-        entirely on your machine.
+  <header style="display: grid; grid-template-columns: 1.35fr 1px 1fr; gap: 48px; padding: 96px 32px 0; align-items: start;">
+    <div>
+      <p style="font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 22px; display: inline-flex; align-items: center; gap: 8px; animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both;">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: #2f9e52; display: inline-block;"></span>On-device dictation for macOS
       </p>
-      <div class="cta">
-        <a class="btn btn-primary" href="https://github.com/srikark283/patter/releases/latest">Download for macOS</a>
-        <a class="btn btn-ghost" href="#install">Install with one command</a>
-      </div>
-      <p class="fineprint">Apple Silicon · macOS 11+ · Free &amp; open source · Auto-updates</p>
-    </header>
-
-    <div class="hud-stage" aria-hidden="true">
-      <div class="hud-pill">
-        <span class="hud-dot"></span>
-        <canvas id="hud-wave" class="hud-wave" style="width: 96px; height: 26px"></canvas>
-        <span class="hud-cancel">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </span>
-      </div>
+      <h1 style="font: 500 clamp(40px, 5.4vw, 64px)/1.08 'Source Serif 4', serif; letter-spacing: -0.015em; margin: 0; animation: fadeUp .8s cubic-bezier(.16,1,.3,1) .1s both;">Speak.<br>It becomes text.<br><em style="color: oklch(50% 0.09 254); font-style: italic;">Nothing leaves the room.</em></h1>
     </div>
-
-    <div class="band">
-      <strong>Private by design.</strong>
-      <span>Whisper and Parakeet run on your Mac's GPU. The LLM is your local Ollama. Your voice,
-      your transcripts, and your personal memory never touch a server.</span>
-    </div>
-
-    <section id="features">
-      <p class="section-label">Everything on-device</p>
-      <h2 class="section-title">A complete voice workflow, not just dictation</h2>
-      <div class="grid">
-        <div class="card">
-          <div class="chip" style="background: rgba(91,155,209,0.12)">🎙️</div>
-          <h3>On-device transcription</h3>
-          <p>OpenAI Whisper and Nvidia Parakeet, Metal-accelerated. Six models from 78 MB to 1.6 GB — pick fast or accurate, switch anytime.</p>
-        </div>
-        <div class="card">
-          <div class="chip" style="background: rgba(217,70,239,0.12)">✨</div>
-          <h3>AI cleanup</h3>
-          <p>A local Ollama model fixes grammar and strips filler words before the text is typed. Silence trimmed by on-device VAD so noise never becomes words.</p>
-        </div>
-        <div class="card">
-          <div class="chip" style="background: rgba(99,102,241,0.12)">👥</div>
-          <h3>Meeting notes</h3>
-          <p>Record a meeting, get timestamped speaker-labeled transcripts plus minutes, decisions, and action items. Rename speakers, edit anything.</p>
-        </div>
-        <div class="card">
-          <div class="chip" style="background: rgba(14,165,233,0.12)">🧠</div>
-          <h3>Personal memory</h3>
-          <p>Teach Patter facts about you and your work. It uses them to spell your names, projects, and jargon right — matched on-device with local embeddings.</p>
-        </div>
-        <div class="card">
-          <div class="chip" style="background: rgba(244,63,94,0.12)">⚡</div>
-          <h3>Voice macros</h3>
-          <p>Say a short trigger phrase, get a whole block of text — addresses, sign-offs, boilerplate. Expansion happens as you dictate.</p>
-        </div>
-        <div class="card">
-          <div class="chip" style="background: rgba(59,130,246,0.12)">⌨️</div>
-          <h3>Push-to-talk</h3>
-          <p>Toggle with a hotkey or hold-to-record — even a bare modifier key. Types into any app, right where your cursor is.</p>
-        </div>
-        <div class="card">
-          <div class="chip" style="background: rgba(245,158,11,0.12)">🎯</div>
-          <h3>App-aware tone</h3>
-          <p>Per-app cleanup profiles: casual in Slack, precise in your editor. Patter knows which app you're dictating into.</p>
-        </div>
-        <div class="card">
-          <div class="chip" style="background: rgba(52,199,89,0.12)">📊</div>
-          <h3>Your numbers</h3>
-          <p>Words dictated, time saved, transcription latency — a dashboard of everything, stored only on your disk.</p>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <p class="section-label">How it works</p>
-      <h2 class="section-title">Three steps to never typing again</h2>
-      <div class="steps">
-        <div class="step-card">
-          <p class="n">01</p>
-          <h3>Press your hotkey</h3>
-          <p>Anywhere in macOS — <kbd>F12</kbd> by default, or hold a key push-to-talk style. A minimal HUD shows you're live.</p>
-        </div>
-        <div class="step-card">
-          <p class="n">02</p>
-          <h3>Say it</h3>
-          <p>Whisper or Parakeet transcribes on your GPU; your local LLM polishes the result using your memory and app profile.</p>
-        </div>
-        <div class="step-card">
-          <p class="n">03</p>
-          <h3>It's typed</h3>
-          <p>Text appears at your cursor in whatever app you're in. Every dictation lands in History, editable and searchable.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="install" id="install">
-      <p class="section-label">Install</p>
-      <h2 class="section-title">One command, no Gatekeeper drama</h2>
-      <div class="code-box">
-        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh</code>
-        <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('install-cmd').textContent).then(() => { this.textContent = 'Copied'; setTimeout(() => this.textContent = 'Copy', 1500); })">Copy</button>
-      </div>
-      <p class="note">
-        Installs the latest release to /Applications. Then launch from Spotlight — onboarding walks
-        you through mic access, a speech model, and your hotkey. Updates install themselves in-app.
+    <div style="width: 1px; height: 100%; background: oklch(22% 0.008 90 / 0.14); align-self: stretch;"></div>
+    <div style="padding-top: 8px; animation: fadeUp .8s cubic-bezier(.16,1,.3,1) .25s both;">
+      <p style="color: oklch(35% 0.012 90); font-size: 16.5px; line-height: 1.75; margin: 0;">
+        Patter listens, transcribes, and cleans up your words using models that live entirely on your Mac.
+        Press a hotkey, talk, and finished text lands wherever your cursor is — no account, no server,
+        no connection required.
       </p>
-      <details>
-        <summary>Prefer downloading the DMG yourself?</summary>
-        <div class="inner">
-          Grab it from the <a href="https://github.com/srikark283/patter/releases/latest" style="color: var(--steel-ice)">latest release</a>,
-          drag Patter to Applications, then clear the browser's quarantine flag — Patter is an indie
-          app without Apple notarization, so macOS calls the download "damaged" until you run
-          <code>xattr -cr /Applications/patter.app</code>. The curl route skips this entirely
-          (only browsers attach the flag). First install only.
-        </div>
-      </details>
-    </section>
+      <div style="display: flex; gap: 16px; margin-top: 32px; flex-wrap: wrap;">
+        <a href="https://github.com/srikark283/patter/releases/latest" class="download-btn">Download for macOS</a>
+        <a href="#install" class="install-link">Install with one command</a>
+      </div>
+      <p style="margin-top: 22px; font-size: 12.5px; color: oklch(48% 0.012 90);">Apple Silicon · macOS 11+ · Free &amp; open source</p>
+    </div>
+  </header>
 
-    <footer>
-      <span>Patter — dictation that stays home.</span>
-      <span>
-        <a href="https://github.com/srikark283/patter">GitHub</a> ·
-        <a href="https://github.com/srikark283/patter/releases">Releases</a> ·
-        <a href="https://github.com/srikark283/patter/issues">Issues</a>
+  <div style="display: flex; flex-direction: column; align-items: center; padding: 66px 0 92px; perspective: 900px;" aria-hidden="true">
+    <div id="hudTilt" style="transform: scale(1.7); width: max-content; min-width: 116px; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 14px; border-radius: 18px; overflow: hidden; background: linear-gradient(rgba(255,255,255,.05), rgba(255,255,255,0) 40%), rgba(20,18,15,0.9); backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4); border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 8px rgba(0,0,0,.2), 0 12px 32px rgba(0,0,0,.25); animation: hudFloat 5s ease-in-out infinite; transition: transform .15s ease-out, opacity .25s ease-out; transform-style: preserve-3d; position: relative; z-index: 2;">
+      <span id="hudDot" style="width: 6px; height: 6px; border-radius: 50%; background: #f0555f; animation: hud-breathe 2.2s ease-in-out infinite; flex: none;"></span>
+      <canvas id="hudWave" style="width: 96px; height: 26px; display: block;"></canvas>
+      <span id="hudText" style="display: none; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.9); letter-spacing: -0.01em; white-space: nowrap; padding-right: 6px;"></span>
+      <span id="hudCancel" style="width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; opacity: 0.35;">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
       </span>
-    </footer>
+    </div>
+    <div style="margin-top: 34px; width: min(560px, calc(100% - 64px)); background: oklch(100% 0 0 / 0.72); border: 1px solid oklch(22% 0.008 90 / 0.14); border-radius: 10px; box-shadow: 0 24px 60px oklch(22% 0.008 90 / 0.12), 0 2px 8px oklch(22% 0.008 90 / 0.06); overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid oklch(22% 0.008 90 / 0.1);">
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #f0555f; opacity: .85;"></span>
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #f5bf4f; opacity: .85;"></span>
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #34c759; opacity: .85;"></span>
+        <span style="margin-left: 10px; font: 500 11px 'IBM Plex Mono', monospace; color: oklch(50% 0.012 90); letter-spacing: 0.04em;">Notes — Untitled</span>
+        <span id="demoStatus" style="margin-left: auto; font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #c04b53; transition: color .3s ease;">listening</span>
+      </div>
+      <div style="padding: 20px 22px 24px; min-height: 96px;">
+        <p style="margin: 0; font: 400 15px/1.7 'Source Serif 4', serif; color: oklch(28% 0.01 90);"><span id="demoTyped"></span><span style="display: inline-block; width: 2px; height: 1.1em; background: oklch(50% 0.09 254); vertical-align: text-bottom; margin-left: 2px; animation: caretBlink 1.1s step-end infinite;"></span></p>
+      </div>
+    </div>
+    <p style="margin: 22px 0 0; font: 500 12.5px 'Source Serif 4', serif; font-style: italic; color: oklch(48% 0.012 90);">Fig. 1 — spoken, transcribed, and cleaned up — all on your Mac</p>
   </div>
 
-  <script>
-    // Faithful port of the app's HUD waveform (src/features/hud/Hud.tsx):
-    // 28 spring-chased samples drawn as 3 overlapping glowing strands.
-    // The app feeds real 5-band FFT levels; here a speech-like random walk.
-    (function () {
-      if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-      var canvas = document.getElementById("hud-wave");
-      var ctx = canvas.getContext("2d");
-      var BARS = 28, w = 96, h = 26;
-      var dpr = window.devicePixelRatio || 1;
-      canvas.width = w * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr);
-      var rgb = "174, 205, 232";
-      var targets = new Array(BARS).fill(0);
-      var heights = new Array(BARS).fill(0);
+  <div style="margin: 0 32px 96px; padding: 26px 30px; border-top: 1px solid oklch(22% 0.008 90); border-bottom: 1px solid oklch(22% 0.008 90); display: flex; gap: 16px; align-items: baseline; font-size: 15px; flex-wrap: wrap;">
+    <strong style="font: 600 15px 'Source Serif 4', serif; font-style: italic; color: oklch(22% 0.008 90);">Private by design.</strong>
+    <span style="color: oklch(35% 0.012 90);">Whisper and Parakeet run on your Mac's GPU. The LLM is your local Ollama. Your voice, your transcripts, and your personal memory never touch a server.</span>
+  </div>
 
-      var level = 0.4;
-      setInterval(function () {
-        // Speech-ish: mostly mid levels, occasional pauses and peaks.
-        level += (Math.random() - 0.5) * 0.5;
-        if (Math.random() < 0.06) level = 0.05;
-        level = Math.max(0.05, Math.min(1, level));
-        targets.push(Math.min(1, Math.sqrt(level * 0.9)));
-        targets.shift();
-      }, 66);
+  <section id="features" class="reveal-section" style="padding: 0 32px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 48px; flex-wrap: wrap; gap: 12px;">
+      <h2 style="font: 500 clamp(26px, 3.6vw, 34px)/1.2 'Source Serif 4', serif; letter-spacing: -0.01em; margin: 0;">A complete voice workflow,<br>not just dictation</h2>
+      <p style="font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); margin: 0;">§ Everything on-device</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid oklch(22% 0.008 90 / 0.16); border-left: 1px solid oklch(22% 0.008 90 / 0.16); margin-bottom: 80px;">
+        <div class="feature-card">
+          <p style="font: 500 24px 'Source Serif 4', serif; font-style: italic; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">I</p>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">On-device transcription</h3>
+            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">OpenAI Whisper and Nvidia Parakeet, Metal-accelerated. Six models from 78MB to 1.6GB — pick fast or accurate.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <p style="font: 500 24px 'Source Serif 4', serif; font-style: italic; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">II</p>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">AI cleanup</h3>
+            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">A local Ollama model fixes grammar and strips filler words before the text is typed. Silence trimmed by on-device VAD.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <p style="font: 500 24px 'Source Serif 4', serif; font-style: italic; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">III</p>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Meeting notes</h3>
+            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Record a meeting, get timestamped speaker-labeled transcripts plus minutes, decisions, and action items.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <p style="font: 500 24px 'Source Serif 4', serif; font-style: italic; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">IV</p>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Personal memory</h3>
+            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Teach Patter facts about you and your work. It gets your names, projects, and jargon right — matched with local embeddings.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <p style="font: 500 24px 'Source Serif 4', serif; font-style: italic; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">V</p>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Voice macros</h3>
+            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Say a short trigger phrase, get a whole block of text — addresses, sign-offs, boilerplate — as you dictate.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <p style="font: 500 24px 'Source Serif 4', serif; font-style: italic; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">VI</p>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Push-to-talk</h3>
+            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Toggle with a hotkey or hold-to-record, even a bare modifier key. Types into any app, right where your cursor is.</p>
+          </div>
+        </div>
+    </div>
 
-      function tick() {
-        requestAnimationFrame(tick);
-        for (var i = 0; i < BARS; i++) {
-          var t = targets[i], v = heights[i];
-          heights[i] = v + (t - v) * (t > v ? 0.5 : 0.18);
+    <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 0; border: 1px solid oklch(22% 0.008 90 / 0.16); margin-bottom: 96px;">
+      <div style="padding: 30px 32px; border-right: 1px solid oklch(22% 0.008 90 / 0.16);">
+        <p style="font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.09 254); margin: 0 0 6px;">App-aware profiles</p>
+        <h3 style="font: 500 20px 'Source Serif 4', serif; margin: 0 0 20px; letter-spacing: -0.005em;">Patter knows what app you're in — and writes accordingly</h3>
+        <div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+              <span style="font-size: 14px; font-weight: 600;">Slack &amp; Messages</span>
+              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Casual, contractions kept, minimal punctuation</span>
+            </div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+              <span style="font-size: 14px; font-weight: 600;">Code editor</span>
+              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Precise, technical terms preserved verbatim</span>
+            </div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+              <span style="font-size: 14px; font-weight: 600;">Mail</span>
+              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Formal, full sentences, greeting/sign-off aware</span>
+            </div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+              <span style="font-size: 14px; font-weight: 600;">Notes</span>
+              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Light cleanup only — your voice, tidied</span>
+            </div>
+        </div>
+        <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 18px 0 0; line-height: 1.6;">Each profile is a set of cleanup rules — punctuation, formality, how aggressively filler words get trimmed. Assign once, Patter remembers.</p>
+      </div>
+      <div style="padding: 30px 32px;">
+        <p style="font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.09 254); margin: 0 0 6px;">Your numbers</p>
+        <h3 style="font: 500 20px 'Source Serif 4', serif; margin: 0 0 20px; letter-spacing: -0.005em;">A quiet dashboard, kept on your disk</h3>
+        <div>
+            <div style="margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                <span style="color: oklch(35% 0.012 90);">Words dictated this month</span>
+                <span style="font: 500 12.5px 'IBM Plex Mono', monospace; color: oklch(28% 0.01 90);">38,412</span>
+              </div>
+              <div style="height: 5px; background: oklch(22% 0.008 90 / 0.08); border-radius: 3px; overflow: hidden;">
+                <div style="height: 100%; width: 76%; background: oklch(50% 0.09 254 / 0.6); border-radius: 3px;"></div>
+              </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                <span style="color: oklch(35% 0.012 90);">Typing time saved</span>
+                <span style="font: 500 12.5px 'IBM Plex Mono', monospace; color: oklch(28% 0.01 90);">9.4 hrs</span>
+              </div>
+              <div style="height: 5px; background: oklch(22% 0.008 90 / 0.08); border-radius: 3px; overflow: hidden;">
+                <div style="height: 100%; width: 58%; background: oklch(50% 0.09 254 / 0.6); border-radius: 3px;"></div>
+              </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                <span style="color: oklch(35% 0.012 90);">Avg. transcription latency</span>
+                <span style="font: 500 12.5px 'IBM Plex Mono', monospace; color: oklch(28% 0.01 90);">310 ms</span>
+              </div>
+              <div style="height: 5px; background: oklch(22% 0.008 90 / 0.08); border-radius: 3px; overflow: hidden;">
+                <div style="height: 100%; width: 22%; background: oklch(50% 0.09 254 / 0.6); border-radius: 3px;"></div>
+              </div>
+            </div>
+        </div>
+        <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 8px 0 0; line-height: 1.6;">Words dictated, time saved, and transcription latency — tallied locally, never uploaded.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="reveal-section" style="padding: 0 32px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">How it works</p>
+    <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Source Serif 4', serif; letter-spacing: -0.01em; margin: 0 0 56px;">Three steps to never typing again</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0; padding-bottom: 96px;">
+        <div class="step-card">
+          <p style="font: 600 78px/1 'Source Serif 4', serif; color: oklch(22% 0.008 90 / 0.06); margin: 0; letter-spacing: -0.02em; transition: color .25s ease;">01</p>
+          <h3 style="font-size: 16px; font-weight: 600; margin: 12px 0 8px; position: relative;">Press your hotkey</h3>
+          <p style="font-size: 13.5px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.6; position: relative;">Anywhere in macOS — F12 by default, or hold a key push-to-talk style. A minimal HUD shows you’re live.</p>
+        </div>
+        <div class="step-card">
+          <p style="font: 600 78px/1 'Source Serif 4', serif; color: oklch(22% 0.008 90 / 0.06); margin: 0; letter-spacing: -0.02em; transition: color .25s ease;">02</p>
+          <h3 style="font-size: 16px; font-weight: 600; margin: 12px 0 8px; position: relative;">Say it</h3>
+          <p style="font-size: 13.5px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.6; position: relative;">Whisper or Parakeet transcribes on your GPU; your local LLM polishes the result using your memory and app profile.</p>
+        </div>
+        <div class="step-card">
+          <p style="font: 600 78px/1 'Source Serif 4', serif; color: oklch(22% 0.008 90 / 0.06); margin: 0; letter-spacing: -0.02em; transition: color .25s ease;">03</p>
+          <h3 style="font-size: 16px; font-weight: 600; margin: 12px 0 8px; position: relative;">It’s typed</h3>
+          <p style="font-size: 13.5px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.6; position: relative;">Text appears at your cursor in whatever app you’re in. Every dictation lands in History, editable and searchable.</p>
+        </div>
+    </div>
+  </section>
+
+  <section id="install" class="reveal-section" style="padding: 0 32px 96px; max-width: 700px; margin: 0 auto; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">Install</p>
+    <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Source Serif 4', serif; letter-spacing: -0.01em; margin: 0 0 40px;">One command, no Gatekeeper drama</h2>
+    <div style="border: 1px solid oklch(22% 0.008 90); border-radius: 2px; padding: 32px 32px 28px; position: relative;">
+      <span style="position: absolute; top: -11px; left: 24px; background: oklch(98% 0.007 90); padding: 0 10px; font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(45% 0.012 90);">Terminal</span>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid oklch(22% 0.008 90 / 0.14); border-radius: 6px; padding: 15px 20px; background: oklch(100% 0 0 / 0.5);">
+      <code id="install-cmd" style="font: 500 12.5px 'IBM Plex Mono', monospace; color: oklch(38% 0.08 254); overflow-x: auto; white-space: nowrap;">curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh</code>
+      <button id="copyInstall" class="copy-btn">Copy</button>
+    </div>
+    <p style="font-size: 12.5px; color: oklch(45% 0.012 90); margin: 14px 0 0;">
+      Installs the latest release to /Applications. Then launch from Spotlight — onboarding walks
+      you through mic access, a speech model, and your hotkey.
+    </p>
+    <details style="margin-top: 24px;">
+      <summary style="cursor: pointer; font-size: 14px; color: oklch(42% 0.012 90);">Prefer downloading the DMG yourself?</summary>
+      <div style="padding: 14px 0 0 4px; font-size: 13.5px; color: oklch(42% 0.012 90); line-height: 1.65;">
+        Grab it from the <a href="https://github.com/srikark283/patter/releases/latest">latest release</a>,
+        drag Patter to Applications, then clear the browser's quarantine flag — Patter is an indie
+        app without Apple notarization, so macOS calls the download "damaged" until you run
+        <code style="font: 500 12px 'IBM Plex Mono', monospace; background: oklch(93% 0.006 90); border-radius: 4px; padding: 2px 7px;">xattr -cr /Applications/patter.app</code>.
+        The curl route skips this entirely. First install only.
+      </div>
+    </details>
+    </div>
+  </section>
+
+  <footer style="border-top: 1px solid oklch(22% 0.008 90 / 0.16); padding: 48px 32px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 13.5px; color: oklch(45% 0.012 90);">
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <img src="logo.png" alt="" style="width: 20px; height: 20px; border-radius: 4.5px; opacity: 0.8; filter: grayscale(100%);">
+        <p style="font: 600 16px 'Source Serif 4', serif; color: oklch(22% 0.008 90); margin: 0; letter-spacing: -0.01em;">Patter</p>
+      </div>
+      <p style="margin: 0; font-style: italic;">Dictation that stays home.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+      <a href="https://github.com/srikark283/patter" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        GitHub
+      </a>
+      <a href="https://github.com/srikark283/patter/releases" class="nav-link">Releases</a>
+      <a href="https://github.com/srikark283/patter/issues" class="nav-link">Issues</a>
+    </div>
+    <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;">
+      <div id="footerVersion" style="font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 90); line-height: 1.5;">
+        Version —<br>Latest Release
+      </div>
+      <div style="font-size: 12.5px; color: oklch(60% 0.012 90);">
+        MIT License · Free &amp; Open Source
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // DOM Elements
+  const hudTilt = document.getElementById('hudTilt');
+  const hudDot = document.getElementById('hudDot');
+  const hudWave = document.getElementById('hudWave');
+  const hudText = document.getElementById('hudText');
+  const hudCancel = document.getElementById('hudCancel');
+  
+  const demoStatus = document.getElementById('demoStatus');
+  const demoTyped = document.getElementById('demoTyped');
+  
+  let hudPhase = 'recording'; // 'idle', 'recording', 'processing', 'notice'
+
+  const demoPairs = [
+    { raw: 'um so the q3 launch uh moves to like the second week of july', clean: 'The Q3 launch moves to the second week of July.' },
+    { raw: 'hey can you uh send me the figma link for the you know onboarding flow', clean: 'Hey — can you send me the Figma link for the onboarding flow?' },
+    { raw: 'lets uh circle back on pricing after the um board meeting on thursday', clean: 'Let’s circle back on pricing after the board meeting on Thursday.' },
+  ];
+
+  function updateHud() {
+    hudTilt.style.opacity = hudPhase === 'idle' ? '0' : '1';
+    if (hudPhase === 'idle') {
+      hudTilt.style.transform = 'scale(1.5) rotateX(0) rotateY(0)';
+    } else {
+      hudTilt.style.transform = 'scale(1.7) rotateX(0) rotateY(0)';
+    }
+    
+    // Animate dot
+    hudDot.style.animation = hudPhase === 'recording' ? 'hud-breathe 2.2s ease-in-out infinite' : 'none';
+    
+    // Wave canvas display
+    hudWave.style.display = hudPhase === 'recording' ? 'block' : 'none';
+    
+    // Text display
+    if (hudPhase === 'processing' || hudPhase === 'notice') {
+      hudText.style.display = 'block';
+    } else {
+      hudText.style.display = 'none';
+    }
+    
+    // Cancel icon display
+    if (hudPhase === 'recording' || hudPhase === 'processing') {
+      hudCancel.style.display = 'flex';
+    } else {
+      hudCancel.style.display = 'none';
+    }
+  }
+
+  function runDemo() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      demoTyped.textContent = demoPairs[0].clean;
+      demoStatus.textContent = 'typed ✓';
+      demoStatus.style.color = '#2f9e52';
+      hudPhase = 'notice';
+      hudText.textContent = '✓ Pasted';
+      updateHud();
+      return;
+    }
+
+    let idx = 0;
+    let demoTimer, demoTimeout;
+
+    function typePair() {
+      const pair = demoPairs[idx % demoPairs.length];
+      idx++;
+      let i = 0;
+      
+      demoTyped.textContent = '';
+      demoStatus.textContent = 'listening';
+      demoStatus.style.color = '#c04b53';
+      hudPhase = 'recording';
+      hudText.textContent = '';
+      updateHud();
+
+      demoTimer = setInterval(() => {
+        i++;
+        demoTyped.textContent = pair.raw.slice(0, i);
+        if (i >= pair.raw.length) {
+          clearInterval(demoTimer);
+          demoTimeout = setTimeout(() => {
+            demoStatus.textContent = 'cleaning up…';
+            demoStatus.style.color = '#8a6d1f';
+            hudPhase = 'processing';
+            hudText.textContent = 'Transcribing…';
+            updateHud();
+            
+            demoTimeout = setTimeout(() => {
+              demoTyped.textContent = pair.clean;
+              demoStatus.textContent = 'typed ✓';
+              demoStatus.style.color = '#2f9e52';
+              hudPhase = 'notice';
+              hudText.textContent = '✓ Pasted';
+              updateHud();
+              
+              demoTimeout = setTimeout(() => {
+                hudPhase = 'idle';
+                updateHud();
+                demoTimeout = setTimeout(typePair, 2400);
+              }, 1000);
+            }, 900);
+          }, 600);
         }
-        ctx.clearRect(0, 0, w, h);
-        var time = Date.now() / 1000;
-        var opacities = [1.0, 0.65, 0.35];
-        for (var li = 0; li < 3; li++) {
-          var g = ctx.createLinearGradient(0, 0, w, 0);
-          g.addColorStop(0, "rgba(" + rgb + ", 0)");
-          g.addColorStop(0.15, "rgba(" + rgb + ", " + opacities[li] + ")");
-          g.addColorStop(0.85, "rgba(" + rgb + ", " + opacities[li] + ")");
-          g.addColorStop(1, "rgba(" + rgb + ", 0)");
-          ctx.beginPath();
-          var step = w / (BARS - 1), maxAmp = h / 2 - 1, pts = [];
-          for (var i = 0; i < BARS; i++) {
-            var phase = i * 0.4 + time * 3.5 + li * 2;
-            var windowFunc = Math.sin((i / (BARS - 1)) * Math.PI);
-            var rawAmp = Math.max(heights[i], 0.12);
-            var amp = rawAmp * maxAmp * (1 - li * 0.2) * windowFunc * Math.sin(phase);
-            pts.push({ x: i * step, y: h / 2 + amp });
-          }
-          ctx.moveTo(pts[0].x, pts[0].y);
-          for (var j = 1; j < pts.length - 2; j++) {
-            ctx.quadraticCurveTo(pts[j].x, pts[j].y, (pts[j].x + pts[j + 1].x) / 2, (pts[j].y + pts[j + 1].y) / 2);
-          }
-          ctx.quadraticCurveTo(pts[pts.length - 2].x, pts[pts.length - 2].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
-          ctx.strokeStyle = g;
-          ctx.lineWidth = li === 0 ? 2.0 : li === 1 ? 1.5 : 1.0;
-          if (li === 0) { ctx.shadowColor = "rgba(" + rgb + ", 0.9)"; ctx.shadowBlur = 8; }
-          else ctx.shadowBlur = 0;
-          ctx.stroke();
-        }
-        ctx.shadowBlur = 0;
-      }
+      }, 38);
+    }
+    typePair();
+  }
+
+  function startWave() {
+    const canvas = hudWave;
+    if (!canvas || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const ctx = canvas.getContext('2d');
+    const BARS = 28, w = 96, h = 26;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr);
+    const rgb = '168, 199, 224';
+    const targets = new Array(BARS).fill(0);
+    const heights = new Array(BARS).fill(0);
+    let level = 0.4;
+
+    setInterval(() => {
+      level += (Math.random() - 0.5) * 0.5;
+      if (Math.random() < 0.06) level = 0.05;
+      level = Math.max(0.05, Math.min(1, level));
+      targets.push(Math.min(1, Math.sqrt(level * 0.9)));
+      targets.shift();
+    }, 66);
+
+    function tick() {
       requestAnimationFrame(tick);
-    })();
-  </script>
+      for (let i = 0; i < BARS; i++) {
+        const t = targets[i], v = heights[i];
+        heights[i] = v + (t - v) * (t > v ? 0.5 : 0.18);
+      }
+      ctx.clearRect(0, 0, w, h);
+      const time = Date.now() / 1000;
+      const opacities = [1.0, 0.65, 0.35];
+      for (let li = 0; li < 3; li++) {
+        const g = ctx.createLinearGradient(0, 0, w, 0);
+        g.addColorStop(0, 'rgba(' + rgb + ', 0)');
+        g.addColorStop(0.15, 'rgba(' + rgb + ', ' + opacities[li] + ')');
+        g.addColorStop(0.85, 'rgba(' + rgb + ', ' + opacities[li] + ')');
+        g.addColorStop(1, 'rgba(' + rgb + ', 0)');
+        ctx.beginPath();
+        const step = w / (BARS - 1), maxAmp = h / 2 - 1, pts = [];
+        for (let i = 0; i < BARS; i++) {
+          const phase = i * 0.4 + time * 3.5 + li * 2;
+          const windowFunc = Math.sin((i / (BARS - 1)) * Math.PI);
+          const rawAmp = Math.max(heights[i], 0.12);
+          const amp = rawAmp * maxAmp * (1 - li * 0.2) * windowFunc * Math.sin(phase);
+          pts.push({ x: i * step, y: h / 2 + amp });
+        }
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let j = 1; j < pts.length - 2; j++) {
+          ctx.quadraticCurveTo(pts[j].x, pts[j].y, (pts[j].x + pts[j + 1].x) / 2, (pts[j].y + pts[j + 1].y) / 2);
+        }
+        ctx.quadraticCurveTo(pts[pts.length - 2].x, pts[pts.length - 2].y, pts[pts.length - 1].x, pts[pts.length - 1].y);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = li === 0 ? 2.0 : li === 1 ? 1.5 : 1.0;
+        if (li === 0) { ctx.shadowColor = 'rgba(' + rgb + ', 0.9)'; ctx.shadowBlur = 8; }
+        else ctx.shadowBlur = 0;
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function setupReveal() {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'none';
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal-section').forEach(el => observer.observe(el));
+  }
+
+  function setupTilt() {
+    const el = hudTilt;
+    if (!el) return;
+    const onMove = (e) => {
+      if (hudPhase === 'idle') return;
+      const r = el.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      el.style.transform = 'scale(1.7) rotateX(' + (py * -10) + 'deg) rotateY(' + (px * 14) + 'deg)';
+    };
+    const onLeave = () => { 
+      if (hudPhase === 'idle') return;
+      el.style.transform = 'scale(1.7) rotateX(0) rotateY(0)'; 
+    };
+    window.addEventListener('mousemove', onMove);
+    el.addEventListener('mouseleave', onLeave);
+  }
+
+  document.getElementById('copyInstall').addEventListener('click', function() {
+    navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh');
+    this.textContent = 'Copied';
+    setTimeout(() => { this.textContent = 'Copy'; }, 1500);
+  });
+
+  // Fetch latest version
+  fetch('https://api.github.com/repos/srikark283/patter/releases/latest')
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.tag_name) {
+        const ver = data.tag_name.startsWith('v') ? data.tag_name.substring(1) : data.tag_name;
+        const el = document.getElementById('footerVersion');
+        if (el) el.innerHTML = `Version ${ver}<br>Latest Release`;
+      }
+    })
+    .catch(err => console.error('Failed to fetch latest release version:', err));
+
+  // Initialization
+  startWave();
+  setupReveal();
+  setupTilt();
+  runDemo();
+</script>
 </body>
 </html>
