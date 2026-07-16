@@ -19,10 +19,12 @@ use std::sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex};
 use tauri::{Manager, WebviewUrl};
 use tauri_plugin_autostart::ManagerExt;
 use tauri::tray::TrayIconBuilder;
+#[cfg(target_os = "macos")]
 use tauri_nspanel::{tauri_panel, PanelBuilder, PanelLevel};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use rdev::{Event, EventType, Button};
 
+#[cfg(target_os = "macos")]
 tauri_panel! {
     panel!(HUDPanel {
         config: {
@@ -35,10 +37,16 @@ tauri_panel! {
 fn main() {
     let (tx, shared_config) = audio::capture::init_audio();
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_nspanel::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.plugin(tauri_nspanel::init());
+    }
+
+    builder
         .setup(move |app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -198,6 +206,7 @@ fn main() {
                 let _ = app.global_shortcut().register(shortcut);
             }
 
+            #[cfg(target_os = "macos")]
             let panel = PanelBuilder::<_, HUDPanel>::new(app.handle(), "main")
                 .url(WebviewUrl::App("hud.html".into()))
                 .level(PanelLevel::Floating)
@@ -213,6 +222,16 @@ fn main() {
                         .resizable(false)
                         .inner_size(320.0, 88.0)
                 })
+                .build()?;
+                
+            #[cfg(not(target_os = "macos"))]
+            tauri::WebviewWindowBuilder::new(app.handle(), "main", WebviewUrl::App("hud.html".into()))
+                .transparent(true)
+                .decorations(false)
+                .always_on_top(true)
+                .resizable(false)
+                .inner_size(320.0, 88.0)
+                .skip_taskbar(true)
                 .build()?;
 
             let window = app.get_webview_window("main").unwrap();
@@ -233,7 +252,11 @@ fn main() {
             // rect (rounded), but the visible pill (Hud.tsx) is a smaller shape
             // centered inside it — real vibrancy would show as a big oval behind
             // the small pill. CSS-only glass (bg-graphite + backdrop-blur) instead.
+            #[cfg(target_os = "macos")]
             panel.show();
+
+            #[cfg(not(target_os = "macos"))]
+            window.show()?;
 
             if auto_update {
                 check_updates();

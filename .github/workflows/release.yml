@@ -10,7 +10,11 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,8 +42,8 @@ jobs:
           # M1 baseline: avoids ggml i8mm always_inline build break on the
           # runner's Xcode clang, and keeps the binary running on every
           # Apple Silicon Mac (i8mm only exists on M2+).
-          CFLAGS: -mcpu=apple-m1
-          CXXFLAGS: -mcpu=apple-m1
+          CFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
+          CXXFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Patter ${{ github.ref_name }}"

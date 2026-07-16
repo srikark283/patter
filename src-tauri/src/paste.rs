@@ -48,9 +48,14 @@ pub fn paste_text(mode: &str, text: &str) {
             let _ = clipboard.set_text(text);
 
             if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
-                let _ = enigo.key(Key::Meta, Direction::Press);
+                #[cfg(target_os = "macos")]
+                let modifier = Key::Meta;
+                #[cfg(not(target_os = "macos"))]
+                let modifier = Key::Control;
+
+                let _ = enigo.key(modifier, Direction::Press);
                 let _ = enigo.key(Key::Unicode('v'), Direction::Click);
-                let _ = enigo.key(Key::Meta, Direction::Release);
+                let _ = enigo.key(modifier, Direction::Release);
             }
         }
     }

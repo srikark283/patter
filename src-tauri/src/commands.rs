@@ -370,6 +370,7 @@ pub fn apply_dock_icon() {
 pub fn apply_dock_icon() {}
 
 #[tauri::command]
+#[cfg(target_os = "macos")]
 pub async fn get_app_icon(app_name: String) -> Result<Vec<u8>, String> {
     use std::process::Command;
     use std::path::PathBuf;
@@ -444,4 +445,11 @@ pub async fn get_app_icon(app_name: String) -> Result<Vec<u8>, String> {
     }
 
     Err("Could not read generated png".to_string())
+}
+
+#[tauri::command]
+#[cfg(not(target_os = "macos"))]
+pub async fn get_app_icon(_app_name: String) -> Result<Vec<u8>, String> {
+    // TODO: Implement Windows icon extraction using ExtractIconEx / GetForegroundWindow
+    Err("Not implemented on Windows".to_string())
 }

@@ -1,6 +1,6 @@
 [package]
 name = "patter"
-version = "0.2.11"
+version = "0.2.12"
 description = "Patter - Open Source Voice-to-Text Transcriber"
 authors = ["Srikar"]
 edition = "2021"
@@ -9,13 +9,12 @@ edition = "2021"
 # Check crates.io for the latest versions before building; these were current
 # as of mid-2026. The `metal` feature is what makes whisper.cpp use the GPU.
 cpal = "0.15"
-whisper-rs = { version = "0.14", features = ["metal"] }
+whisper-rs = "0.14"
 anyhow = "1"
 tauri = { version = "2.11.5", features = ["tray-icon", "image", "image-png"] }
 tauri-plugin-global-shortcut = "2.3.2"
 arboard = "3.6.1"
 enigo = "0.6.1"
-tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
 rustfft = "6.2"
 sherpa-onnx = "1.13.4"
 reqwest = { version = "0.12", features = ["stream", "blocking", "json"] }
@@ -25,9 +24,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.150"
 window-vibrancy = "0.7"
 rdev = { path = "./rdev-local" }
-objc2-app-kit = "0.3"
-objc2-foundation = "0.3"
-objc2 = "0.6"
 base64 = "0.22.1"
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
@@ -51,3 +47,13 @@ tauri-plugin-updater = "2.10.1"
 objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSRunningApplication", "NSApplication", "NSImage", "NSResponder"] }
 objc2-foundation = { version = "0.3", features = ["NSData"] }
 objc2 = "0.6"
+tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
+whisper-rs = { version = "0.14", features = ["metal"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58.0", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+] }
