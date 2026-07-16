@@ -44,6 +44,7 @@ jobs:
           # Apple Silicon Mac (i8mm only exists on M2+).
           CFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
           CXXFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
+          RUSTFLAGS: ${{ matrix.platform == 'windows-latest' && '-C target-feature=+crt-static' || '' }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Patter ${{ github.ref_name }}"
