@@ -229,6 +229,7 @@ fn main() {
             tauri::WebviewWindowBuilder::new(app.handle(), "main", WebviewUrl::App("hud.html".into()))
                 .transparent(true)
                 .decorations(false)
+                .shadow(false)
                 .always_on_top(true)
                 .resizable(false)
                 .inner_size(320.0, 88.0)

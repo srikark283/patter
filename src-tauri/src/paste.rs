@@ -28,7 +28,46 @@ pub fn frontmost_app_name() -> Option<String> {
 
 #[cfg(not(target_os = "macos"))]
 pub fn frontmost_app_name() -> Option<String> {
-    None
+    use std::path::Path;
+    use windows::Win32::Foundation::{CloseHandle, MAX_PATH};
+    use windows::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION};
+    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0 == 0 {
+            return None;
+        }
+        let mut process_id = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut process_id));
+        if process_id == 0 {
+            return None;
+        }
+
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id).ok()?;
+        
+        let mut buffer = [0u16; MAX_PATH as usize];
+        let mut size = MAX_PATH;
+        let success = QueryFullProcessImageNameW(handle, windows::Win32::System::Threading::PROCESS_NAME_FORMAT(0), windows::core::PWSTR(buffer.as_mut_ptr()), &mut size);
+        let _ = CloseHandle(handle);
+
+        if success.is_err() || size == 0 {
+            return None;
+        }
+
+        let path_str = String::from_utf16_lossy(&buffer[..size as usize]);
+        let path = Path::new(&path_str);
+        
+        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+            let mut name = stem.to_string();
+            if let Some(first) = name.chars().next() {
+                let capitalized = first.to_uppercase().to_string() + &name[first.len_utf8()..];
+                return Some(capitalized);
+            }
+            return Some(name);
+        }
+        None
+    }
 }
 
 /// Clipboard-only fallback for when keystroke synthesis isn't permitted.
