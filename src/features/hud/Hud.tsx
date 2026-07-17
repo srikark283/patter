@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { X, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { onHudState, onLevels, cancelDictation, getSettings, Settings, onDbUpdated } from "../../lib/ipc";
+import { onHudState, onLevels, cancelDictation } from "../../lib/ipc";
 import RecordingVisualizer from "./RecordingVisualizer";
 
 type Phase = "idle" | "recording" | "processing" | "notice";
@@ -17,22 +17,11 @@ function phaseFor(status: string): Phase {
 }
 
 export default function Hud() {
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [status, setStatus] = useState("Idle");
   const [phase, setPhase] = useState<Phase>("idle");
   const targets = useRef<number[]>(new Array(BARS).fill(0));
   const heights = useRef<number[]>(new Array(BARS).fill(0));
   const phaseRef = useRef<Phase>("idle");
-
-  useEffect(() => {
-    getSettings().then(setSettings);
-    const unlisten = onDbUpdated(() => {
-      getSettings().then(setSettings);
-    });
-    return () => {
-      unlisten.then((f) => f());
-    };
-  }, []);
 
   useEffect(() => {
     const win = getCurrentWindow();
