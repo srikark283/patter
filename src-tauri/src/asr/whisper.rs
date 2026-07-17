@@ -22,12 +22,18 @@ impl ASREngine for WhisperEngine {
         params.set_print_realtime(false);
         params.set_print_timestamps(false);
 
+        // Prevent hallucination loops from cascading across 30s chunks
+        params.set_no_context(true);
+        // Fallback triggers if the model gets stuck in a hallucination
+        params.set_entropy_thold(2.4);
+        params.set_no_speech_thold(0.6);
+        params.set_single_segment(false);
+
         if let Some(l) = language {
             if l != "auto" {
                 params.set_language(Some(l));
             }
         }
-        params.set_print_timestamps(false);
         if let Some(p) = prompt {
             if !p.is_empty() {
                 params.set_initial_prompt(p);
@@ -52,6 +58,7 @@ impl ASREngine for WhisperEngine {
                 lower == "subscribe." || 
                 lower == "subscribe to my channel." || 
                 lower == "please subscribe." ||
+                lower == "much of these are the same." ||
                 lower == "amem." ||
                 lower == "amen." ||
                 lower == "." ||

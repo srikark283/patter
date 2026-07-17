@@ -11,16 +11,57 @@ pub fn resample_linear(input: &[f32], from: u32, to: u32) -> Vec<f32> {
     }
     let ratio = from as f64 / to as f64;
     let out_len = (input.len() as f64 / ratio) as usize;
-    (0..out_len)
-        .map(|i| {
-            let pos = i as f64 * ratio;
-            let idx = pos as usize;
-            let frac = (pos - idx as f64) as f32;
-            let a = input[idx.min(input.len() - 1)];
-            let b = input[(idx + 1).min(input.len() - 1)];
-            a + (b - a) * frac
-        })
-        .collect()
+    
+    // If downsampling, use an exact boxcar filter (averaging) to prevent high-frequency aliasing.
+    // Linear interpolation throws away 2/3 of the audio data and causes extreme metallic distortion.
+    if ratio > 1.0 {
+        (0..out_len)
+            .map(|i| {
+                let start_exact = i as f64 * ratio;
+                let end_exact = (i + 1) as f64 * ratio;
+                
+                let start_idx = start_exact.floor() as usize;
+                let end_idx = (end_exact.ceil() as usize).min(input.len());
+                
+                if start_idx >= input.len() {
+                    return 0.0;
+                }
+                
+                let mut sum = 0.0;
+                let mut weight = 0.0;
+                
+                for j in start_idx..end_idx {
+                    let sample_start = j as f64;
+                    let sample_end = (j + 1) as f64;
+                    
+                    let overlap_start = start_exact.max(sample_start);
+                    let overlap_end = end_exact.min(sample_end);
+                    let overlap = (overlap_end - overlap_start).max(0.0);
+                    
+                    sum += input[j] * overlap as f32;
+                    weight += overlap as f32;
+                }
+                
+                if weight > 0.0 {
+                    sum / weight
+                } else {
+                    input[start_idx]
+                }
+            })
+            .collect()
+    } else {
+        // Upsampling: linear interpolation is fine
+        (0..out_len)
+            .map(|i| {
+                let pos = i as f64 * ratio;
+                let idx = pos as usize;
+                let frac = (pos - idx as f64) as f32;
+                let a = input[idx.min(input.len() - 1)];
+                let b = input[(idx + 1).min(input.len() - 1)];
+                a + (b - a) * frac
+            })
+            .collect()
+    }
 }
 
 pub fn create_stream(

@@ -34,10 +34,10 @@ pub fn trim_silence(model_path: &PathBuf, audio: &[f32]) -> Result<Vec<f32>, Str
     let config = VadModelConfig {
         silero_vad: SileroVadModelConfig {
             model: Some(model_path.to_string_lossy().into_owned()),
-            threshold: 0.5,
-            min_silence_duration: 0.5,
-            min_speech_duration: 0.25,
-            max_speech_duration: 20.0,
+            threshold: 0.2,
+            min_silence_duration: 1.0,
+            min_speech_duration: 0.1,
+            max_speech_duration: 60.0,
             window_size: WINDOW_SIZE as i32,
         },
         sample_rate: SAMPLE_RATE,
