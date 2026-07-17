@@ -159,10 +159,29 @@ fn main() {
                     
                     // Only use rdev if hotkey doesn't contain a plus (meaning it's a single key)
                     if !hotkey.contains('+') {
+                        let is_match = |key_str: &str, target_hotkey: &str| -> bool {
+                            if key_str == target_hotkey { return true; }
+                            match target_hotkey {
+                                "ControlLeft" | "ControlRight" => {
+                                    key_str == "ControlLeft" || key_str == "ControlRight" || key_str == "Unknown(17)" || key_str == "Unknown(162)" || key_str == "Unknown(163)"
+                                },
+                                "Alt" | "AltGr" => {
+                                    key_str == "Alt" || key_str == "AltGr" || key_str == "Unknown(18)" || key_str == "Unknown(164)" || key_str == "Unknown(165)"
+                                },
+                                "ShiftLeft" | "ShiftRight" => {
+                                    key_str == "ShiftLeft" || key_str == "ShiftRight" || key_str == "Unknown(16)" || key_str == "Unknown(160)" || key_str == "Unknown(161)"
+                                },
+                                "MetaLeft" | "MetaRight" => {
+                                    key_str == "MetaLeft" || key_str == "MetaRight" || key_str == "Unknown(91)" || key_str == "Unknown(92)"
+                                },
+                                _ => false,
+                            }
+                        };
+                        
                         match event.event_type {
                             EventType::KeyPress(key) => {
                                 let key_str = format!("{:?}", key);
-                                if key_str == hotkey {
+                                if is_match(&key_str, &hotkey) {
                                     if state.is_recording.load(Ordering::SeqCst) {
                                         if !push_to_talk {
                                             recording::stop_and_transcribe(&app_handle_for_rdev);
@@ -174,7 +193,7 @@ fn main() {
                             }
                             EventType::KeyRelease(key) => {
                                 let key_str = format!("{:?}", key);
-                                if key_str == hotkey && push_to_talk {
+                                if is_match(&key_str, &hotkey) && push_to_talk {
                                     if state.is_recording.load(Ordering::SeqCst) {
                                         recording::stop_and_transcribe(&app_handle_for_rdev);
                                     }
