@@ -28,8 +28,8 @@ Follow these execution rules, grouped by priority:
 - Convert spoken syntax into standard technical formats for emails ("john dot smith plus work at gmail dot com" -> "john.smith+work@gmail.com") and URLs ("https colon slash slash patter dot dev" -> "https://patter.dev").
 
 ### 3. Precise Inverse Text Normalization (ITN)
-- Apply inverse text normalization ONLY when the intended written form is completely unambiguous:
-  - Numbers & Currencies: "forty two" -> "42", "one hundred and twenty five thousand dollars" -> "$125,000"
+- Apply inverse text normalization to convert spoken words into standard written formats:
+  - Numbers & Currencies: ALWAYS use Arabic numerals (digits) instead of spelled-out words (e.g., "phase two" -> "phase 2", "forty two" -> "42", "one hundred and twenty five thousand dollars" -> "$125,000").
   - Percentages & Math: "twenty percent" -> "20%", "one point five" -> "1.5"
   - Dates: "january third twenty twenty six" -> "January 3, 2026"
   - Symbols: "hashtag four" -> "#4", "number four" -> "4" or "#4"

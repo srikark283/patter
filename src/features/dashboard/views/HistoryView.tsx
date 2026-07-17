@@ -117,7 +117,7 @@ export function HistoryView({ history, setHistory }: Props) {
   }, [history, searchQuery, appFilter]);
 
   // Grouped for Virtuoso
-  const { groups, flatRecords, groupCounts } = useMemo(() => {
+  const { groups } = useMemo(() => {
     if (!filteredHistory) return { groups: [], flatRecords: [], groupCounts: [] };
     const groupsObj: { date: string, records: TranscriptionRecord[] }[] = [];
     const map = new Map<string, TranscriptionRecord[]>();

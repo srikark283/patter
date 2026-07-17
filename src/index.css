@@ -201,30 +201,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.09),
     0 2px 8px rgba(0, 0, 0, 0.35),
     0 12px 32px rgba(0, 0, 0, 0.5);
-  animation: hud-in 240ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
-}
-.hud-pill.leaving {
-  animation: hud-out 170ms ease-in forwards;
-}
-
-@keyframes hud-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.97);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-    filter: none;
-  }
-}
-@keyframes hud-out {
-  to {
-    opacity: 0;
-    transform: translateY(6px) scale(0.97);
-    filter: blur(3px);
-  }
 }
 
 .hud-drag-handle {

@@ -48,6 +48,7 @@ impl ASREngine for WhisperEngine {
         for i in 0..n {
             let seg = state.full_get_segment_text(i)?.trim().to_string();
             let lower = seg.to_lowercase();
+            println!("Raw seg: {:?}", seg);
             
             // Mitigate common Whisper hallucinations on silence or background noise
             let is_hallucination = 

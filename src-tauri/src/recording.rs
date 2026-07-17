@@ -146,11 +146,29 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     thread::spawn(move || {
         let mono: Vec<f32> = if channels > 1 {
             raw.chunks(channels)
-                .map(|frame| frame.iter().sum::<f32>() / channels as f32)
+                .map(|frame| {
+                    let mut sum = 0.0;
+                    for &s in frame {
+                        if s.is_finite() {
+                            sum += s;
+                        }
+                    }
+                    sum / channels as f32
+                })
                 .collect()
         } else {
-            raw
+            raw.into_iter().map(|s| if s.is_finite() { s } else { 0.0 }).collect()
         };
+
+        // Normalize if it exceeds 1.0 (some cpal drivers output raw unnormalized integers as f32)
+        let max_amp = mono.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+        let mono = if max_amp > 1.0 {
+            println!("Normalizing audio, max amp was {}", max_amp);
+            mono.into_iter().map(|s| s / max_amp).collect()
+        } else {
+            mono
+        };
+
         let audio = resample_linear(&mono, src_rate, WHISPER_SAMPLE_RATE);
 
         if audio.len() < WHISPER_SAMPLE_RATE as usize {
@@ -185,6 +203,9 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         } else {
             audio
         };
+
+        let max_val = audio.iter().cloned().fold(0.0f32, f32::max);
+        println!("Audio length: {}, max val: {}", audio.len(), max_val);
 
         let transcribe_started = std::time::Instant::now();
         let text = {
