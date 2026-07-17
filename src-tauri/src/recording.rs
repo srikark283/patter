@@ -85,7 +85,7 @@ pub fn start_recording(app: &tauri::AppHandle) {
 
             // VAD logic: stop recording after 1.5s of silence
             let max_level = levels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-            if max_level > 0.015 {
+            if max_level > 0.005 {
                 speech_detected = true;
                 silence_frames = 0;
             } else if speech_detected {

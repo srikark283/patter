@@ -59,6 +59,18 @@ export default function Hud() {
     };
   }, []);
 
+  useEffect(() => {
+    const unlisten = onLevels((levels) => {
+      if (phaseRef.current !== "recording") return;
+      const level = Math.max(...levels);
+      targets.current.push(Math.min(1, Math.sqrt(level * 6)));
+      targets.current.shift();
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
+
   const handleExitComplete = () => {
     if (phaseRef.current === "idle") {
       getCurrentWindow().hide();
