@@ -40,20 +40,16 @@ export default function Hud() {
       
       phaseRef.current = next;
       setPhase(next);
+
+      // Toggle click-through: when idle, pass clicks through to the OS.
+      // When visible, capture clicks so cancel button and drag handle work.
+      if (next === "idle") {
+        win.setIgnoreCursorEvents(true).catch(console.error);
+      } else {
+        win.setIgnoreCursorEvents(false).catch(console.error);
+      }
     });
 
-    return () => {
-      unlisten.then((f) => f());
-    };
-  }, []);
-
-  useEffect(() => {
-    const unlisten = onLevels((levels) => {
-      if (phaseRef.current !== "recording") return;
-      const level = Math.max(...levels);
-      targets.current.push(Math.min(1, Math.sqrt(level * 6)));
-      targets.current.shift();
-    });
     return () => {
       unlisten.then((f) => f());
     };

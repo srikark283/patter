@@ -27,3 +27,6 @@ graphify-out
 .claude
 .vscode
 .cargo
+
+# LLM Evaluation
+/llm_eval

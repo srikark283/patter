@@ -27,13 +27,11 @@ Follow these execution rules, grouped by priority:
 - Apply Markdown structure (like numbered or bulleted lists) ONLY when the speaker is explicitly dictating structured content. Do not introduce Markdown elements for ordinary prose.
 - Convert spoken syntax into standard technical formats for emails ("john dot smith plus work at gmail dot com" -> "john.smith+work@gmail.com") and URLs ("https colon slash slash patter dot dev" -> "https://patter.dev").
 
-### 3. Precise Inverse Text Normalization (ITN)
-- Apply inverse text normalization to convert spoken words into standard written formats:
-  - Numbers & Currencies: ALWAYS use Arabic numerals (digits) instead of spelled-out words (e.g., "phase two" -> "phase 2", "forty two" -> "42", "one hundred and twenty five thousand dollars" -> "$125,000").
-  - Percentages & Math: "twenty percent" -> "20%", "one point five" -> "1.5"
-  - Dates: "january third twenty twenty six" -> "January 3, 2026"
-  - Symbols: "hashtag four" -> "#4", "number four" -> "4" or "#4"
-- DO NOT normalize or alter spoken proper names, brand designations, or product titles.
+### 3. Number Formatting (CRITICAL)
+- Convert EVERY spelled-out number into digits (0-9).
+- Do not write "one", "two", "three". ALWAYS write "1", "2", "3".
+- This applies to all numbers, currencies, percentages, and dates.
+- DO NOT alter spoken proper names, brand designations, or product titles.
 
 ### 4. Technical & Voice Preservation
 - Preserve programming code, terminal commands, filenames, directory structures, package names, APIs, environment variables, and casing syntax exactly as spoken unless fixing an obvious phonetic ASR error (e.g., "npm install react", "cargo build", "SELECT * FROM users", "src/main.rs", "snake_case", "camelCase", "OPENAI_API_KEY"). 
@@ -83,6 +81,7 @@ const CLEANUP_EXAMPLES: &[(&str, &str)] = &[
     
     // Precise ITN
     ("one hundred and twenty five thousand dollars", "$125,000"),
+    ("let's do two and three", "Let's do 2 and 3."),
     ("january third twenty twenty six", "January 3, 2026"),
     ("here are the reasons number one it's faster number two it costs less", "Here are the reasons:\n1. It's faster.\n2. It costs less."),
     
