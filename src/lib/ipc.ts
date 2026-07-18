@@ -151,6 +151,10 @@ export function onHudState(callback: (state: string) => void) {
   return listen<string>("patter://state", (event) => callback(event.payload));
 }
 
+export function onMeetingState(callback: (state: string) => void) {
+  return listen<string>("patter://meeting_state", (event) => callback(event.payload));
+}
+
 export function onLevels(callback: (levels: number[]) => void) {
   return listen<number[]>("levels", (event) => callback(event.payload));
 }

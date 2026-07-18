@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { X, Lock } from "lucide-react";
+import { X, Lock, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { onHudState, onLevels, cancelDictation } from "../../lib/ipc";
+import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording } from "../../lib/ipc";
 import RecordingVisualizer from "./RecordingVisualizer";
 
-type Phase = "idle" | "recording" | "processing" | "notice";
+type Phase = "idle" | "recording" | "processing" | "notice" | "meeting";
 
 const BARS = 28;
 
@@ -16,44 +16,100 @@ function phaseFor(status: string): Phase {
   return "notice";
 }
 
+function fmtElapsed(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 export default function Hud() {
   const [status, setStatus] = useState("Idle");
   const [phase, setPhase] = useState<Phase>("idle");
+  const [elapsed, setElapsed] = useState(0);
   const targets = useRef<number[]>(new Array(BARS).fill(0));
   const heights = useRef<number[]>(new Array(BARS).fill(0));
   const phaseRef = useRef<Phase>("idle");
+  const meetingActive = useRef(false);
+  const meetingStart = useRef(0);
+  const revertTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const applyPhase = (next: Phase) => {
+    const win = getCurrentWindow();
+    if (phaseRef.current === "idle" && next !== "idle") {
+      win.show();
+    }
+    if (next === "recording") {
+      targets.current.fill(0);
+      heights.current.fill(0);
+    }
+    phaseRef.current = next;
+    setPhase(next);
+    // Toggle click-through: when idle, pass clicks through to the OS.
+    // When visible, capture clicks so buttons and drag handle work.
+    win.setIgnoreCursorEvents(next === "idle").catch(console.error);
+  };
 
   useEffect(() => {
-    const win = getCurrentWindow();
     const unlisten = onHudState((state) => {
       const next = phaseFor(state);
+      if (meetingActive.current) {
+        // Dictation-channel messages during a meeting (mic reconnect, blocked
+        // hotkey) show as a transient notice, then the meeting pill returns.
+        if (next === "idle") return;
+        setStatus(state);
+        applyPhase("notice");
+        clearTimeout(revertTimer.current);
+        revertTimer.current = setTimeout(() => {
+          if (meetingActive.current) applyPhase("meeting");
+        }, 2500);
+        return;
+      }
       setStatus(state);
-      
-      if (phaseRef.current === "idle" && next !== "idle") {
-        win.show();
-      }
-
-      if (next === "recording") {
-        targets.current.fill(0);
-        heights.current.fill(0);
-      }
-      
-      phaseRef.current = next;
-      setPhase(next);
-
-      // Toggle click-through: when idle, pass clicks through to the OS.
-      // When visible, capture clicks so cancel button and drag handle work.
-      if (next === "idle") {
-        win.setIgnoreCursorEvents(true).catch(console.error);
-      } else {
-        win.setIgnoreCursorEvents(false).catch(console.error);
-      }
+      applyPhase(next);
     });
-
     return () => {
       unlisten.then((f) => f());
     };
   }, []);
+
+  useEffect(() => {
+    const unlisten = onMeetingState((state) => {
+      clearTimeout(revertTimer.current);
+      if (state === "recording") {
+        meetingActive.current = true;
+        meetingStart.current = Date.now();
+        setElapsed(0);
+        applyPhase("meeting");
+      } else if (state === "idle") {
+        meetingActive.current = false;
+        applyPhase("idle");
+      } else {
+        // transcribing / summarizing / error — post-recording progress.
+        meetingActive.current = false;
+        setStatus(state.charAt(0).toUpperCase() + state.slice(1));
+        applyPhase("notice");
+        // Errors never get a follow-up "idle" event; auto-dismiss.
+        if (state.startsWith("error")) {
+          revertTimer.current = setTimeout(() => applyPhase("idle"), 5000);
+        }
+      }
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "meeting") return;
+    const id = setInterval(
+      () => setElapsed(Math.floor((Date.now() - meetingStart.current) / 1000)),
+      1000
+    );
+    return () => clearInterval(id);
+  }, [phase]);
 
   useEffect(() => {
     const unlisten = onLevels((levels) => {
@@ -89,7 +145,7 @@ export default function Hud() {
             }}
             className={`hud-pill ${phase}`}
           >
-            <div 
+            <div
               onPointerDown={(e) => {
                 if (e.buttons === 1) {
                   getCurrentWindow().startDragging();
@@ -98,11 +154,15 @@ export default function Hud() {
               className="hud-drag-handle"
             >
               <span className={`hud-dot ${phase}`} />
-              
+
               {phase === "recording" && (
                 <RecordingVisualizer phase={phase} targets={targets} heights={heights} />
               )}
-              
+
+              {phase === "meeting" && (
+                <span className="hud-label tabular-nums">{fmtElapsed(elapsed)}</span>
+              )}
+
               {phase === "processing" && (
                 <div className="flex items-center gap-1.5 text-white/60">
                   <Lock size={10} className="opacity-60" />
@@ -111,12 +171,22 @@ export default function Hud() {
               )}
               {phase === "notice" && <span className="hud-label">{status}</span>}
             </div>
-            
-            {(phase === "recording" || phase === "processing") && (
+
+            {(phase === "recording" || phase === "processing" || phase === "meeting") && (
               <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
-                <button className="hud-cancel-btn text-white/40 hover:text-white/80" onClick={() => cancelDictation().catch(console.error)}>
-                  <X size={12} strokeWidth={2.5} />
-                </button>
+                {phase === "meeting" ? (
+                  <button
+                    className="hud-cancel-btn text-white/40 hover:text-white/80"
+                    title="Stop meeting recording"
+                    onClick={() => stopMeetingRecording().catch(console.error)}
+                  >
+                    <Square size={10} strokeWidth={2.5} fill="currentColor" />
+                  </button>
+                ) : (
+                  <button className="hud-cancel-btn text-white/40 hover:text-white/80" onClick={() => cancelDictation().catch(console.error)}>
+                    <X size={12} strokeWidth={2.5} />
+                  </button>
+                )}
               </div>
             )}
           </motion.div>
@@ -125,4 +195,3 @@ export default function Hud() {
     </div>
   );
 }
-

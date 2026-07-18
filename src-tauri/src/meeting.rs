@@ -1,6 +1,7 @@
 use crate::audio::capture::resample_linear;
 use crate::db;
 use crate::state::{AppState, AudioCommand};
+use std::io::Write;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
@@ -8,10 +9,16 @@ use tauri::{Emitter, Manager};
 
 const WHISPER_SAMPLE_RATE: u32 = 16_000;
 
-/// Move whatever raw audio has accumulated into the compact 16 kHz mono
-/// buffer (~230 MB/hr instead of ~1.4 GB/hr raw). The whole move happens
-/// under the compact lock so concurrent drains can't interleave chunks out
-/// of order.
+fn buffer_path(app: &tauri::AppHandle) -> std::path::PathBuf {
+    app.path()
+        .app_data_dir()
+        .expect("no app data dir")
+        .join("meeting_buffer.f32")
+}
+
+/// Move whatever raw audio has accumulated to the on-disk 16 kHz mono buffer
+/// (f32-le, ~115 MB/hr on disk, flat RAM). The whole move happens under the
+/// file lock so concurrent drains can't interleave chunks out of order.
 /// ponytail: per-chunk linear resampling leaves a one-sample seam every
 /// drain; inaudible to ASR at 16 kHz.
 fn drain_captured(app: &tauri::AppHandle) {
@@ -19,7 +26,10 @@ fn drain_captured(app: &tauri::AppHandle) {
     let channels = (state.device_config.lock().unwrap().channels() as usize).max(1);
     let src_rate = state.device_config.lock().unwrap().sample_rate().0;
 
-    let mut compact = state.meeting_compact.lock().unwrap();
+    let mut file_lock = state.meeting_file.lock().unwrap();
+    let Some(file) = file_lock.as_mut() else {
+        return;
+    };
     let chunk: Vec<f32> = {
         let mut raw = state.meeting_captured.lock().unwrap();
         let take = raw.len() - raw.len() % channels;
@@ -36,7 +46,13 @@ fn drain_captured(app: &tauri::AppHandle) {
     } else {
         chunk
     };
-    compact.extend(resample_linear(&mono, src_rate, WHISPER_SAMPLE_RATE));
+    let bytes: Vec<u8> = resample_linear(&mono, src_rate, WHISPER_SAMPLE_RATE)
+        .iter()
+        .flat_map(|s| s.to_le_bytes())
+        .collect();
+    if let Err(e) = file.write_all(&bytes) {
+        eprintln!("meeting buffer write failed: {}", e);
+    }
 }
 
 pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
@@ -51,7 +67,13 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
 
     let settings = state.settings.lock().unwrap().clone();
     *state.meeting_captured.lock().unwrap() = Vec::new();
-    *state.meeting_compact.lock().unwrap() = Vec::new();
+    let path = buffer_path(app);
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let file = std::fs::File::create(&path)
+        .map_err(|e| format!("Cannot create meeting buffer file: {}", e))?;
+    *state.meeting_file.lock().unwrap() = Some(file);
 
     if state
         .audio_tx
@@ -90,10 +112,18 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     let _ = state.audio_tx.send(AudioCommand::Stop);
     crate::tray::refresh(app);
 
-    // Final drain of whatever the loop hasn't picked up yet.
+    // Final drain of whatever the loop hasn't picked up yet, then close the
+    // buffer file and read it back for transcription.
     drain_captured(app);
-    let audio = std::mem::take(&mut *state.meeting_compact.lock().unwrap());
+    *state.meeting_file.lock().unwrap() = None;
     *state.meeting_captured.lock().unwrap() = Vec::new();
+    let path = buffer_path(app);
+    let bytes = std::fs::read(&path).unwrap_or_default();
+    let _ = std::fs::remove_file(&path);
+    let audio: Vec<f32> = bytes
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+        .collect();
     if audio.is_empty() {
         let _ = app.emit("patter://meeting_state", "idle");
         return Err("No audio captured".to_string());

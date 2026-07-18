@@ -2,8 +2,23 @@ use crate::state::AudioCommand;
 use anyhow::{bail, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
+use tauri::Emitter;
+
+/// Set once at app setup so the audio thread (spawned before the Tauri app
+/// exists) can surface stream errors to the UI.
+static APP: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+pub fn set_app_handle(handle: tauri::AppHandle) {
+    let _ = APP.set(handle);
+}
+
+fn emit_state(msg: &str) {
+    if let Some(app) = APP.get() {
+        let _ = app.emit("patter://state", msg);
+    }
+}
 
 pub fn resample_linear(input: &[f32], from: u32, to: u32) -> Vec<f32> {
     if from == to || input.is_empty() {
@@ -152,6 +167,7 @@ pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamCon
                 }
                 AudioCommand::Reconnect(captured) => {
                     eprintln!("Audio stream failed. Reconnecting...");
+                    emit_state("⚠ Mic disconnected — reconnecting…");
                     stream = None;
 
                     let host = cpal::default_host();
@@ -162,8 +178,12 @@ pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamCon
                                 s.play().unwrap();
                                 stream = Some(s);
                                 eprintln!("Reconnected successfully.");
+                                emit_state("✓ Mic reconnected");
                             }
                         }
+                    }
+                    if stream.is_none() {
+                        emit_state("⚠ Mic unavailable — no audio being captured");
                     }
                 }
             }

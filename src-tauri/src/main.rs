@@ -53,6 +53,7 @@ fn main() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             commands::apply_dock_icon();
+            audio::capture::set_app_handle(app.handle().clone());
 
             // Background update check on launch: notify only — download and
             // install happen when the user asks (install_update command).
@@ -137,7 +138,7 @@ fn main() {
                 is_paused: Arc::new(AtomicBool::new(false)),
                 frontmost_app: Arc::new(Mutex::new(None)),
                 meeting_captured: Arc::new(Mutex::new(Vec::new())),
-                meeting_compact: Arc::new(Mutex::new(Vec::new())),
+                meeting_file: Arc::new(Mutex::new(None)),
                 is_meeting_recording: Arc::new(AtomicBool::new(false)),
                 engine: Arc::new(Mutex::new(initial_engine)),
                 active_engine_id: Arc::new(Mutex::new(initial_engine_id)),

@@ -231,6 +231,12 @@
   opacity: 1;
   animation: hud-breathe 1.6s ease-in-out infinite;
 }
+/* Meeting: same red as dictation but slower breathe — calm hour-long presence. */
+.hud-dot.meeting {
+  background: #f0555f;
+  opacity: 1;
+  animation: hud-breathe 3.5s ease-in-out infinite;
+}
 @keyframes hud-breathe {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(240, 85, 95, 0.45);
