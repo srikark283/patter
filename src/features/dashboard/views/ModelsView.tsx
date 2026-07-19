@@ -20,16 +20,38 @@ interface ModelSpec {
   vendor: "openai" | "nvidia";
   multilingual: boolean;
   description: string;
+  /** 1–5, relative across the lineup (same ratings as the landing page) */
+  speed: number;
+  accuracy: number;
 }
 
 const MODELS: ModelSpec[] = [
-  { id: "whisper-tiny", name: "Tiny", fullName: "Whisper Tiny", size: "78 MB", vendor: "openai", multilingual: false, description: "Fastest, lowest accuracy — quick notes" },
-  { id: "whisper-base", name: "Base", fullName: "Whisper Base", size: "148 MB", vendor: "openai", multilingual: false, description: "Balanced speed and accuracy" },
-  { id: "whisper-small", name: "Small", fullName: "Whisper Small", size: "488 MB", vendor: "openai", multilingual: false, description: "More accurate, slower" },
-  { id: "parakeet-v2", name: "Parakeet V2", fullName: "Parakeet TDT 0.6B v2", size: "660 MB", vendor: "nvidia", multilingual: false, description: "English only — fastest streaming" },
-  { id: "whisper-large-v3-turbo", name: "Large v3 Turbo", fullName: "Whisper Large v3 Turbo", size: "1.6 GB", vendor: "openai", multilingual: true, description: "Best quality, needs Metal GPU" },
-  { id: "parakeet-v3", name: "Parakeet V3", fullName: "Parakeet TDT 0.6B v3", size: "670 MB", vendor: "nvidia", multilingual: true, description: "25 languages" },
+  { id: "whisper-tiny", name: "Tiny", fullName: "Whisper Tiny", size: "78 MB", vendor: "openai", multilingual: false, description: "Fastest, lowest accuracy — quick notes", speed: 4, accuracy: 2 },
+  { id: "whisper-base", name: "Base", fullName: "Whisper Base", size: "148 MB", vendor: "openai", multilingual: false, description: "Balanced speed and accuracy", speed: 4, accuracy: 3 },
+  { id: "whisper-small", name: "Small", fullName: "Whisper Small", size: "488 MB", vendor: "openai", multilingual: false, description: "More accurate, slower", speed: 3, accuracy: 4 },
+  { id: "parakeet-v2", name: "Parakeet V2", fullName: "Parakeet TDT 0.6B v2", size: "660 MB", vendor: "nvidia", multilingual: false, description: "English only — fastest streaming", speed: 4, accuracy: 5 },
+  { id: "whisper-large-v3-turbo", name: "Large v3 Turbo", fullName: "Whisper Large v3 Turbo", size: "1.6 GB", vendor: "openai", multilingual: true, description: "Best quality, needs Metal GPU", speed: 2, accuracy: 5 },
+  { id: "parakeet-v3", name: "Parakeet V3", fullName: "Parakeet TDT 0.6B v3", size: "670 MB", vendor: "nvidia", multilingual: true, description: "25 languages", speed: 4, accuracy: 4 },
 ];
+
+function RatingDots({ value, label }: { value: number; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1" title={`${label}: ${value}/5`}>
+      <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80">{label}</span>
+      <span className="flex gap-[2.5px]">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={cn(
+              "w-[3.5px] h-[3.5px] rounded-full",
+              i <= value ? "bg-steelIce/80" : "bg-white/15"
+            )}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
 
 const VENDOR_LOGOS: Record<ModelSpec["vendor"], string> = {
   openai: openaiLogo,
@@ -154,7 +176,11 @@ export function ModelsView({
               </span>
             </div>
           ) : (
-            <p className="font-sans text-[11px] text-muted-foreground">{model.size}</p>
+            <p className="font-sans text-[11px] text-muted-foreground flex items-center gap-2.5">
+              <span>{model.size}</span>
+              <RatingDots value={model.speed} label="Speed" />
+              <RatingDots value={model.accuracy} label="Accuracy" />
+            </p>
           )}
         </div>
 

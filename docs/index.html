@@ -48,6 +48,40 @@
   
   .copy-btn { flex: none; background: none; border: 1px solid oklch(22% 0.008 90 / 0.18); color: oklch(40% 0.012 90); font-size: 12px; border-radius: 4px; padding: 7px 14px; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
   .copy-btn:hover { background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); border-color: oklch(22% 0.008 90); }
+
+  .pipe-node { border: 1px solid oklch(22% 0.008 90 / 0.2); border-radius: 8px; padding: 12px 14px; background: oklch(100% 0 0 / 0.65); text-align: center; flex: 1; min-width: 96px; transition: border-color .25s ease, box-shadow .25s ease; }
+  .pipe-node:hover { border-color: oklch(50% 0.09 254 / 0.6); box-shadow: 0 8px 20px oklch(22% 0.008 90 / 0.08); }
+  .pipe-node b { display: block; font-size: 13px; font-weight: 600; letter-spacing: -0.005em; }
+  .pipe-node span { display: block; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.04em; text-transform: uppercase; color: oklch(50% 0.012 90); margin-top: 3px; }
+  .pipe-arrow { flex: none; color: oklch(50% 0.09 254 / 0.7); font-size: 15px; }
+  @keyframes packetTravel { 0% { left: 0; opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { left: calc(100% - 7px); opacity: 0; } }
+  .pipe-packet { position: absolute; top: -2.5px; width: 7px; height: 7px; border-radius: 50%; background: oklch(50% 0.09 254); box-shadow: 0 0 8px oklch(50% 0.09 254 / 0.8); animation: packetTravel 3.2s linear infinite; }
+  .pipe-packet.p2 { animation-delay: 1.6s; }
+  @media (prefers-reduced-motion: reduce) { .pipe-packet { animation: none; left: 40%; } .pipe-packet.p2 { display: none; } }
+
+  .model-row { display: grid; grid-template-columns: 1.35fr 0.6fr 0.7fr 0.7fr 0.85fr 1.5fr; gap: 14px; padding: 13px 4px; border-top: 1px solid oklch(22% 0.008 90 / 0.12); font-size: 13.5px; align-items: baseline; }
+  .model-row:hover { background: oklch(100% 0 0 / 0.55); }
+  .speed-dots { font-size: 12px; letter-spacing: 2px; color: oklch(50% 0.09 254); }
+  .speed-dots i { font-style: normal; opacity: 0.2; }
+
+  .cmp-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 12px; padding: 13px 4px; border-top: 1px solid oklch(22% 0.008 90 / 0.12); font-size: 13.5px; align-items: baseline; }
+  .cmp-yes { color: oklch(50% 0.13 150); font-weight: 600; }
+  .cmp-no { color: oklch(60% 0.012 90); }
+  .cmp-part { color: oklch(55% 0.1 80); }
+
+  .faq-item { border-top: 1px solid oklch(22% 0.008 90 / 0.14); }
+  .faq-item summary { cursor: pointer; font-size: 15px; font-weight: 600; padding: 18px 4px; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary::after { content: '+'; font: 400 20px 'Geist', sans-serif; color: oklch(50% 0.09 254); transition: transform .25s ease; flex: none; }
+  .faq-item[open] summary::after { transform: rotate(45deg); }
+  .faq-item p { margin: 0 0 18px; padding: 0 4px; font-size: 13.5px; color: oklch(42% 0.012 90); line-height: 1.65; max-width: 640px; }
+
+  @media (max-width: 720px) {
+    .model-row { grid-template-columns: 1.2fr 0.6fr 0.7fr 0.7fr; }
+    .model-row .m-hide { display: none; }
+    .cmp-row { font-size: 12.5px; gap: 8px; }
+    .pipe-arrow { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -61,6 +95,8 @@
       </a>
       <div style="display: flex; gap: 28px; align-items: center; font-size: 13.5px;">
         <a href="#features" class="nav-link">Features</a>
+        <a href="#models" class="nav-link">Models</a>
+        <a href="#faq" class="nav-link">FAQ</a>
         <a href="#install" class="nav-link">Install</a>
         <a href="https://github.com/srikark283/patter" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
@@ -234,6 +270,40 @@
     </div>
   </section>
 
+  <section class="reveal-section" style="padding: 0 32px 96px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">The pipeline</p>
+    <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 48px;">How nothing leaves</h2>
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 0; align-items: stretch;">
+      <div style="border: 1px solid oklch(22% 0.008 90 / 0.25); border-radius: 14px; padding: 28px 26px 24px; position: relative; background: oklch(100% 0 0 / 0.35);">
+        <span style="position: absolute; top: -10px; left: 22px; background: oklch(98% 0.007 90); padding: 0 10px; font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(45% 0.012 90);">Your device</span>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div class="pipe-node"><b>Microphone</b><span>raw audio</span></div>
+          <div class="pipe-arrow" aria-hidden="true">→</div>
+          <div class="pipe-node"><b>VAD</b><span>silence trimmed</span></div>
+          <div class="pipe-arrow" aria-hidden="true">→</div>
+          <div class="pipe-node"><b>Whisper / Parakeet</b><span>ASR · your GPU</span></div>
+          <div class="pipe-arrow" aria-hidden="true">→</div>
+          <div class="pipe-node"><b>Ollama LLM</b><span>cleanup · memory</span></div>
+          <div class="pipe-arrow" aria-hidden="true">→</div>
+          <div class="pipe-node"><b>Your cursor</b><span>finished text</span></div>
+        </div>
+        <div style="position: relative; height: 2px; background: oklch(50% 0.09 254 / 0.15); border-radius: 1px; margin: 22px 6px 0;" aria-hidden="true">
+          <span class="pipe-packet"></span>
+          <span class="pipe-packet p2"></span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 12px 0 30px; position: relative;">
+        <div style="position: absolute; left: 0; top: 50%; width: 30px; border-top: 2px dashed oklch(22% 0.008 90 / 0.25);" aria-hidden="true"></div>
+        <svg width="52" height="36" viewBox="0 0 52 36" fill="none" stroke="oklch(55% 0.012 90)" stroke-width="1.5" aria-hidden="true" style="opacity: 0.55;">
+          <path d="M40 28H13a8 8 0 1 1 1.7-15.8A11 11 0 0 1 36 10a9 9 0 0 1 4 18Z" stroke-linejoin="round"/>
+          <line x1="8" y1="34" x2="46" y2="2" stroke="#e05a5a" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <p style="margin: 0; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); text-align: center;">No server<br>No account<br>No telemetry</p>
+      </div>
+    </div>
+    <p style="text-align: center; margin: 22px 0 0; font: 500 12.5px 'Geist', sans-serif; color: oklch(48% 0.012 90);">Fig. 2 — the whole pipeline runs inside the box you own. Unplug the router; Patter doesn't notice.</p>
+  </section>
+
   <section class="reveal-section" style="padding: 0 32px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
     <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">How it works</p>
     <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 56px;">Three steps to never typing again</h2>
@@ -253,6 +323,105 @@
           <h3 style="font-size: 16px; font-weight: 600; margin: 12px 0 8px; position: relative;">It’s typed</h3>
           <p style="font-size: 13.5px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.6; position: relative;">Text appears at your cursor in whatever app you’re in. Every dictation lands in History, editable and searchable.</p>
         </div>
+    </div>
+  </section>
+
+  <section id="models" class="reveal-section" style="padding: 0 32px 96px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 12px;">
+      <h2 style="font: 500 clamp(26px, 3.6vw, 34px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0;">Six models,<br>one honest table</h2>
+      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); margin: 0;">§ Sizes verified, not guessed</p>
+    </div>
+    <div style="border-bottom: 1px solid oklch(22% 0.008 90 / 0.12);">
+      <div class="model-row" style="border-top: 1px solid oklch(22% 0.008 90); font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 90);">
+        <span>Model</span><span>Size</span><span>Speed</span><span>Accuracy</span><span class="m-hide">Languages</span><span class="m-hide">Best for</span>
+      </div>
+      <div class="model-row">
+        <span style="font-weight: 600;">Whisper Tiny</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">78 MB</span>
+        <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●<i>●●●</i></span><span class="m-hide">English</span>
+        <span class="m-hide" style="color: oklch(42% 0.012 90);">Older machines, instant results</span>
+      </div>
+      <div class="model-row">
+        <span style="font-weight: 600;">Whisper Base</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">148 MB</span>
+        <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●●<i>●●</i></span><span class="m-hide">English</span>
+        <span class="m-hide" style="color: oklch(42% 0.012 90);">Quick notes, everyday dictation</span>
+      </div>
+      <div class="model-row">
+        <span style="font-weight: 600;">Whisper Small</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">488 MB</span>
+        <span class="speed-dots">●●●<i>●●</i></span><span class="speed-dots">●●●●<i>●</i></span><span class="m-hide">English</span>
+        <span class="m-hide" style="color: oklch(42% 0.012 90);">Better accuracy, still light</span>
+      </div>
+      <div class="model-row" style="background: oklch(50% 0.09 254 / 0.05);">
+        <span style="font-weight: 600;">Parakeet v2 <span style="font: 500 10px 'Geist Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(50% 0.09 254); border: 1px solid oklch(50% 0.09 254 / 0.35); border-radius: 999px; padding: 2px 8px; margin-left: 6px;">recommended</span></span>
+        <span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">661 MB</span>
+        <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●●●●</span><span class="m-hide">English</span>
+        <span class="m-hide" style="color: oklch(42% 0.012 90);">Fast <em>and</em> accurate — the default pick</span>
+      </div>
+      <div class="model-row">
+        <span style="font-weight: 600;">Parakeet v3</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">670 MB</span>
+        <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●●●<i>●</i></span><span class="m-hide">25 European</span>
+        <span class="m-hide" style="color: oklch(42% 0.012 90);">Multilingual dictation at Parakeet speed</span>
+      </div>
+      <div class="model-row">
+        <span style="font-weight: 600;">Whisper Large v3 Turbo</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">1.6 GB</span>
+        <span class="speed-dots">●●<i>●●●</i></span><span class="speed-dots">●●●●●</span><span class="m-hide">99+</span>
+        <span class="m-hide" style="color: oklch(42% 0.012 90);">Maximum accuracy, any language</span>
+      </div>
+    </div>
+    <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 18px 0 0; line-height: 1.6;">Switch models anytime from the tray — downloads resume, checksums verified. Speaker diarization adds two small models (46 MB total) when you enable meeting notes.</p>
+  </section>
+
+  <section class="reveal-section" style="padding: 0 32px 96px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 12px;">
+      <h2 style="font: 500 clamp(26px, 3.6vw, 34px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0;">Where Patter sits</h2>
+      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); margin: 0;">§ An honest comparison</p>
+    </div>
+    <div style="border-bottom: 1px solid oklch(22% 0.008 90 / 0.12);">
+      <div class="cmp-row" style="border-top: 1px solid oklch(22% 0.008 90); font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 90);">
+        <span></span><span style="color: oklch(50% 0.09 254);">Patter</span><span>OS dictation</span><span>Cloud tools</span>
+      </div>
+      <div class="cmp-row"><span style="font-weight: 600;">Audio stays on device</span><span class="cmp-yes">✓ always</span><span class="cmp-part">~ sometimes</span><span class="cmp-no">✗ uploaded</span></div>
+      <div class="cmp-row"><span style="font-weight: 600;">Works fully offline</span><span class="cmp-yes">✓</span><span class="cmp-part">~ limited</span><span class="cmp-no">✗</span></div>
+      <div class="cmp-row"><span style="font-weight: 600;">LLM cleanup &amp; filler removal</span><span class="cmp-yes">✓ local Ollama</span><span class="cmp-no">✗</span><span class="cmp-yes">✓ their servers</span></div>
+      <div class="cmp-row"><span style="font-weight: 600;">App-aware writing styles</span><span class="cmp-yes">✓</span><span class="cmp-no">✗</span><span class="cmp-part">~ varies</span></div>
+      <div class="cmp-row"><span style="font-weight: 600;">Meeting notes with speakers</span><span class="cmp-yes">✓ on-device</span><span class="cmp-no">✗</span><span class="cmp-part">~ paid tier</span></div>
+      <div class="cmp-row"><span style="font-weight: 600;">Personal memory &amp; vocabulary</span><span class="cmp-yes">✓ local embeddings</span><span class="cmp-no">✗</span><span class="cmp-part">~ cloud-stored</span></div>
+      <div class="cmp-row"><span style="font-weight: 600;">Price</span><span class="cmp-yes">Free · MIT</span><span class="cmp-yes">Free</span><span class="cmp-no">$8–15 / month</span></div>
+    </div>
+    <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 18px 0 0; line-height: 1.6;">Fair's fair: cloud tools need no GPU and set up in seconds. Patter asks for one model download and an optional Ollama install — and never asks for anything again.</p>
+  </section>
+
+  <section id="faq" class="reveal-section" style="padding: 0 32px 96px; max-width: 840px; margin: 0 auto; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">FAQ</p>
+    <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 40px;">Questions people actually ask</h2>
+    <div style="border-bottom: 1px solid oklch(22% 0.008 90 / 0.14);">
+      <details class="faq-item">
+        <summary>Does it really work with the internet off?</summary>
+        <p>Yes. After the one-time model download, every stage — voice detection, transcription, LLM cleanup, meeting summaries — runs from your disk. Airplane mode is a fine place to dictate.</p>
+      </details>
+      <details class="faq-item">
+        <summary>What hardware do I need?</summary>
+        <p>macOS 11+ on Apple Silicon, or Windows 10+ on x64. Whisper Tiny runs happily on 8 GB of RAM; Parakeet and Large v3 Turbo like 16 GB. Transcription uses the GPU (Metal on Mac), so your fans stay quiet.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Which languages are supported?</summary>
+        <p>English on the small Whisper models and Parakeet v2. Parakeet v3 covers 25 European languages; Whisper Large v3 Turbo handles 99+. Pick in Settings — the table above has the trade-offs.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Do I need Ollama?</summary>
+        <p>Only for AI cleanup, memory, and meeting summaries. Without it, Patter still transcribes and types raw text perfectly well. Install Ollama later and the extra features light up.</p>
+      </details>
+      <details class="faq-item">
+        <summary>macOS says the app is "damaged" — why?</summary>
+        <p>Patter is an indie app without Apple's $99/yr notarization, so macOS quarantines the DMG download. The one-line curl installer avoids the flag entirely; or run <code style="font: 500 12px 'Geist Mono', monospace; background: oklch(93% 0.006 90); border-radius: 4px; padding: 2px 7px;">xattr -cr /Applications/patter.app</code> once. The code is open — audit it, or build it yourself.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Where is my data stored?</summary>
+        <p>A SQLite database and model files in your user data folder. History, meetings, memory — all plain local files you can inspect, export, or delete. No account exists to leak.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Is it really free?</summary>
+        <p>MIT-licensed, no tiers, no trial, no telemetry. It's a tool, not a funnel.</p>
+      </details>
     </div>
   </section>
 
