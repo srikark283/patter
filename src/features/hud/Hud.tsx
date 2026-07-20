@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { X, Lock, Square } from "lucide-react";
+import { X, AudioLines, WandSparkles, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording } from "../../lib/ipc";
 import RecordingVisualizer from "./RecordingVisualizer";
 
-type Phase = "idle" | "recording" | "processing" | "notice" | "meeting";
+type Phase = "idle" | "recording" | "processing" | "cleanup" | "notice" | "meeting";
 
 const BARS = 28;
 
@@ -13,6 +13,7 @@ function phaseFor(status: string): Phase {
   if (status === "Idle") return "idle";
   if (status === "Listening...") return "recording";
   if (status === "Transcribing...") return "processing";
+  if (status === "Cleaning up…") return "cleanup";
   return "notice";
 }
 
@@ -164,15 +165,15 @@ export default function Hud() {
               )}
 
               {phase === "processing" && (
-                <div className="flex items-center gap-1.5 text-white/60">
-                  <Lock size={10} className="opacity-60" />
-                  <span className="hud-label">Transcribing…</span>
-                </div>
+                <AudioLines size={15} className="hud-icon-anim hud-icon-scan" strokeWidth={2} />
+              )}
+              {phase === "cleanup" && (
+                <WandSparkles size={15} className="hud-icon-anim hud-icon-sweep" strokeWidth={2} />
               )}
               {phase === "notice" && <span className="hud-label">{status}</span>}
             </div>
 
-            {(phase === "recording" || phase === "processing" || phase === "meeting") && (
+            {(phase === "recording" || phase === "processing" || phase === "cleanup" || phase === "meeting") && (
               <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
                 {phase === "meeting" ? (
                   <button

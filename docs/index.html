@@ -9,72 +9,86 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap" rel="stylesheet">
+<script>
+  // Runs before paint so a stored preference doesn't flash the OS default first.
+  (function () {
+    var saved = localStorage.getItem('patter-theme');
+    if (saved === 'light' || saved === 'dark') {
+      document.documentElement.style.colorScheme = saved;
+    }
+  })();
+</script>
 <style>
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; color-scheme: light dark; }
   body {
-    margin: 0; background-color: oklch(98% 0.007 90); color: oklch(22% 0.008 90);
+    margin: 0; background-color: light-dark(oklch(98% 0.007 90), #0a0b0d); color: light-dark(oklch(22% 0.008 90), #e7eaee);
     font-family: 'Geist', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6;
     background-image:
-      radial-gradient(ellipse 900px 500px at 12% -6%, oklch(50% 0.09 254 / 0.06), transparent 60%),
+      radial-gradient(ellipse 900px 500px at 12% -6%, light-dark(oklch(50% 0.09 254 / 0.06), oklch(68% 0.11 254 / 0.06)), transparent 60%),
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
   }
-  a { color: oklch(45% 0.09 254); }
-  a:hover { color: oklch(35% 0.1 254); }
+  a { color: light-dark(oklch(45% 0.09 254), oklch(68% 0.1 254)); }
+  a:hover { color: light-dark(oklch(35% 0.1 254), oklch(75% 0.1 254)); }
   @keyframes hud-breathe { 0%,100% { box-shadow: 0 0 0 0 rgba(224,90,90,.4); opacity: 1; } 50% { box-shadow: 0 0 6px 2px rgba(224,90,90,.22); opacity: .8; } }
+  @keyframes hud-pulse { 0%,100% { transform: scale(.9); opacity: .55; } 50% { transform: scale(1.08); opacity: 1; } }
+  #hudIconScan { animation: hud-pulse 1.5s ease-in-out infinite; }
+  #hudIconSweep { animation: hud-pulse 1.1s ease-in-out infinite; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes hudFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
   @keyframes caretBlink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
   
-  .nav-link { text-decoration: none; color: oklch(45% 0.012 90); transition: color .2s ease; }
-  .nav-link:hover { color: oklch(22% 0.008 90); }
-  .nav-cta { text-decoration: none; color: oklch(22% 0.008 90); border: 1px solid oklch(22% 0.008 90 / 0.2); border-radius: 999px; padding: 7px 16px; transition: background .2s ease, color .2s ease, transform .2s ease; }
-  .nav-cta:hover { background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); transform: translateY(-1px); }
+  .nav-link { text-decoration: none; color: light-dark(oklch(45% 0.012 90), #828b99); transition: color .2s ease; }
+  .nav-link:hover { color: light-dark(oklch(22% 0.008 90), #e7eaee); }
+  .nav-cta { text-decoration: none; color: light-dark(oklch(22% 0.008 90), #e7eaee); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); border-radius: 999px; padding: 7px 16px; transition: background .2s ease, color .2s ease, transform .2s ease; }
+  .nav-cta:hover { background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); transform: translateY(-1px); }
   
-  .download-btn { text-decoration: none; background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); font-size: 14.5px; font-weight: 600; padding: 14px 26px; border-radius: 999px; border: 1px solid oklch(22% 0.008 90); display: inline-block; transition: transform .2s ease, box-shadow .2s ease; }
-  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px oklch(22% 0.008 90 / 0.25); color: #ffffff;}
+  .download-btn { text-decoration: none; background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); font-size: 14.5px; font-weight: 600; padding: 14px 26px; border-radius: 999px; border: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); display: inline-block; transition: transform .2s ease, box-shadow .2s ease; }
+  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); color: #ffffff;}
 
-  .download-btn-secondary { text-decoration: none; background: transparent; color: oklch(22% 0.008 90); font-size: 14.5px; font-weight: 600; padding: 14px 26px; border-radius: 999px; border: 1px solid oklch(22% 0.008 90 / 0.25); display: inline-block; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
-  .download-btn-secondary:hover { transform: translateY(-2px); border-color: oklch(22% 0.008 90); background: oklch(100% 0 0 / 0.5); color: oklch(22% 0.008 90); }
+  .download-btn-secondary { text-decoration: none; background: transparent; color: light-dark(oklch(22% 0.008 90), #e7eaee); font-size: 14.5px; font-weight: 600; padding: 14px 26px; border-radius: 999px; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); display: inline-block; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
+  .download-btn-secondary:hover { transform: translateY(-2px); border-color: light-dark(oklch(22% 0.008 90), #e7eaee); background: light-dark(oklch(100% 0 0 / 0.5), rgba(255,255,255,0.08)); color: light-dark(oklch(22% 0.008 90), #e7eaee); }
   
-  .install-link { text-decoration: none; border-bottom: 1px solid oklch(22% 0.008 90 / 0.3); font-size: 14.5px; padding: 14px 2px; color: oklch(28% 0.01 90); transition: border-color .2s ease; }
-  .install-link:hover { border-color: oklch(50% 0.09 254); }
+  .install-link { text-decoration: none; border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.3), rgba(255,255,255,0.3)); font-size: 14.5px; padding: 14px 2px; color: light-dark(oklch(28% 0.01 90), #c7ccd4); transition: border-color .2s ease; }
+  .install-link:hover { border-color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); }
   
-  .feature-card { border-right: 1px solid oklch(22% 0.008 90 / 0.16); border-bottom: 1px solid oklch(22% 0.008 90 / 0.16); padding: 26px 22px; min-height: 190px; display: flex; flex-direction: column; transition: background .25s ease, box-shadow .25s ease, transform .25s ease; position: relative; z-index: 0; }
-  .feature-card:hover { background: oklch(100% 0 0 / 0.6); box-shadow: 0 18px 34px oklch(22% 0.008 90 / 0.1); transform: translateY(-3px); z-index: 1; }
+  .feature-card { border-right: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); padding: 26px 22px; min-height: 190px; display: flex; flex-direction: column; transition: background .25s ease, box-shadow .25s ease, transform .25s ease; position: relative; z-index: 0; }
+  .feature-card:hover { background: light-dark(oklch(100% 0 0 / 0.6), rgba(255,255,255,0.06)); box-shadow: 0 18px 34px light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1)); transform: translateY(-3px); z-index: 1; }
   
-  .step-card { position: relative; padding-left: 26px; border-left: 1px solid oklch(22% 0.008 90 / 0.14); transition: border-color .25s ease; }
-  .step-card:hover { border-color: oklch(50% 0.09 254 / 0.6); }
+  .step-card { position: relative; padding-left: 26px; border-left: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); transition: border-color .25s ease; }
+  .step-card:hover { border-color: light-dark(oklch(50% 0.09 254 / 0.6), oklch(68% 0.11 254 / 0.6)); }
   
-  .copy-btn { flex: none; background: none; border: 1px solid oklch(22% 0.008 90 / 0.18); color: oklch(40% 0.012 90); font-size: 12px; border-radius: 4px; padding: 7px 14px; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
-  .copy-btn:hover { background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); border-color: oklch(22% 0.008 90); }
+  .copy-btn { flex: none; background: none; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.18), rgba(255,255,255,0.18)); color: light-dark(oklch(40% 0.012 90), #c7ccd4); font-size: 12px; border-radius: 4px; padding: 7px 14px; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
+  .copy-btn:hover { background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); border-color: light-dark(oklch(22% 0.008 90), #e7eaee); }
 
-  .pipe-node { border: 1px solid oklch(22% 0.008 90 / 0.2); border-radius: 8px; padding: 12px 14px; background: oklch(100% 0 0 / 0.65); text-align: center; flex: 1; min-width: 96px; transition: border-color .25s ease, box-shadow .25s ease; }
-  .pipe-node:hover { border-color: oklch(50% 0.09 254 / 0.6); box-shadow: 0 8px 20px oklch(22% 0.008 90 / 0.08); }
+  .pipe-node { border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); border-radius: 8px; padding: 12px 14px; background: light-dark(oklch(100% 0 0 / 0.65), rgba(20,22,27,0.75)); text-align: center; flex: 1; min-width: 96px; transition: border-color .25s ease, box-shadow .25s ease; position: relative; }
+  .pipe-node:hover { border-color: light-dark(oklch(50% 0.09 254 / 0.6), oklch(68% 0.11 254 / 0.6)); box-shadow: 0 8px 20px light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); }
+  .pipe-node svg { display: block; margin: 0 auto 6px; color: light-dark(oklch(50% 0.09 254 / 0.7), oklch(68% 0.11 254 / 0.7)); }
   .pipe-node b { display: block; font-size: 13px; font-weight: 600; letter-spacing: -0.005em; }
-  .pipe-node span { display: block; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.04em; text-transform: uppercase; color: oklch(50% 0.012 90); margin-top: 3px; }
-  .pipe-arrow { flex: none; color: oklch(50% 0.09 254 / 0.7); font-size: 15px; }
+  .pipe-node span { display: block; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.04em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); margin-top: 3px; }
+  .pipe-node .pipe-latency { position: absolute; top: -8px; right: -6px; font: 600 9.5px 'Geist Mono', monospace; letter-spacing: 0.02em; text-transform: none; background: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); color: light-dark(oklch(98% 0.007 90), #0a0b0d); border-radius: 999px; padding: 2px 6px; margin-top: 0; box-shadow: 0 2px 6px light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); }
+  .pipe-arrow { flex: none; color: light-dark(oklch(50% 0.09 254 / 0.7), oklch(68% 0.11 254 / 0.7)); font-size: 15px; }
   @keyframes packetTravel { 0% { left: 0; opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { left: calc(100% - 7px); opacity: 0; } }
-  .pipe-packet { position: absolute; top: -2.5px; width: 7px; height: 7px; border-radius: 50%; background: oklch(50% 0.09 254); box-shadow: 0 0 8px oklch(50% 0.09 254 / 0.8); animation: packetTravel 3.2s linear infinite; }
+  .pipe-packet { position: absolute; top: -2.5px; width: 7px; height: 7px; border-radius: 50%; background: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); box-shadow: 0 0 8px light-dark(oklch(50% 0.09 254 / 0.8), oklch(68% 0.11 254 / 0.8)); animation: packetTravel 3.2s linear infinite; }
   .pipe-packet.p2 { animation-delay: 1.6s; }
   @media (prefers-reduced-motion: reduce) { .pipe-packet { animation: none; left: 40%; } .pipe-packet.p2 { display: none; } }
 
-  .model-row { display: grid; grid-template-columns: 1.35fr 0.6fr 0.7fr 0.7fr 0.85fr 1.5fr; gap: 8px; padding: 13px 4px; border-top: 1px solid oklch(22% 0.008 90 / 0.12); font-size: 13.5px; align-items: baseline; }
-  .model-row:hover { background: oklch(100% 0 0 / 0.55); }
-  .speed-dots { font-size: 12px; letter-spacing: 2px; color: oklch(50% 0.09 254); }
+  .model-row { display: grid; grid-template-columns: 1.35fr 0.6fr 0.7fr 0.7fr 0.85fr 1.5fr; gap: 8px; padding: 13px 4px; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)); font-size: 13.5px; align-items: baseline; }
+  .model-row:hover { background: light-dark(oklch(100% 0 0 / 0.55), rgba(255,255,255,0.06)); }
+  .speed-dots { font-size: 12px; letter-spacing: 2px; color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); }
   .speed-dots i { font-style: normal; opacity: 0.2; }
 
-  .cmp-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 12px; padding: 13px 4px; border-top: 1px solid oklch(22% 0.008 90 / 0.12); font-size: 13.5px; align-items: baseline; }
-  .cmp-yes { color: oklch(50% 0.13 150); font-weight: 600; }
-  .cmp-no { color: oklch(60% 0.012 90); }
-  .cmp-part { color: oklch(55% 0.1 80); }
+  .cmp-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 12px; padding: 13px 4px; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)); font-size: 13.5px; align-items: baseline; }
+  .cmp-yes { color: light-dark(oklch(50% 0.13 150), oklch(58% 0.13 150)); font-weight: 600; }
+  .cmp-no { color: light-dark(oklch(60% 0.012 90), #828b99); }
+  .cmp-part { color: light-dark(oklch(55% 0.1 80), oklch(65% 0.1 80)); }
 
-  .faq-item { border-top: 1px solid oklch(22% 0.008 90 / 0.14); }
+  .faq-item { border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); }
   .faq-item summary { cursor: pointer; font-size: 15px; font-weight: 600; padding: 18px 4px; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .faq-item summary::-webkit-details-marker { display: none; }
-  .faq-item summary::after { content: '+'; font: 400 20px 'Geist', sans-serif; color: oklch(50% 0.09 254); transition: transform .25s ease; flex: none; }
+  .faq-item summary::after { content: '+'; font: 400 20px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); transition: transform .25s ease; flex: none; }
   .faq-item[open] summary::after { transform: rotate(45deg); }
-  .faq-item p { margin: 0 0 18px; padding: 0 4px; font-size: 13.5px; color: oklch(42% 0.012 90); line-height: 1.65; max-width: 640px; }
+  .faq-item p { margin: 0 0 18px; padding: 0 4px; font-size: 13.5px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); line-height: 1.65; max-width: 640px; }
 
   @media (max-width: 720px) {
     .model-row { grid-template-columns: 1.2fr 0.6fr 0.7fr 0.7fr; }
@@ -88,7 +102,7 @@
 
 <div style="max-width: 1040px; margin: 0 auto;">
 
-  <nav style="position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: oklch(98% 0.007 90 / 0.82); border-bottom: 1px solid oklch(22% 0.008 90 / 0.1);">
+  <nav style="position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: light-dark(oklch(98% 0.007 90 / 0.82), rgba(10,11,13,0.82)); border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1));">
     <div style="max-width: 1040px; margin: 0 auto; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between;">
       <a href="#" style="text-decoration: none; color: inherit; font: 600 19px 'Geist', sans-serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
         <img src="logo.png" alt="" style="width: 28px; height: 28px; border-radius: 7px;"> Patter
@@ -102,6 +116,10 @@
           <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
           GitHub
         </a>
+        <button id="themeToggle" type="button" title="Toggle dark mode" aria-pressed="false" style="flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); background: transparent; color: light-dark(oklch(45% 0.012 90), #828b99); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s ease, color .2s ease, border-color .2s ease;">
+          <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+          <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+        </button>
         <a href="https://github.com/srikark283/patter/releases/latest" class="nav-cta">Download</a>
       </div>
     </div>
@@ -109,14 +127,14 @@
 
   <header style="display: grid; grid-template-columns: 1.35fr 1px 1fr; gap: 48px; padding: 96px 32px 0; align-items: start;">
     <div>
-      <p style="font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 22px; display: inline-flex; align-items: center; gap: 8px; animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both;">
+      <p style="font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 22px; display: inline-flex; align-items: center; gap: 8px; animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both;">
         <span style="width: 6px; height: 6px; border-radius: 50%; background: #2f9e52; display: inline-block;"></span>On-device dictation for macOS &amp; Windows
       </p>
-      <h1 style="font: 500 clamp(40px, 5.4vw, 64px)/1.08 'Geist', sans-serif; letter-spacing: -0.025em; margin: 0; animation: fadeUp .8s cubic-bezier(.16,1,.3,1) .1s both;">Speak.<br>It becomes text.<br><em style="color: oklch(50% 0.09 254); font-style: italic;">Nothing leaves the room.</em></h1>
+      <h1 style="font: 500 clamp(40px, 5.4vw, 64px)/1.08 'Geist', sans-serif; letter-spacing: -0.025em; margin: 0; animation: fadeUp .8s cubic-bezier(.16,1,.3,1) .1s both;">Talk normal.<br>Get clean text.<br><em style="color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); font-style: italic;">Zero bytes leave your Mac.</em></h1>
     </div>
-    <div style="width: 1px; height: 100%; background: oklch(22% 0.008 90 / 0.14); align-self: stretch;"></div>
+    <div style="width: 1px; height: 100%; background: light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); align-self: stretch;"></div>
     <div style="padding-top: 8px; animation: fadeUp .8s cubic-bezier(.16,1,.3,1) .25s both;">
-      <p style="color: oklch(35% 0.012 90); font-size: 16.5px; line-height: 1.75; margin: 0;">
+      <p style="color: light-dark(oklch(35% 0.012 90), #c7ccd4); font-size: 16.5px; line-height: 1.75; margin: 0;">
         Patter listens, transcribes, and cleans up your words using models that live entirely on your device.
         Press a hotkey, talk, and finished text lands wherever your cursor is — no account, no server,
         no connection required.
@@ -126,7 +144,7 @@
         <a id="secondaryDownload" href="https://github.com/srikark283/patter/releases/latest" class="download-btn-secondary">Download for Windows</a>
         <a href="#install" class="install-link">Install with one command</a>
       </div>
-      <p style="margin-top: 22px; font-size: 12.5px; color: oklch(48% 0.012 90);">macOS 11+ (Apple Silicon) &amp; Windows 10+ (x64) · Free &amp; open source</p>
+      <p style="margin-top: 22px; font-size: 12.5px; color: light-dark(oklch(48% 0.012 90), #828b99);">macOS 11+ (Apple Silicon) &amp; Windows 10+ (x64) · Free &amp; open source</p>
     </div>
   </header>
 
@@ -134,194 +152,220 @@
     <div id="hudTilt" style="transform: scale(1.7); width: max-content; min-width: 116px; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 14px; border-radius: 18px; overflow: hidden; background: linear-gradient(rgba(255,255,255,.05), rgba(255,255,255,0) 40%), rgba(20,18,15,0.9); backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4); border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 8px rgba(0,0,0,.2), 0 12px 32px rgba(0,0,0,.25); animation: hudFloat 5s ease-in-out infinite; transition: transform .15s ease-out, opacity .25s ease-out; transform-style: preserve-3d; position: relative; z-index: 2;">
       <span id="hudDot" style="width: 6px; height: 6px; border-radius: 50%; background: #f0555f; animation: hud-breathe 2.2s ease-in-out infinite; flex: none;"></span>
       <canvas id="hudWave" style="width: 96px; height: 26px; display: block;"></canvas>
+      <svg id="hudIconScan" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(174,205,232,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none; flex: none;"><path d="M2 10v3"></path><path d="M6 6v11"></path><path d="M10 3v18"></path><path d="M14 8v7"></path><path d="M18 5v13"></path><path d="M22 10v3"></path></svg>
+      <svg id="hudIconSweep" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(174,205,232,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none; flex: none;"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"></path><path d="m14 7 3 3"></path><path d="M5 6v4"></path><path d="M19 14v4"></path><path d="M10 2v2"></path><path d="M7 8H3"></path><path d="M21 16h-4"></path><path d="M11 3H9"></path></svg>
       <span id="hudText" style="display: none; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.9); letter-spacing: -0.01em; white-space: nowrap; padding-right: 6px;"></span>
       <span id="hudCancel" style="width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; opacity: 0.35;">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
       </span>
     </div>
-    <div style="margin-top: 34px; width: min(560px, calc(100% - 64px)); background: oklch(100% 0 0 / 0.72); border: 1px solid oklch(22% 0.008 90 / 0.14); border-radius: 10px; box-shadow: 0 24px 60px oklch(22% 0.008 90 / 0.12), 0 2px 8px oklch(22% 0.008 90 / 0.06); overflow: hidden;">
-      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid oklch(22% 0.008 90 / 0.1);">
+    <div style="margin-top: 34px; width: min(560px, calc(100% - 64px)); background: light-dark(oklch(100% 0 0 / 0.72), rgba(20,22,27,0.88)); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); border-radius: 10px; box-shadow: 0 24px 60px light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)), 0 2px 8px light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.06)); overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1));">
         <span style="width: 10px; height: 10px; border-radius: 50%; background: #f0555f; opacity: .85;"></span>
         <span style="width: 10px; height: 10px; border-radius: 50%; background: #f5bf4f; opacity: .85;"></span>
         <span style="width: 10px; height: 10px; border-radius: 50%; background: #34c759; opacity: .85;"></span>
-        <span style="margin-left: 10px; font: 500 11px 'Geist Mono', monospace; color: oklch(50% 0.012 90); letter-spacing: 0.04em;">Notes — Untitled</span>
+        <span style="margin-left: 10px; font: 500 11px 'Geist Mono', monospace; color: light-dark(oklch(50% 0.012 90), #828b99); letter-spacing: 0.04em;">Notes — Untitled</span>
         <span id="demoStatus" style="margin-left: auto; font: 500 10px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #c04b53; transition: color .3s ease;">listening</span>
       </div>
       <div style="padding: 20px 22px 24px; min-height: 96px;">
-        <p style="margin: 0; font: 400 15px/1.7 'Geist', sans-serif; color: oklch(28% 0.01 90);"><span id="demoTyped"></span><span style="display: inline-block; width: 2px; height: 1.1em; background: oklch(50% 0.09 254); vertical-align: text-bottom; margin-left: 2px; animation: caretBlink 1.1s step-end infinite;"></span></p>
+        <p style="margin: 0; font: 400 15px/1.7 'Geist', sans-serif; color: light-dark(oklch(28% 0.01 90), #c7ccd4);"><span id="demoTyped"></span><span style="display: inline-block; width: 2px; height: 1.1em; background: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); vertical-align: text-bottom; margin-left: 2px; animation: caretBlink 1.1s step-end infinite;"></span></p>
       </div>
     </div>
-    <p style="margin: 22px 0 0; font: 500 12.5px 'Geist', sans-serif; color: oklch(48% 0.012 90);">Fig. 1 — spoken, transcribed, and cleaned up — all on your device</p>
+    <div style="margin-top: 22px; display: flex; align-items: center; gap: 10px;">
+      <p style="margin: 0; font: 500 12.5px 'Geist', sans-serif; color: light-dark(oklch(48% 0.012 90), #828b99);">Fig. 1 — spoken, transcribed, and cleaned up — all on your device</p>
+      <button id="soundToggle" type="button" title="Sound effects for the demo" aria-pressed="false" style="flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); background: transparent; color: light-dark(oklch(45% 0.012 90), #828b99); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s ease, color .2s ease, border-color .2s ease;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+      </button>
+    </div>
   </div>
 
-  <div style="margin: 0 32px 96px; padding: 26px 30px; border-top: 1px solid oklch(22% 0.008 90); border-bottom: 1px solid oklch(22% 0.008 90); display: flex; gap: 16px; align-items: baseline; font-size: 15px; flex-wrap: wrap;">
-    <strong style="font: 600 15px 'Geist', sans-serif; color: oklch(22% 0.008 90);">Private by design.</strong>
-    <span style="color: oklch(35% 0.012 90);">Whisper and Parakeet run on your device's GPU. The LLM is your local Ollama. Your voice, your transcripts, and your personal memory never touch a server.</span>
+  <div style="margin: 0 32px 96px; padding: 26px 30px; border-top: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); border-bottom: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); display: flex; gap: 16px; align-items: baseline; font-size: 15px; flex-wrap: wrap;">
+    <strong style="font: 600 15px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee);">Private by design.</strong>
+    <span style="color: light-dark(oklch(35% 0.012 90), #c7ccd4);">Whisper and Parakeet run on your device's GPU. The LLM is your local Ollama. Your voice, your transcripts, and your personal memory never touch a server.</span>
   </div>
 
   <section id="features" class="reveal-section" style="padding: 0 32px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
     <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 48px; flex-wrap: wrap; gap: 12px;">
       <h2 style="font: 500 clamp(26px, 3.6vw, 34px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0;">A complete voice workflow,<br>not just dictation</h2>
-      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); margin: 0;">§ Everything on-device</p>
+      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); margin: 0;">§ Everything on-device</p>
     </div>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid oklch(22% 0.008 90 / 0.16); border-left: 1px solid oklch(22% 0.008 90 / 0.16); margin-bottom: 80px;">
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); border-left: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); margin-bottom: 80px;">
         <div class="feature-card">
-          <p style="font: 500 24px 'Geist', sans-serif; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">I</p>
+          <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">I</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">On-device transcription</h3>
-            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">OpenAI Whisper and Nvidia Parakeet, Metal-accelerated. Six models from 78MB to 1.6GB — pick fast or accurate.</p>
+            <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">OpenAI Whisper and Nvidia Parakeet, Metal-accelerated. Six models from 78MB to 1.6GB — pick fast or accurate.</p>
           </div>
         </div>
         <div class="feature-card">
-          <p style="font: 500 24px 'Geist', sans-serif; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">II</p>
+          <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">II</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">AI cleanup</h3>
-            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">A local Ollama model fixes grammar and strips filler words before the text is typed. Silence trimmed by on-device VAD.</p>
+            <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">A local Ollama model fixes grammar and strips filler words before the text is typed. Silence trimmed by on-device VAD.</p>
           </div>
         </div>
         <div class="feature-card">
-          <p style="font: 500 24px 'Geist', sans-serif; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">III</p>
+          <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">III</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Meeting notes</h3>
-            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Record a meeting, get timestamped speaker-labeled transcripts plus minutes, decisions, and action items.</p>
+            <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">Record a meeting, get timestamped speaker-labeled transcripts plus minutes, decisions, and action items.</p>
           </div>
         </div>
         <div class="feature-card">
-          <p style="font: 500 24px 'Geist', sans-serif; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">IV</p>
+          <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">IV</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Personal memory</h3>
-            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Teach Patter facts about you and your work. It gets your names, projects, and jargon right — matched with local embeddings.</p>
+            <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">Teach Patter facts about you and your work. It gets your names, projects, and jargon right — matched with local embeddings.</p>
           </div>
         </div>
         <div class="feature-card">
-          <p style="font: 500 24px 'Geist', sans-serif; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">V</p>
+          <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">V</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Voice macros</h3>
-            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Say a short trigger phrase, get a whole block of text — addresses, sign-offs, boilerplate — as you dictate.</p>
+            <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">Say a short trigger phrase, get a whole block of text — addresses, sign-offs, boilerplate — as you dictate.</p>
           </div>
         </div>
         <div class="feature-card">
-          <p style="font: 500 24px 'Geist', sans-serif; color: oklch(50% 0.09 254 / 0.55); margin: 0 0 auto; transition: color .25s ease;">VI</p>
+          <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">VI</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Push-to-talk</h3>
-            <p style="font-size: 13px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.55;">Toggle with a hotkey or hold-to-record, even a bare modifier key. Types into any app, right where your cursor is.</p>
+            <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">Toggle with a hotkey or hold-to-record, even a bare modifier key. Types into any app, right where your cursor is.</p>
           </div>
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 0; border: 1px solid oklch(22% 0.008 90 / 0.16); margin-bottom: 96px;">
-      <div style="padding: 30px 32px; border-right: 1px solid oklch(22% 0.008 90 / 0.16);">
-        <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.09 254); margin: 0 0 6px;">App-aware profiles</p>
+    <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 0; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); margin-bottom: 96px;">
+      <div style="padding: 30px 32px; border-right: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16));">
+        <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); margin: 0 0 6px;">App-aware profiles</p>
         <h3 style="font: 500 20px 'Geist', sans-serif; margin: 0 0 20px; letter-spacing: -0.005em;">Patter knows what app you're in — and writes accordingly</h3>
         <div>
-            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));">
               <span style="font-size: 14px; font-weight: 600;">Slack &amp; Messages</span>
-              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Casual, contractions kept, minimal punctuation</span>
+              <span style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); text-align: right;">Casual, contractions kept, minimal punctuation</span>
             </div>
-            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));">
               <span style="font-size: 14px; font-weight: 600;">Code editor</span>
-              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Precise, technical terms preserved verbatim</span>
+              <span style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); text-align: right;">Precise, technical terms preserved verbatim</span>
             </div>
-            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));">
               <span style="font-size: 14px; font-weight: 600;">Mail</span>
-              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Formal, full sentences, greeting/sign-off aware</span>
+              <span style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); text-align: right;">Formal, full sentences, greeting/sign-off aware</span>
             </div>
-            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid oklch(22% 0.008 90 / 0.12);">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));">
               <span style="font-size: 14px; font-weight: 600;">Notes</span>
-              <span style="font-size: 13px; color: oklch(42% 0.012 90); text-align: right;">Light cleanup only — your voice, tidied</span>
+              <span style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); text-align: right;">Light cleanup only — your voice, tidied</span>
             </div>
         </div>
-        <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 18px 0 0; line-height: 1.6;">Each profile is a set of cleanup rules — punctuation, formality, how aggressively filler words get trimmed. Assign once, Patter remembers.</p>
+        <p style="font-size: 13px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 18px 0 0; line-height: 1.6;">Each profile is a set of cleanup rules — punctuation, formality, how aggressively filler words get trimmed. Assign once, Patter remembers.</p>
       </div>
       <div style="padding: 30px 32px;">
-        <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.09 254); margin: 0 0 6px;">Your numbers</p>
+        <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); margin: 0 0 6px;">Your numbers</p>
         <h3 style="font: 500 20px 'Geist', sans-serif; margin: 0 0 20px; letter-spacing: -0.005em;">A quiet dashboard, kept on your disk</h3>
-        <div>
+        <div id="statBlock">
             <div style="margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                <span style="color: oklch(35% 0.012 90);">Words dictated this month</span>
-                <span style="font: 500 12.5px 'Geist Mono', monospace; color: oklch(28% 0.01 90);">38,412</span>
+                <span style="color: light-dark(oklch(35% 0.012 90), #c7ccd4);">Words dictated this month</span>
+                <span class="stat-number" data-target="38412" data-decimals="0" style="font: 500 12.5px 'Geist Mono', monospace; color: light-dark(oklch(28% 0.01 90), #c7ccd4);">0</span>
               </div>
-              <div style="height: 5px; background: oklch(22% 0.008 90 / 0.08); border-radius: 3px; overflow: hidden;">
-                <div style="height: 100%; width: 76%; background: oklch(50% 0.09 254 / 0.6); border-radius: 3px;"></div>
+              <div style="height: 5px; background: light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); border-radius: 3px; overflow: hidden;">
+                <div class="stat-bar-fill" data-width="76" style="height: 100%; width: 0%; background: light-dark(oklch(50% 0.09 254 / 0.6), oklch(68% 0.11 254 / 0.6)); border-radius: 3px; transition: width 1.1s cubic-bezier(.16,1,.3,1);"></div>
               </div>
             </div>
             <div style="margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                <span style="color: oklch(35% 0.012 90);">Typing time saved</span>
-                <span style="font: 500 12.5px 'Geist Mono', monospace; color: oklch(28% 0.01 90);">9.4 hrs</span>
+                <span style="color: light-dark(oklch(35% 0.012 90), #c7ccd4);">Typing time saved</span>
+                <span class="stat-number" data-target="9.4" data-decimals="1" data-suffix=" hrs" style="font: 500 12.5px 'Geist Mono', monospace; color: light-dark(oklch(28% 0.01 90), #c7ccd4);">0 hrs</span>
               </div>
-              <div style="height: 5px; background: oklch(22% 0.008 90 / 0.08); border-radius: 3px; overflow: hidden;">
-                <div style="height: 100%; width: 58%; background: oklch(50% 0.09 254 / 0.6); border-radius: 3px;"></div>
+              <div style="height: 5px; background: light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); border-radius: 3px; overflow: hidden;">
+                <div class="stat-bar-fill" data-width="58" style="height: 100%; width: 0%; background: light-dark(oklch(50% 0.09 254 / 0.6), oklch(68% 0.11 254 / 0.6)); border-radius: 3px; transition: width 1.1s cubic-bezier(.16,1,.3,1);"></div>
               </div>
             </div>
             <div style="margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                <span style="color: oklch(35% 0.012 90);">Avg. transcription latency</span>
-                <span style="font: 500 12.5px 'Geist Mono', monospace; color: oklch(28% 0.01 90);">310 ms</span>
+                <span style="color: light-dark(oklch(35% 0.012 90), #c7ccd4);">Avg. transcription latency</span>
+                <span class="stat-number" data-target="310" data-decimals="0" data-suffix=" ms" style="font: 500 12.5px 'Geist Mono', monospace; color: light-dark(oklch(28% 0.01 90), #c7ccd4);">0 ms</span>
               </div>
-              <div style="height: 5px; background: oklch(22% 0.008 90 / 0.08); border-radius: 3px; overflow: hidden;">
-                <div style="height: 100%; width: 22%; background: oklch(50% 0.09 254 / 0.6); border-radius: 3px;"></div>
+              <div style="height: 5px; background: light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); border-radius: 3px; overflow: hidden;">
+                <div class="stat-bar-fill" data-width="22" style="height: 100%; width: 0%; background: light-dark(oklch(50% 0.09 254 / 0.6), oklch(68% 0.11 254 / 0.6)); border-radius: 3px; transition: width 1.1s cubic-bezier(.16,1,.3,1);"></div>
               </div>
             </div>
         </div>
-        <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 8px 0 0; line-height: 1.6;">Words dictated, time saved, and transcription latency — tallied locally, never uploaded.</p>
+        <p style="font-size: 13px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 8px 0 0; line-height: 1.6;">Words dictated, time saved, and transcription latency — tallied locally, never uploaded.</p>
       </div>
     </div>
   </section>
 
   <section class="reveal-section" style="padding: 0 32px 96px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
-    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">The pipeline</p>
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 16px;">The pipeline</p>
     <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 48px;">How nothing leaves</h2>
     <div style="display: grid; grid-template-columns: 1fr auto; gap: 0; align-items: stretch;">
-      <div style="border: 1px solid oklch(22% 0.008 90 / 0.25); border-radius: 14px; padding: 28px 26px 24px; position: relative; background: oklch(100% 0 0 / 0.35);">
-        <span style="position: absolute; top: -10px; left: 22px; background: oklch(98% 0.007 90); padding: 0 10px; font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(45% 0.012 90);">Your device</span>
+      <div style="border: 1px solid light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); border-radius: 14px; padding: 28px 26px 24px; position: relative; background: light-dark(oklch(100% 0 0 / 0.35), rgba(20,22,27,0.45));">
+        <span style="position: absolute; top: -10px; left: 22px; background: light-dark(oklch(98% 0.007 90), #0a0b0d); padding: 0 10px; font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99);">Your device</span>
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <div class="pipe-node"><b>Microphone</b><span>raw audio</span></div>
+          <div class="pipe-node">
+            <span class="pipe-latency">~5ms</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></svg>
+            <b>Microphone</b><span>raw audio</span>
+          </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node"><b>VAD</b><span>silence trimmed</span></div>
+          <div class="pipe-node">
+            <span class="pipe-latency">~10ms</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>
+            <b>VAD</b><span>silence trimmed</span>
+          </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node"><b>Whisper / Parakeet</b><span>ASR · your GPU</span></div>
+          <div class="pipe-node">
+            <span class="pipe-latency">~180ms</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v2"></path><path d="M12 2v2"></path><path d="M17 20v2"></path><path d="M17 2v2"></path><path d="M2 12h2"></path><path d="M2 17h2"></path><path d="M2 7h2"></path><path d="M20 12h2"></path><path d="M20 17h2"></path><path d="M20 7h2"></path><path d="M7 20v2"></path><path d="M7 2v2"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>
+            <b>Whisper / Parakeet</b><span>ASR · your GPU</span>
+          </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node"><b>Ollama LLM</b><span>cleanup · memory</span></div>
+          <div class="pipe-node">
+            <span class="pipe-latency">~120ms</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"></path><path d="m14 7 3 3"></path><path d="M5 6v4"></path><path d="M19 14v4"></path><path d="M10 2v2"></path><path d="M7 8H3"></path><path d="M21 16h-4"></path><path d="M11 3H9"></path></svg>
+            <b>Ollama LLM</b><span>cleanup · memory</span>
+          </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node"><b>Your cursor</b><span>finished text</span></div>
+          <div class="pipe-node">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"></path><path d="M7 22h1a4 4 0 0 0 4-4"></path><path d="M7 2h1a4 4 0 0 1 4 4"></path></svg>
+            <b>Your cursor</b><span>finished text</span>
+          </div>
         </div>
-        <div style="position: relative; height: 2px; background: oklch(50% 0.09 254 / 0.15); border-radius: 1px; margin: 22px 6px 0;" aria-hidden="true">
+        <div style="position: relative; height: 2px; background: light-dark(oklch(50% 0.09 254 / 0.15), oklch(68% 0.11 254 / 0.15)); border-radius: 1px; margin: 22px 6px 0;" aria-hidden="true">
           <span class="pipe-packet"></span>
           <span class="pipe-packet p2"></span>
         </div>
       </div>
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 12px 0 30px; position: relative;">
-        <div style="position: absolute; left: 0; top: 50%; width: 30px; border-top: 2px dashed oklch(22% 0.008 90 / 0.25);" aria-hidden="true"></div>
-        <svg width="52" height="36" viewBox="0 0 52 36" fill="none" stroke="oklch(55% 0.012 90)" stroke-width="1.5" aria-hidden="true" style="opacity: 0.55;">
+        <div style="position: absolute; left: 0; top: 50%; width: 30px; border-top: 2px dashed light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25));" aria-hidden="true"></div>
+        <svg width="52" height="36" viewBox="0 0 52 36" fill="none" stroke="light-dark(oklch(55% 0.012 90), #828b99)" stroke-width="1.5" aria-hidden="true" style="opacity: 0.55;">
           <path d="M40 28H13a8 8 0 1 1 1.7-15.8A11 11 0 0 1 36 10a9 9 0 0 1 4 18Z" stroke-linejoin="round"/>
           <line x1="8" y1="34" x2="46" y2="2" stroke="#e05a5a" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
-        <p style="margin: 0; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); text-align: center;">No server<br>No account<br>No telemetry</p>
+        <p style="margin: 0; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); text-align: center;">No server<br>No account<br>No telemetry</p>
       </div>
     </div>
-    <p style="text-align: center; margin: 22px 0 0; font: 500 12.5px 'Geist', sans-serif; color: oklch(48% 0.012 90);">Fig. 2 — the whole pipeline runs inside the box you own. Unplug the router; Patter doesn't notice.</p>
+    <p style="text-align: center; margin: 22px 0 0; font: 500 12.5px 'Geist', sans-serif; color: light-dark(oklch(48% 0.012 90), #828b99);">Fig. 2 — the whole pipeline runs inside the box you own. Unplug the router; Patter doesn't notice.</p>
   </section>
 
   <section class="reveal-section" style="padding: 0 32px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
-    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">How it works</p>
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 16px;">How it works</p>
     <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 56px;">Three steps to never typing again</h2>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0; padding-bottom: 96px;">
         <div class="step-card">
-          <p style="font: 600 78px/1 'Geist', sans-serif; color: oklch(22% 0.008 90 / 0.06); margin: 0; letter-spacing: -0.05em; transition: color .25s ease;">01</p>
+          <p style="font: 600 78px/1 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.06)); margin: 0; letter-spacing: -0.05em; transition: color .25s ease;">01</p>
           <h3 style="font-size: 16px; font-weight: 600; margin: 12px 0 8px; position: relative;">Press your hotkey</h3>
-          <p style="font-size: 13.5px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.6; position: relative;">Anywhere on your desktop — F12 by default, or hold a key push-to-talk style. A minimal HUD shows you’re live.</p>
+          <p style="font-size: 13.5px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.6; position: relative;">Anywhere on your desktop — F12 by default, or hold a key push-to-talk style. A minimal HUD shows you’re live.</p>
         </div>
         <div class="step-card">
-          <p style="font: 600 78px/1 'Geist', sans-serif; color: oklch(22% 0.008 90 / 0.06); margin: 0; letter-spacing: -0.05em; transition: color .25s ease;">02</p>
+          <p style="font: 600 78px/1 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.06)); margin: 0; letter-spacing: -0.05em; transition: color .25s ease;">02</p>
           <h3 style="font-size: 16px; font-weight: 600; margin: 12px 0 8px; position: relative;">Say it</h3>
-          <p style="font-size: 13.5px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.6; position: relative;">Whisper or Parakeet transcribes on your GPU; your local LLM polishes the result using your memory and app profile.</p>
+          <p style="font-size: 13.5px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.6; position: relative;">Whisper or Parakeet transcribes on your GPU; your local LLM polishes the result using your memory and app profile.</p>
         </div>
         <div class="step-card">
-          <p style="font: 600 78px/1 'Geist', sans-serif; color: oklch(22% 0.008 90 / 0.06); margin: 0; letter-spacing: -0.05em; transition: color .25s ease;">03</p>
+          <p style="font: 600 78px/1 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.06)); margin: 0; letter-spacing: -0.05em; transition: color .25s ease;">03</p>
           <h3 style="font-size: 16px; font-weight: 600; margin: 12px 0 8px; position: relative;">It’s typed</h3>
-          <p style="font-size: 13.5px; color: oklch(42% 0.012 90); margin: 0; line-height: 1.6; position: relative;">Text appears at your cursor in whatever app you’re in. Every dictation lands in History, editable and searchable.</p>
+          <p style="font-size: 13.5px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.6; position: relative;">Text appears at your cursor in whatever app you’re in. Every dictation lands in History, editable and searchable.</p>
         </div>
     </div>
   </section>
@@ -329,55 +373,55 @@
   <section id="models" class="reveal-section" style="padding: 0 32px 96px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
     <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 12px;">
       <h2 style="font: 500 clamp(26px, 3.6vw, 34px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0;">Six models,<br>one honest table</h2>
-      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); margin: 0;">§ Sizes verified, not guessed</p>
+      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); margin: 0;">§ Sizes verified, not guessed</p>
     </div>
-    <div style="border-bottom: 1px solid oklch(22% 0.008 90 / 0.12);">
-      <div class="model-row" style="border-top: 1px solid oklch(22% 0.008 90); font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 90);">
+    <div style="border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));">
+      <div class="model-row" style="border-top: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99);">
         <span>Model</span><span>Size</span><span>Speed</span><span>Accuracy</span><span class="m-hide">Languages</span><span class="m-hide">Best for</span>
       </div>
       <div class="model-row">
         <span style="font-weight: 600;">Whisper Tiny</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">78 MB</span>
         <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●<i>●●●</i></span><span class="m-hide">English</span>
-        <span class="m-hide" style="color: oklch(42% 0.012 90);">Older machines, instant results</span>
+        <span class="m-hide" style="color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Older machines, instant results</span>
       </div>
       <div class="model-row">
         <span style="font-weight: 600;">Whisper Base</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">148 MB</span>
         <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●●<i>●●</i></span><span class="m-hide">English</span>
-        <span class="m-hide" style="color: oklch(42% 0.012 90);">Quick notes, everyday dictation</span>
+        <span class="m-hide" style="color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Quick notes, everyday dictation</span>
       </div>
       <div class="model-row">
         <span style="font-weight: 600;">Whisper Small</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">488 MB</span>
         <span class="speed-dots">●●●<i>●●</i></span><span class="speed-dots">●●●●<i>●</i></span><span class="m-hide">English</span>
-        <span class="m-hide" style="color: oklch(42% 0.012 90);">Better accuracy, still light</span>
+        <span class="m-hide" style="color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Better accuracy, still light</span>
       </div>
-      <div class="model-row" style="background: oklch(50% 0.09 254 / 0.05);">
-        <span style="font-weight: 600;">Parakeet v2 <span style="font: 500 10px 'Geist Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; color: oklch(50% 0.09 254); border: 1px solid oklch(50% 0.09 254 / 0.35); border-radius: 999px; padding: 2px 8px; margin-left: 6px;">recommended</span></span>
+      <div class="model-row" style="background: light-dark(oklch(50% 0.09 254 / 0.05), oklch(68% 0.11 254 / 0.05));">
+        <span style="font-weight: 600;">Parakeet v2 <span style="font: 500 10px 'Geist Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); border: 1px solid light-dark(oklch(50% 0.09 254 / 0.35), oklch(68% 0.11 254 / 0.35)); border-radius: 999px; padding: 2px 8px; margin-left: 6px;">recommended</span></span>
         <span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">661 MB</span>
         <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●●●●</span><span class="m-hide">English</span>
-        <span class="m-hide" style="color: oklch(42% 0.012 90);">Fast <em>and</em> accurate — the default pick</span>
+        <span class="m-hide" style="color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Fast <em>and</em> accurate — the default pick</span>
       </div>
       <div class="model-row">
         <span style="font-weight: 600;">Parakeet v3</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">670 MB</span>
         <span class="speed-dots">●●●●<i>●</i></span><span class="speed-dots">●●●●<i>●</i></span><span class="m-hide">25 European</span>
-        <span class="m-hide" style="color: oklch(42% 0.012 90);">Multilingual dictation at Parakeet speed</span>
+        <span class="m-hide" style="color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Multilingual dictation at Parakeet speed</span>
       </div>
       <div class="model-row">
         <span style="font-weight: 600;">Whisper Large v3 Turbo</span><span style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">1.6 GB</span>
         <span class="speed-dots">●●<i>●●●</i></span><span class="speed-dots">●●●●●</span><span class="m-hide">99+</span>
-        <span class="m-hide" style="color: oklch(42% 0.012 90);">Maximum accuracy, any language</span>
+        <span class="m-hide" style="color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Maximum accuracy, any language</span>
       </div>
     </div>
-    <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 18px 0 0; line-height: 1.6;">Switch models anytime from the tray — downloads resume, checksums verified. Speaker diarization adds two small models (46 MB total) when you enable meeting notes.</p>
+    <p style="font-size: 13px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 18px 0 0; line-height: 1.6;">Switch models anytime from the tray — downloads resume, checksums verified. Speaker diarization adds two small models (46 MB total) when you enable meeting notes.</p>
   </section>
 
   <section class="reveal-section" style="padding: 0 32px 96px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
     <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 12px;">
       <h2 style="font: 500 clamp(26px, 3.6vw, 34px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0;">Where Patter sits</h2>
-      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(50% 0.012 90); margin: 0;">§ An honest comparison</p>
+      <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); margin: 0;">§ An honest comparison</p>
     </div>
-    <div style="border-bottom: 1px solid oklch(22% 0.008 90 / 0.12);">
-      <div class="cmp-row" style="border-top: 1px solid oklch(22% 0.008 90); font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 90);">
-        <span></span><span style="color: oklch(50% 0.09 254);">Patter</span><span>OS dictation</span><span>Cloud tools</span>
+    <div style="border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));">
+      <div class="cmp-row" style="border-top: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99);">
+        <span></span><span style="color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254));">Patter</span><span>OS dictation</span><span>Cloud tools</span>
       </div>
       <div class="cmp-row"><span style="font-weight: 600;">Audio stays on device</span><span class="cmp-yes">✓ always</span><span class="cmp-part">~ sometimes</span><span class="cmp-no">✗ uploaded</span></div>
       <div class="cmp-row"><span style="font-weight: 600;">Works fully offline</span><span class="cmp-yes">✓</span><span class="cmp-part">~ limited</span><span class="cmp-no">✗</span></div>
@@ -387,13 +431,13 @@
       <div class="cmp-row"><span style="font-weight: 600;">Personal memory &amp; vocabulary</span><span class="cmp-yes">✓ local embeddings</span><span class="cmp-no">✗</span><span class="cmp-part">~ cloud-stored</span></div>
       <div class="cmp-row"><span style="font-weight: 600;">Price</span><span class="cmp-yes">Free · MIT</span><span class="cmp-yes">Free</span><span class="cmp-no">$8–15 / month</span></div>
     </div>
-    <p style="font-size: 13px; color: oklch(45% 0.012 90); margin: 18px 0 0; line-height: 1.6;">Fair's fair: cloud tools need no GPU and set up in seconds. Patter asks for one model download and an optional Ollama install — and never asks for anything again.</p>
+    <p style="font-size: 13px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 18px 0 0; line-height: 1.6;">Fair's fair: cloud tools need no GPU and set up in seconds. Patter asks for one model download and an optional Ollama install — and never asks for anything again.</p>
   </section>
 
   <section id="faq" class="reveal-section" style="padding: 0 32px 96px; max-width: 840px; margin: 0 auto; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
-    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">FAQ</p>
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 16px;">FAQ</p>
     <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 40px;">Questions people actually ask</h2>
-    <div style="border-bottom: 1px solid oklch(22% 0.008 90 / 0.14);">
+    <div style="border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14));">
       <details class="faq-item">
         <summary>Does it really work with the internet off?</summary>
         <p>Yes. After the one-time model download, every stage — voice detection, transcription, LLM cleanup, meeting summaries — runs from your disk. Airplane mode is a fine place to dictate.</p>
@@ -412,7 +456,7 @@
       </details>
       <details class="faq-item">
         <summary>macOS says the app is "damaged" — why?</summary>
-        <p>Patter is an indie app without Apple's $99/yr notarization, so macOS quarantines the DMG download. The one-line curl installer avoids the flag entirely; or run <code style="font: 500 12px 'Geist Mono', monospace; background: oklch(93% 0.006 90); border-radius: 4px; padding: 2px 7px;">xattr -cr /Applications/patter.app</code> once. The code is open — audit it, or build it yourself.</p>
+        <p>Patter is an indie app without Apple's $99/yr notarization, so macOS quarantines the DMG download. The one-line curl installer avoids the flag entirely; or run <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">xattr -cr /Applications/patter.app</code> once. The code is open — audit it, or build it yourself.</p>
       </details>
       <details class="faq-item">
         <summary>Where is my data stored?</summary>
@@ -426,39 +470,39 @@
   </section>
 
   <section id="install" class="reveal-section" style="padding: 0 32px 96px; max-width: 840px; margin: 0 auto; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
-    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: oklch(45% 0.012 90); margin: 0 0 16px;">Install</p>
+    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 16px;">Install</p>
     <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 32px;">One command, no dialog drama</h2>
     <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 24px;">
-      <button type="button" class="os-tab" data-os="mac" style="font: 500 13px 'Geist', sans-serif; padding: 8px 18px; border-radius: 999px; border: 1px solid oklch(22% 0.008 90 / 0.2); background: oklch(22% 0.008 90); color: oklch(98% 0.007 90); cursor: pointer;">macOS</button>
-      <button type="button" class="os-tab" data-os="win" style="font: 500 13px 'Geist', sans-serif; padding: 8px 18px; border-radius: 999px; border: 1px solid oklch(22% 0.008 90 / 0.2); background: transparent; color: oklch(28% 0.01 90); cursor: pointer;">Windows</button>
+      <button type="button" class="os-tab" data-os="mac" style="font: 500 13px 'Geist', sans-serif; padding: 8px 18px; border-radius: 999px; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); cursor: pointer;">macOS</button>
+      <button type="button" class="os-tab" data-os="win" style="font: 500 13px 'Geist', sans-serif; padding: 8px 18px; border-radius: 999px; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); background: transparent; color: light-dark(oklch(28% 0.01 90), #c7ccd4); cursor: pointer;">Windows</button>
     </div>
-    <div style="border: 1px solid oklch(22% 0.008 90); border-radius: 2px; padding: 32px 32px 28px; position: relative;">
-      <span id="install-shell-label" style="position: absolute; top: -11px; left: 24px; background: oklch(98% 0.007 90); padding: 0 10px; font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(45% 0.012 90);">Terminal</span>
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid oklch(22% 0.008 90 / 0.14); border-radius: 6px; padding: 15px 20px; background: oklch(100% 0 0 / 0.5);">
-      <code id="install-cmd" style="font: 500 12.5px 'Geist Mono', monospace; color: oklch(38% 0.08 254); overflow-x: auto; white-space: nowrap;">curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh</code>
+    <div style="border: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); border-radius: 2px; padding: 32px 32px 28px; position: relative;">
+      <span id="install-shell-label" style="position: absolute; top: -11px; left: 24px; background: light-dark(oklch(98% 0.007 90), #0a0b0d); padding: 0 10px; font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99);">Terminal</span>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); border-radius: 6px; padding: 15px 20px; background: light-dark(oklch(100% 0 0 / 0.5), rgba(20,22,27,0.6));">
+      <code id="install-cmd" style="font: 500 12.5px 'Geist Mono', monospace; color: light-dark(oklch(38% 0.08 254), oklch(66% 0.1 254)); overflow-x: auto; white-space: nowrap;">curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh</code>
       <button id="copyInstall" class="copy-btn" style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; flex: none;" title="Copy to clipboard">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
       </button>
     </div>
-    <p id="install-note" style="font-size: 12.5px; color: oklch(45% 0.012 90); margin: 14px 0 0;">
+    <p id="install-note" style="font-size: 12.5px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 14px 0 0;">
       Installs the latest release to /Applications. Then launch from Spotlight — onboarding walks
       you through mic access, a speech model, and your hotkey.
     </p>
     <details id="install-details-mac" style="margin-top: 24px;">
-      <summary style="cursor: pointer; font-size: 14px; color: oklch(42% 0.012 90);">Prefer downloading the DMG yourself?</summary>
-      <div style="padding: 14px 0 0 4px; font-size: 13.5px; color: oklch(42% 0.012 90); line-height: 1.65;">
+      <summary style="cursor: pointer; font-size: 14px; color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Prefer downloading the DMG yourself?</summary>
+      <div style="padding: 14px 0 0 4px; font-size: 13.5px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); line-height: 1.65;">
         Grab it from the <a href="https://github.com/srikark283/patter/releases/latest">latest release</a>,
         drag Patter to Applications, then clear the browser's quarantine flag — Patter is an indie
         app without Apple notarization, so macOS calls the download "damaged" until you run
-        <code style="font: 500 12px 'Geist Mono', monospace; background: oklch(93% 0.006 90); border-radius: 4px; padding: 2px 7px;">xattr -cr /Applications/patter.app</code>.
+        <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">xattr -cr /Applications/patter.app</code>.
         The curl route skips this entirely. First install only.
       </div>
     </details>
     <details id="install-details-win" style="margin-top: 24px; display: none;">
-      <summary style="cursor: pointer; font-size: 14px; color: oklch(42% 0.012 90);">Prefer downloading the installer yourself?</summary>
-      <div style="padding: 14px 0 0 4px; font-size: 13.5px; color: oklch(42% 0.012 90); line-height: 1.65;">
-        Grab the <code style="font: 500 12px 'Geist Mono', monospace; background: oklch(93% 0.006 90); border-radius: 4px; padding: 2px 7px;">.exe</code> or
-        <code style="font: 500 12px 'Geist Mono', monospace; background: oklch(93% 0.006 90); border-radius: 4px; padding: 2px 7px;">.msi</code> from the
+      <summary style="cursor: pointer; font-size: 14px; color: light-dark(oklch(42% 0.012 90), #c7ccd4);">Prefer downloading the installer yourself?</summary>
+      <div style="padding: 14px 0 0 4px; font-size: 13.5px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); line-height: 1.65;">
+        Grab the <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">.exe</code> or
+        <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">.msi</code> from the
         <a href="https://github.com/srikark283/patter/releases/latest">latest release</a> and run it. Patter isn't
         EV-signed, so Windows SmartScreen may show "Windows protected your PC" — click
         <strong>More info → Run anyway</strong>. The PowerShell route skips this entirely. First install only.
@@ -467,11 +511,11 @@
     </div>
   </section>
 
-  <footer style="border-top: 1px solid oklch(22% 0.008 90 / 0.16); padding: 48px 32px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 13.5px; color: oklch(45% 0.012 90);">
+  <footer style="border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); padding: 48px 32px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 13.5px; color: light-dark(oklch(45% 0.012 90), #828b99);">
     <div>
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
         <img src="logo.png" alt="" style="width: 20px; height: 20px; border-radius: 4.5px; opacity: 0.8; filter: grayscale(100%);">
-        <p style="font: 600 16px 'Geist', sans-serif; color: oklch(22% 0.008 90); margin: 0; letter-spacing: -0.01em;">Patter</p>
+        <p style="font: 600 16px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee); margin: 0; letter-spacing: -0.01em;">Patter</p>
       </div>
       <p style="margin: 0; font-style: italic;">Dictation that stays home.</p>
     </div>
@@ -484,10 +528,10 @@
       <a href="https://github.com/srikark283/patter/issues" class="nav-link">Issues</a>
     </div>
     <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;">
-      <div id="footerVersion" style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(50% 0.012 90); line-height: 1.5;">
+      <div id="footerVersion" style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); line-height: 1.5;">
         Version —<br>Latest Release
       </div>
-      <div style="font-size: 12.5px; color: oklch(60% 0.012 90);">
+      <div style="font-size: 12.5px; color: light-dark(oklch(60% 0.012 90), #828b99);">
         MIT License · Free &amp; Open Source
       </div>
     </div>
@@ -500,13 +544,69 @@
   const hudTilt = document.getElementById('hudTilt');
   const hudDot = document.getElementById('hudDot');
   const hudWave = document.getElementById('hudWave');
+  const hudIconScan = document.getElementById('hudIconScan');
+  const hudIconSweep = document.getElementById('hudIconSweep');
   const hudText = document.getElementById('hudText');
   const hudCancel = document.getElementById('hudCancel');
-  
+
   const demoStatus = document.getElementById('demoStatus');
   const demoTyped = document.getElementById('demoTyped');
-  
-  let hudPhase = 'recording'; // 'idle', 'recording', 'processing', 'notice'
+
+  let hudPhase = 'recording'; // 'idle', 'recording', 'processing', 'cleanup', 'notice'
+
+  // Sound effects: synthesized (no audio asset/network fetch), default OFF —
+  // browsers block autoplay anyway, and clicking the toggle is the user
+  // gesture that unlocks the AudioContext.
+  let soundEnabled = false;
+  let audioCtx = null;
+  function playTick(freq, duration) {
+    if (!soundEnabled) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  }
+  // Theme toggle: overrides the `color-scheme: light dark` default (which
+  // otherwise follows the OS) with an explicit 'light' or 'dark', persisted.
+  const themeToggle = document.getElementById('themeToggle');
+  const themeIconSun = document.getElementById('themeIconSun');
+  const themeIconMoon = document.getElementById('themeIconMoon');
+  function currentTheme() {
+    const override = document.documentElement.style.colorScheme;
+    if (override === 'light' || override === 'dark') return override;
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyThemeIcon() {
+    const dark = currentTheme() === 'dark';
+    themeIconSun.style.display = dark ? 'none' : 'block';
+    themeIconMoon.style.display = dark ? 'block' : 'none';
+    themeToggle.setAttribute('aria-pressed', String(dark));
+  }
+  themeToggle.addEventListener('click', () => {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.style.colorScheme = next;
+    localStorage.setItem('patter-theme', next);
+    applyThemeIcon();
+  });
+  applyThemeIcon();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!localStorage.getItem('patter-theme')) applyThemeIcon();
+  });
+
+  const soundToggle = document.getElementById('soundToggle');
+  soundToggle.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    soundToggle.setAttribute('aria-pressed', String(soundEnabled));
+    soundToggle.style.background = soundEnabled ? 'light-dark(oklch(22% 0.008 90), #e7eaee)' : 'transparent';
+    soundToggle.style.color = soundEnabled ? 'light-dark(oklch(98% 0.007 90), #0a0b0d)' : 'light-dark(oklch(45% 0.012 90), #828b99)';
+    if (soundEnabled) playTick(660, 0.08);
+  });
 
   const demoPairs = [
     { raw: 'um so the q3 launch uh moves to like the second week of july', clean: 'The Q3 launch moves to the second week of July.' },
@@ -527,16 +627,18 @@
     
     // Wave canvas display
     hudWave.style.display = hudPhase === 'recording' ? 'block' : 'none';
-    
-    // Text display
-    if (hudPhase === 'processing' || hudPhase === 'notice') {
-      hudText.style.display = 'block';
-    } else {
-      hudText.style.display = 'none';
-    }
-    
+
+    // Icon-only states: scan for transcribing, broom for cleanup — pill
+    // shrinks to fit since there's no waveform/text to fill it.
+    hudIconScan.style.display = hudPhase === 'processing' ? 'block' : 'none';
+    hudIconSweep.style.display = hudPhase === 'cleanup' ? 'block' : 'none';
+    hudTilt.style.minWidth = (hudPhase === 'processing' || hudPhase === 'cleanup') ? '0' : '116px';
+
+    // Text display (notice only — pasted checkmark etc.)
+    hudText.style.display = hudPhase === 'notice' ? 'block' : 'none';
+
     // Cancel icon display
-    if (hudPhase === 'recording' || hudPhase === 'processing') {
+    if (hudPhase === 'recording' || hudPhase === 'processing' || hudPhase === 'cleanup') {
       hudCancel.style.display = 'flex';
     } else {
       hudCancel.style.display = 'none';
@@ -568,6 +670,7 @@
       hudPhase = 'recording';
       hudText.textContent = '';
       updateHud();
+      playTick(520, 0.06);
 
       demoTimer = setInterval(() => {
         i++;
@@ -575,26 +678,33 @@
         if (i >= pair.raw.length) {
           clearInterval(demoTimer);
           demoTimeout = setTimeout(() => {
-            demoStatus.textContent = 'cleaning up…';
-            demoStatus.style.color = '#8a6d1f';
+            demoStatus.textContent = 'transcribing…';
+            demoStatus.style.color = '#7a8a9e';
             hudPhase = 'processing';
-            hudText.textContent = 'Transcribing…';
             updateHud();
-            
+
             demoTimeout = setTimeout(() => {
-              demoTyped.textContent = pair.clean;
-              demoStatus.textContent = 'typed ✓';
-              demoStatus.style.color = '#2f9e52';
-              hudPhase = 'notice';
-              hudText.textContent = '✓ Pasted';
+              demoStatus.textContent = 'cleaning up…';
+              demoStatus.style.color = '#8a6d1f';
+              hudPhase = 'cleanup';
               updateHud();
-              
+
               demoTimeout = setTimeout(() => {
-                hudPhase = 'idle';
+                demoTyped.textContent = pair.clean;
+                demoStatus.textContent = 'typed ✓';
+                demoStatus.style.color = '#2f9e52';
+                hudPhase = 'notice';
+                hudText.textContent = '✓ Pasted';
                 updateHud();
-                demoTimeout = setTimeout(typePair, 2400);
-              }, 1000);
-            }, 900);
+                playTick(880, 0.12);
+
+                demoTimeout = setTimeout(() => {
+                  hudPhase = 'idle';
+                  updateHud();
+                  demoTimeout = setTimeout(typePair, 2400);
+                }, 1000);
+              }, 900);
+            }, 700);
           }, 600);
         }
       }, 38);
@@ -662,12 +772,39 @@
     requestAnimationFrame(tick);
   }
 
+  function animateStats(root) {
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    root.querySelectorAll('.stat-bar-fill').forEach((bar) => {
+      bar.style.width = bar.dataset.width + '%';
+    });
+    root.querySelectorAll('.stat-number').forEach((el) => {
+      const target = parseFloat(el.dataset.target);
+      const decimals = parseInt(el.dataset.decimals || '0', 10);
+      const suffix = el.dataset.suffix || '';
+      if (reduceMotion) {
+        el.textContent = target.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
+        return;
+      }
+      const duration = 1200;
+      const start = performance.now();
+      function tick(now) {
+        const p = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+        const val = target * eased;
+        el.textContent = val.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
   function setupReveal() {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           entry.target.style.opacity = '1';
           entry.target.style.transform = 'none';
+          if (entry.target.querySelector('.stat-number')) animateStats(entry.target);
           observer.unobserve(entry.target);
         }
       });
@@ -715,8 +852,8 @@
     document.getElementById('install-details-win').style.display = os === 'win' ? '' : 'none';
     document.querySelectorAll('.os-tab').forEach((btn) => {
       const active = btn.dataset.os === os;
-      btn.style.background = active ? 'oklch(22% 0.008 90)' : 'transparent';
-      btn.style.color = active ? 'oklch(98% 0.007 90)' : 'oklch(28% 0.01 90)';
+      btn.style.background = active ? 'light-dark(oklch(22% 0.008 90), #e7eaee)' : 'transparent';
+      btn.style.color = active ? 'light-dark(oklch(98% 0.007 90), #0a0b0d)' : 'light-dark(oklch(28% 0.01 90), #c7ccd4)';
     });
   }
 

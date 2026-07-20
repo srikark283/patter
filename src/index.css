@@ -202,6 +202,11 @@
     0 2px 8px rgba(0, 0, 0, 0.35),
     0 12px 32px rgba(0, 0, 0, 0.5);
 }
+/* Icon-only states (no waveform/timer to fill the pill) — shrink to fit. */
+.hud-pill.processing,
+.hud-pill.cleanup {
+  min-width: 0;
+}
 
 .hud-drag-handle {
   flex: 1;
@@ -226,7 +231,8 @@
   opacity: 1;
   animation: hud-breathe 2.2s ease-in-out infinite;
 }
-.hud-dot.processing {
+.hud-dot.processing,
+.hud-dot.cleanup {
   background: var(--color-steelIce);
   opacity: 1;
   animation: hud-breathe 1.6s ease-in-out infinite;
@@ -247,7 +253,8 @@
     opacity: 0.75;
   }
 }
-.hud-dot.processing {
+.hud-dot.processing,
+.hud-dot.cleanup {
   animation-name: hud-breathe-steel;
 }
 @keyframes hud-breathe-steel {
@@ -274,21 +281,24 @@
   white-space: nowrap;
   flex: none;
 }
-.hud-pill.processing .hud-label {
-  background: linear-gradient(90deg, rgba(231, 234, 238, 0.55) 35%, #fff 50%, rgba(231, 234, 238, 0.55) 65%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: hud-shimmer 2s ease-in-out infinite;
+
+.hud-icon-anim {
+  flex: none;
+  color: rgba(174, 205, 232, 0.9);
 }
-@keyframes hud-shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
+/* Transcribing / cleanup: a calm pulse, no directional motion. */
+.hud-icon-scan {
+  animation: hud-pulse 1.5s ease-in-out infinite;
+}
+.hud-icon-sweep {
+  animation: hud-pulse 1.1s ease-in-out infinite;
+}
+@keyframes hud-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.55; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-icon-scan, .hud-icon-sweep { animation: none; }
 }
 
 /* Ghost until the pill is hovered — chrome stays quiet while dictating. */
