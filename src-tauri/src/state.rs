@@ -22,9 +22,12 @@ pub struct AppState {
     /// also orders concurrent drains.
     pub meeting_file: Arc<Mutex<Option<std::fs::File>>>,
     pub is_meeting_recording: Arc<AtomicBool>,
-    /// Set by `cancel_meeting` to tell the post-recording pipeline (transcribe
+    /// Set by `cancel_meeting` (increments ID) to tell the post-recording pipeline (transcribe
     /// → diarize → summarize) to bail at its next checkpoint instead of saving.
-    pub meeting_cancelled: Arc<AtomicBool>,
+    pub meeting_session_id: Arc<std::sync::atomic::AtomicU64>,
+    /// Set by `cancel` (for dictation) to tell the post-recording pipeline
+    /// to bail at its next checkpoint instead of saving.
+    pub dictation_session_id: Arc<std::sync::atomic::AtomicU64>,
     pub engine: Arc<Mutex<Option<Box<dyn ASREngine>>>>,
     pub active_engine_id: Arc<Mutex<Option<String>>>,
     pub model_manager: models::registry::ModelManager,

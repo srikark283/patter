@@ -68,7 +68,7 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     crate::recording::reposition_hud_to_cursor(app);
 
     let settings = state.settings.lock().unwrap().clone();
-    state.meeting_cancelled.store(false, Ordering::SeqCst);
+    state.meeting_session_id.fetch_add(1, Ordering::SeqCst);
     *state.meeting_captured.lock().unwrap() = Vec::new();
     let path = buffer_path(app);
     if let Some(dir) = path.parent() {
@@ -122,20 +122,16 @@ pub fn cancel_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    state.meeting_cancelled.store(true, Ordering::SeqCst);
+    state.meeting_session_id.fetch_add(1, Ordering::SeqCst);
+    let _ = app.emit("patter://meeting_state", "idle");
     Ok(())
 }
 
 /// Checks the cancellation flag; if set, resets it, emits idle, and returns
 /// true so the caller can bail out of the pipeline without saving.
-fn bail_if_cancelled(app: &tauri::AppHandle) -> bool {
+fn bail_if_cancelled(app: &tauri::AppHandle, session_id: u64) -> bool {
     let state = app.state::<AppState>();
-    if state.meeting_cancelled.swap(false, Ordering::SeqCst) {
-        let _ = app.emit("patter://meeting_state", "idle");
-        true
-    } else {
-        false
-    }
+    state.meeting_session_id.load(Ordering::SeqCst) != session_id
 }
 
 pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
@@ -165,6 +161,7 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         return Err("No audio captured".to_string());
     }
 
+    let meeting_session_id = state.meeting_session_id.load(Ordering::SeqCst);
     let engine_arc = state.engine.clone();
     let app_handle = app.clone();
 
@@ -180,7 +177,7 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
         let language = settings.language;
 
-        if bail_if_cancelled(&app_handle) {
+        if bail_if_cancelled(&app_handle, meeting_session_id) {
             return;
         }
 
@@ -203,7 +200,7 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
             audio
         };
 
-        if bail_if_cancelled(&app_handle) {
+        if bail_if_cancelled(&app_handle, meeting_session_id) {
             return;
         }
 
@@ -252,7 +249,7 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
             return;
         }
 
-        if bail_if_cancelled(&app_handle) {
+        if bail_if_cancelled(&app_handle, meeting_session_id) {
             return;
         }
 
@@ -286,7 +283,7 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
             Default::default()
         };
 
-        if bail_if_cancelled(&app_handle) {
+        if bail_if_cancelled(&app_handle, meeting_session_id) {
             return;
         }
 

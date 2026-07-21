@@ -70,6 +70,7 @@ pub fn start_recording(app: &tauri::AppHandle) {
     *state.frontmost_app.lock().unwrap() = paste::frontmost_app_name();
 
     let settings = state.settings.lock().unwrap().clone();
+    state.dictation_session_id.fetch_add(1, Ordering::SeqCst);
     if settings.play_sounds {
         play_system_sound("Pop.aiff", 1.5);
     }
@@ -131,6 +132,13 @@ pub fn start_recording(app: &tauri::AppHandle) {
     });
 }
 
+/// Checks the cancellation flag; if set, resets it, emits idle, and returns
+/// true so the caller can bail out of the pipeline without saving.
+fn bail_if_cancelled(app: &tauri::AppHandle, session_id: u64) -> bool {
+    let state = app.state::<AppState>();
+    state.dictation_session_id.load(Ordering::SeqCst) != session_id
+}
+
 /// Stops recording and discards the captured buffer without transcribing —
 /// distinct from `stop_and_transcribe`, which always runs the ASR pipeline.
 pub fn cancel(app: &tauri::AppHandle) {
@@ -141,12 +149,17 @@ pub fn cancel(app: &tauri::AppHandle) {
         play_system_sound("Pop.aiff", 0.9);
     }
 
-    state.is_recording.store(false, Ordering::SeqCst);
-    let _ = state.audio_tx.send(AudioCommand::Stop);
-    state.captured.lock().unwrap().clear();
+    if state.is_recording.load(Ordering::SeqCst) {
+        state.is_recording.store(false, Ordering::SeqCst);
+        let _ = state.audio_tx.send(AudioCommand::Stop);
+        state.captured.lock().unwrap().clear();
 
-    let _ = app.emit("levels", [0.0; 5]);
-    let _ = app.emit("patter://state", "Idle");
+        let _ = app.emit("levels", [0.0; 5]);
+        let _ = app.emit("patter://state", "Idle");
+    } else {
+        state.dictation_session_id.fetch_add(1, Ordering::SeqCst);
+        let _ = app.emit("patter://state", "Idle");
+    }
 }
 
 pub fn stop_and_transcribe(app: &tauri::AppHandle) {
@@ -174,6 +187,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     let src_rate = state.device_config.lock().unwrap().sample_rate().0;
     let engine_arc = state.engine.clone();
     let app_handle = app.clone();
+    let dictation_session_id = state.dictation_session_id.load(Ordering::SeqCst);
 
     thread::spawn(move || {
         let mono: Vec<f32> = if channels > 1 {
@@ -236,6 +250,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             audio
         };
 
+        if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
+
         let max_val = audio.iter().cloned().fold(0.0f32, f32::max);
         println!("Audio length: {}, max val: {}", audio.len(), max_val);
 
@@ -261,6 +277,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             }
         };
         let transcribe_ms = transcribe_started.elapsed().as_millis() as u32;
+
+        if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
 
         println!("Transcript: {}", text);
         if text.is_empty() {
@@ -349,6 +367,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         } else {
             text
         };
+
+        if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
 
         // --- Snippet Expansion ---
         let text = {
