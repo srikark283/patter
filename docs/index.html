@@ -20,7 +20,7 @@
 </script>
 <style>
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; color-scheme: light dark; }
+  html { scroll-behavior: smooth; color-scheme: light dark; overflow-x: hidden; }
   body {
     margin: 0; background-color: light-dark(oklch(98% 0.007 90), #0a0b0d); color: light-dark(oklch(22% 0.008 90), #e7eaee);
     font-family: 'Geist', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6;
@@ -37,6 +37,33 @@
   @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes hudFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
   @keyframes caretBlink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+
+  /* Hero atmosphere: thin light-streaks drifting through the header —
+     three colors tied to speed (amber), accuracy (steel blue), and privacy
+     (green), each moving at a different speed/angle. Ties the header
+     through the demo into one continuous block instead of a flat banner,
+     without the generic soft-color-blob "AI hero" look. */
+  .hero-wrap { position: relative; }
+  .hero-streaks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .streak {
+    position: absolute;
+    height: 1px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--streak-c), transparent);
+    opacity: 0;
+    animation: streakMove var(--dur) linear infinite;
+    animation-delay: var(--delay);
+  }
+  @keyframes streakMove {
+    0% { opacity: 0; transform: rotate(var(--rot)) translate(0, 0); }
+    4% { opacity: var(--streak-o, 0.6); }
+    55% { opacity: var(--streak-o, 0.6); }
+    68% { opacity: 0; }
+    100% { opacity: 0; transform: rotate(var(--rot)) translate(var(--dx), var(--dy)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .streak { animation: none; opacity: 0; }
+  }
   
   .nav-link { text-decoration: none; color: light-dark(oklch(45% 0.012 90), #828b99); transition: color .2s ease; }
   .nav-link:hover { color: light-dark(oklch(22% 0.008 90), #e7eaee); }
@@ -100,39 +127,42 @@
 </head>
 <body>
 
+<nav style="position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: light-dark(oklch(98% 0.007 90 / 0.7), rgba(10,11,13,0.7));">
+  <div style="max-width: 1040px; margin: 0 auto; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between;">
+    <a href="#" style="text-decoration: none; color: inherit; font: 600 19px 'Geist', sans-serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
+      <img src="logo.png" alt="" style="width: 28px; height: 28px; border-radius: 7px;"> Patter
+    </a>
+    <div style="display: flex; gap: 28px; align-items: center; font-size: 13.5px;">
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#models" class="nav-link">Models</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+      <a href="#install" class="nav-link">Install</a>
+      <a href="https://github.com/srikark283/patter" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        GitHub
+      </a>
+      <button id="themeToggle" type="button" title="Toggle dark mode" aria-pressed="false" style="flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); background: transparent; color: light-dark(oklch(45% 0.012 90), #828b99); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s ease, color .2s ease, border-color .2s ease;">
+        <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+        <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+      </button>
+      <a href="https://github.com/srikark283/patter/releases/latest" class="nav-cta">Download</a>
+    </div>
+  </div>
+</nav>
+
 <div style="max-width: 1040px; margin: 0 auto;">
 
-  <nav style="position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: light-dark(oklch(98% 0.007 90 / 0.82), rgba(10,11,13,0.82)); border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1));">
-    <div style="max-width: 1040px; margin: 0 auto; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between;">
-      <a href="#" style="text-decoration: none; color: inherit; font: 600 19px 'Geist', sans-serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
-        <img src="logo.png" alt="" style="width: 28px; height: 28px; border-radius: 7px;"> Patter
-      </a>
-      <div style="display: flex; gap: 28px; align-items: center; font-size: 13.5px;">
-        <a href="#features" class="nav-link">Features</a>
-        <a href="#models" class="nav-link">Models</a>
-        <a href="#faq" class="nav-link">FAQ</a>
-        <a href="#install" class="nav-link">Install</a>
-        <a href="https://github.com/srikark283/patter" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-          GitHub
-        </a>
-        <button id="themeToggle" type="button" title="Toggle dark mode" aria-pressed="false" style="flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); background: transparent; color: light-dark(oklch(45% 0.012 90), #828b99); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s ease, color .2s ease, border-color .2s ease;">
-          <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
-          <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
-        </button>
-        <a href="https://github.com/srikark283/patter/releases/latest" class="nav-cta">Download</a>
-      </div>
-    </div>
-  </nav>
+  <div class="hero-wrap">
+  <div class="hero-streaks" id="heroStreaks" aria-hidden="true"></div>
 
-  <header style="display: grid; grid-template-columns: 1.35fr 1px 1fr; gap: 48px; padding: 96px 32px 0; align-items: start;">
+  <header style="position: relative; z-index: 1; display: grid; grid-template-columns: 1.35fr 1px 1fr; gap: 48px; padding: 96px 32px 12px; align-items: start;">
     <div>
       <p style="font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 22px; display: inline-flex; align-items: center; gap: 8px; animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both;">
         <span style="width: 6px; height: 6px; border-radius: 50%; background: #2f9e52; display: inline-block;"></span>On-device dictation for macOS &amp; Windows
       </p>
       <h1 style="font: 500 clamp(40px, 5.4vw, 64px)/1.08 'Geist', sans-serif; letter-spacing: -0.025em; margin: 0; animation: fadeUp .8s cubic-bezier(.16,1,.3,1) .1s both;">Talk normal.<br>Get clean text.<br><em style="color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); font-style: italic;">Zero bytes leave your machine.</em></h1>
     </div>
-    <div style="width: 1px; height: 100%; background: light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); align-self: stretch;"></div>
+    <div style="width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)) 15%, light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)) 85%, transparent); align-self: stretch;"></div>
     <div style="padding-top: 8px; animation: fadeUp .8s cubic-bezier(.16,1,.3,1) .25s both;">
       <p style="color: light-dark(oklch(35% 0.012 90), #c7ccd4); font-size: 16.5px; line-height: 1.75; margin: 0;">
         Patter listens, transcribes, and cleans up your words using models that live entirely on your device.
@@ -148,7 +178,7 @@
     </div>
   </header>
 
-  <div style="display: flex; flex-direction: column; align-items: center; padding: 66px 0 92px; perspective: 900px;" aria-hidden="true">
+  <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 66px 0 92px; perspective: 900px;" aria-hidden="true">
     <div id="hudTilt" style="transform: scale(1.7); width: max-content; min-width: 116px; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 14px; border-radius: 18px; overflow: hidden; background: linear-gradient(rgba(255,255,255,.05), rgba(255,255,255,0) 40%), rgba(20,18,15,0.9); backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4); border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 8px rgba(0,0,0,.2), 0 12px 32px rgba(0,0,0,.25); animation: hudFloat 5s ease-in-out infinite; transition: transform .15s ease-out, opacity .25s ease-out; transform-style: preserve-3d; position: relative; z-index: 2;">
       <span id="hudDot" style="width: 6px; height: 6px; border-radius: 50%; background: #f0555f; animation: hud-breathe 2.2s ease-in-out infinite; flex: none;"></span>
       <canvas id="hudWave" style="width: 96px; height: 26px; display: block;"></canvas>
@@ -179,10 +209,11 @@
     </div>
   </div>
 
-  <div style="margin: 0 32px 96px; padding: 26px 30px; border-top: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); border-bottom: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); display: flex; gap: 16px; align-items: baseline; font-size: 15px; flex-wrap: wrap;">
+  <div style="position: relative; z-index: 1; margin: 0 32px 96px; padding: 26px 30px; border-top: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); border-bottom: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); display: flex; gap: 16px; align-items: baseline; font-size: 15px; flex-wrap: wrap;">
     <strong style="font: 600 15px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee);">Private by design.</strong>
     <span style="color: light-dark(oklch(35% 0.012 90), #c7ccd4);">Whisper and Parakeet run on your device's GPU. The LLM is your local Ollama. Your voice, your transcripts, and your personal memory never touch a server.</span>
   </div>
+  </div><!-- /.hero-wrap -->
 
   <section id="features" class="reveal-section" style="padding: 0 32px; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
     <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 48px; flex-wrap: wrap; gap: 12px;">
@@ -897,9 +928,47 @@
     .catch(err => console.error('Failed to fetch latest release version:', err));
 
   // Initialization
+  function setupHeroStreaks() {
+    const container = document.getElementById('heroStreaks');
+    if (!container || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const AMBER = 'light-dark(oklch(75% 0.16 70), oklch(75% 0.16 70))';
+    const BLUE = 'light-dark(oklch(55% 0.13 254), oklch(70% 0.14 254))';
+    const GREEN = 'light-dark(oklch(65% 0.15 150), oklch(65% 0.15 150))';
+    // All streaks share one direction (a gentle left-to-right, downward
+    // drift) so the effect reads as one consistent current, not scattered
+    // shooting stars — only length/speed/position/color vary, for depth.
+    const ANGLE = 12;
+    // top%, left%, length px, color, duration s, delay s, opacity
+    const streaks = [
+      [6,  4,  180, BLUE, 7,  0,   0.55],
+      [18, 55, 220, BLUE,  9,  1.5, 0.6],
+      [2,  75, 150, BLUE, 11, 3,   0.5],
+      [46, 18, 200, BLUE,  8,  4.5, 0.5],
+      [35, 68, 170, BLUE, 12, 6,   0.45],
+      [60, 40, 190, BLUE, 10, 7.5, 0.5],
+    ];
+    for (const [top, left, len, color, dur, delay, op] of streaks) {
+      const el = document.createElement('div');
+      el.className = 'streak';
+      el.style.top = top + '%';
+      el.style.left = left + '%';
+      el.style.width = len + 'px';
+      el.style.transformOrigin = 'left center';
+      el.style.setProperty('--streak-c', color);
+      el.style.setProperty('--dur', dur + 's');
+      el.style.setProperty('--delay', delay + 's');
+      el.style.setProperty('--streak-o', op);
+      el.style.setProperty('--rot', ANGLE + 'deg');
+      el.style.setProperty('--dx', (len * 1.8).toFixed(1) + 'px');
+      el.style.setProperty('--dy', '0px');
+      container.appendChild(el);
+    }
+  }
+
   startWave();
   setupReveal();
   setupTilt();
+  setupHeroStreaks();
   runDemo();
 </script>
 </body>
