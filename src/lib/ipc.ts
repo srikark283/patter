@@ -180,6 +180,28 @@ export function onAccessibilityMissing(callback: () => void) {
   return listen("patter://accessibility_missing", () => callback());
 }
 
+export interface PermissionStatus {
+  accessibility: boolean;
+  input_monitoring: boolean;
+  microphone: boolean;
+}
+
+export function getPermissionStatus() {
+  return invoke<PermissionStatus>("get_permission_status");
+}
+
+export function openInputMonitoringSettings() {
+  return invoke<void>("open_input_monitoring_settings");
+}
+
+export function openMicrophoneSettings() {
+  return invoke<void>("open_microphone_settings");
+}
+
+export function openNotificationSettings() {
+  return invoke<void>("open_notification_settings");
+}
+
 export function onNavigate(callback: (tab: string) => void) {
   return listen<string>("patter://navigate", (event) => callback(event.payload));
 }

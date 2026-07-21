@@ -1,8 +1,8 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck, Video, X } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck, Video, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
-import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings } from "../../../lib/ipc";
+import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, openInputMonitoringSettings, openMicrophoneSettings, openNotificationSettings } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { PageHeader } from "../components/PageHeader";
@@ -59,17 +59,73 @@ function formatHotkey(combo: string): string {
     .join(" + ");
 }
 
+interface PermissionRowProps {
+  icon: typeof Mic;
+  tint: string;
+  bg: string;
+  title: string;
+  description: string;
+  /** Omit when the OS gives no reliable way to query the live status. */
+  granted?: boolean;
+  onOpenSettings: () => Promise<void>;
+}
+
+function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onOpenSettings }: PermissionRowProps) {
+  return (
+    <div className="flex items-center justify-between p-4">
+      <div className="flex items-center gap-3">
+        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", bg)}>
+          <Icon size={14} className={tint} />
+        </div>
+        <div>
+          <p className="text-[13px] font-medium text-foreground/90">{title}</p>
+          <p className="text-[11px] text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2.5">
+        {granted === undefined ? (
+          <span className="text-[11px] text-muted-foreground">Check in System Settings</span>
+        ) : granted ? (
+          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+            <CheckCircle2 size={12} /> Granted
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400">
+            <AlertCircle size={12} /> Not granted
+          </span>
+        )}
+        {granted !== true && (
+          <button
+            onClick={() => onOpenSettings().catch(console.error)}
+            className="text-[11px] text-steelIce/80 hover:text-steelIce transition-colors"
+          >
+            Open Settings
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function PreferencesView() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mics, setMics] = useState<string[]>([]);
   const [recordingField, setRecordingField] = useState<"hotkey" | "meeting_hotkey" | null>(null);
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [permissions, setPermissions] = useState<PermissionStatus | null>(null);
 
   useEffect(() => {
     getSettings().then(setSettings).catch(console.error);
     getMicrophones().then(setMics).catch(console.error);
     getVersion().then(setAppVersion).catch(console.error);
+
+    const refreshPermissions = () => getPermissionStatus().then(setPermissions).catch(console.error);
+    refreshPermissions();
+    // Re-check on window focus — the natural moment after coming back from
+    // System Settings, so the page reflects reality without a manual refresh.
+    window.addEventListener("focus", refreshPermissions);
+    return () => window.removeEventListener("focus", refreshPermissions);
   }, []);
 
   const handleCheckUpdates = async () => {
@@ -460,6 +516,48 @@ export function PreferencesView() {
               onCheckedChange={(checked) => update({ trim_silence: checked })}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <span className="t-label block px-1 pb-1">Permissions</span>
+
+        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-white/5">
+          <PermissionRow
+            icon={Accessibility}
+            tint="text-violet-400"
+            bg="bg-violet-500/10"
+            title="Accessibility"
+            description="Lets Patter type finished text into other apps"
+            granted={permissions?.accessibility ?? true}
+            onOpenSettings={openAccessibilitySettings}
+          />
+          <PermissionRow
+            icon={KeyRound}
+            tint="text-blue-400"
+            bg="bg-blue-500/10"
+            title="Input Monitoring"
+            description="Needed for the global hotkey to work anywhere"
+            granted={permissions?.input_monitoring ?? true}
+            onOpenSettings={openInputMonitoringSettings}
+          />
+          <PermissionRow
+            icon={Mic}
+            tint="text-rose-400"
+            bg="bg-rose-500/10"
+            title="Microphone"
+            description="Required to capture dictation and meeting audio"
+            granted={permissions?.microphone ?? true}
+            onOpenSettings={openMicrophoneSettings}
+          />
+          <PermissionRow
+            icon={Bell}
+            tint="text-amber-400"
+            bg="bg-amber-500/10"
+            title="Notifications"
+            description="Used to alert you when a new version is available"
+            onOpenSettings={openNotificationSettings}
+          />
         </div>
       </section>
 

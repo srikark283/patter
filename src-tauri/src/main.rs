@@ -9,6 +9,7 @@ mod meeting;
 mod models;
 mod ollama;
 mod paste;
+mod permissions;
 mod recording;
 mod state;
 mod tray;
@@ -40,7 +41,8 @@ fn main() {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
-        .plugin(tauri_plugin_updater::Builder::new().build());
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init());
 
     #[cfg(target_os = "macos")]
     {
@@ -55,12 +57,19 @@ fn main() {
             commands::apply_dock_icon();
             audio::capture::set_app_handle(app.handle().clone());
 
-            // Background update check on launch: notify only — download and
-            // install happen when the user asks (install_update command).
+            // Background update check: notify only — download and install
+            // happen when the user asks (install_update command). Runs once
+            // at launch, then on a timer, so a long-lived tray session (the
+            // common case — this app rarely gets relaunched) still finds out
+            // about new releases. A native OS notification means the alert
+            // reaches you even with the dashboard window closed; the in-app
+            // toast (Dashboard.tsx) is a second surface for when it's open.
             let update_handle = app.handle().clone();
             let check_updates = move || {
+                let update_handle = update_handle.clone();
                 tauri::async_runtime::spawn(async move {
                     use tauri::Emitter;
+                    use tauri_plugin_notification::NotificationExt;
                     use tauri_plugin_updater::UpdaterExt;
                     let updater = match update_handle.updater() {
                         Ok(u) => u,
@@ -71,12 +80,39 @@ fn main() {
                             println!("[update] v{} available", update.version);
                             let _ = update_handle
                                 .emit("patter://update_available", update.version.clone());
+                            let _ = update_handle
+                                .notification()
+                                .builder()
+                                .title("Patter update available")
+                                .body(format!(
+                                    "Version {} is ready to download — open Patter to install.",
+                                    update.version
+                                ))
+                                .show();
                         }
                         Ok(None) => println!("[update] up to date"),
                         Err(e) => eprintln!("[update] check failed: {}", e),
                     }
                 });
             };
+
+            // Re-check every 6 hours for as long as the app runs. Reads the
+            // setting live each tick so toggling it in Preferences takes
+            // effect without a restart.
+            let periodic_handle = app.handle().clone();
+            let periodic_check = check_updates.clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(6 * 60 * 60));
+                let enabled = periodic_handle
+                    .state::<AppState>()
+                    .settings
+                    .lock()
+                    .unwrap()
+                    .auto_update;
+                if enabled {
+                    periodic_check();
+                }
+            });
 
             let model_manager = models::registry::ModelManager::new(app.handle())?;
             let db_instance = db::Db::new(app.handle());
@@ -394,6 +430,10 @@ fn main() {
             commands::regenerate_meeting_summary,
             commands::accessibility_trusted,
             commands::open_accessibility_settings,
+            commands::get_permission_status,
+            commands::open_input_monitoring_settings,
+            commands::open_microphone_settings,
+            commands::open_notification_settings,
             commands::restart_app,
             commands::check_update,
             commands::install_update

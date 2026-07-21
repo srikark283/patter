@@ -1,6 +1,6 @@
 [package]
 name = "patter"
-version = "0.3.1"
+version = "0.3.2"
 description = "Patter - Open Source Voice-to-Text Transcriber"
 authors = ["Srikar"]
 edition = "2021"
@@ -39,6 +39,7 @@ opt-level = 3
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-autostart = "2"
 tauri-plugin-updater = "2.10.1"
+tauri-plugin-notification = "2"
  
 
 
