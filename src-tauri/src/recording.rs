@@ -24,6 +24,37 @@ fn play_system_sound(sound_name: &str, rate: f32) {
     });
 }
 
+/// Moves the HUD window to whichever monitor the cursor is on right now —
+/// on multi-monitor setups the pill should appear where you're looking, not
+/// always on the monitor it happened to be positioned on at launch.
+pub fn reposition_hud_to_cursor(app: &tauri::AppHandle) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    let Ok(cursor) = window.cursor_position() else { return };
+    let Ok(monitors) = window.available_monitors() else { return };
+
+    let monitor = monitors.into_iter().find(|m| {
+        let pos = m.position();
+        let size = m.size();
+        cursor.x >= pos.x as f64
+            && cursor.x < (pos.x + size.width as i32) as f64
+            && cursor.y >= pos.y as f64
+            && cursor.y < (pos.y + size.height as i32) as f64
+    });
+    let Some(monitor) = monitor else { return };
+
+    let hud_position = app.state::<AppState>().settings.lock().unwrap().hud_position.clone();
+    let size = monitor.size();
+    let pos = monitor.position();
+    let window_size = window.outer_size().unwrap_or_default();
+    let multiplier = match hud_position.as_str() {
+        "top" => 0.02,
+        _ => 0.90,
+    };
+    let y = pos.y + (size.height as f64 * multiplier) as i32;
+    let x = pos.x + ((size.width as i32) - (window_size.width as i32)) / 2;
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+}
+
 pub fn start_recording(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     // Meeting owns the single audio stream; dictation would hijack its buffer.
@@ -32,6 +63,7 @@ pub fn start_recording(app: &tauri::AppHandle) {
         return;
     }
     println!("🔴 recording...");
+    reposition_hud_to_cursor(app);
 
     // The app in focus now is where the text will land — remember it for
     // per-app cleanup profiles.

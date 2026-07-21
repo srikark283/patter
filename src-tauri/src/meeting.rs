@@ -65,6 +65,8 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         return Err("Meeting recording already in progress".to_string());
     }
 
+    crate::recording::reposition_hud_to_cursor(app);
+
     let settings = state.settings.lock().unwrap().clone();
     state.meeting_cancelled.store(false, Ordering::SeqCst);
     *state.meeting_captured.lock().unwrap() = Vec::new();
