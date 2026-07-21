@@ -68,10 +68,10 @@
   .pipe-node span { display: block; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.04em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); margin-top: 3px; }
   .pipe-node .pipe-latency { position: absolute; top: -8px; right: -6px; font: 600 9.5px 'Geist Mono', monospace; letter-spacing: 0.02em; text-transform: none; background: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); color: light-dark(oklch(98% 0.007 90), #0a0b0d); border-radius: 999px; padding: 2px 6px; margin-top: 0; box-shadow: 0 2px 6px light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); }
   .pipe-arrow { flex: none; color: light-dark(oklch(50% 0.09 254 / 0.7), oklch(68% 0.11 254 / 0.7)); font-size: 15px; }
-  @keyframes packetTravel { 0% { left: 0; opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { left: calc(100% - 7px); opacity: 0; } }
-  .pipe-packet { position: absolute; top: -2.5px; width: 7px; height: 7px; border-radius: 50%; background: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); box-shadow: 0 0 8px light-dark(oklch(50% 0.09 254 / 0.8), oklch(68% 0.11 254 / 0.8)); animation: packetTravel 3.2s linear infinite; }
-  .pipe-packet.p2 { animation-delay: 1.6s; }
-  @media (prefers-reduced-motion: reduce) { .pipe-packet { animation: none; left: 40%; } .pipe-packet.p2 { display: none; } }
+  @keyframes shimmerTravel { 0% { transform: translateX(-100%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateX(350%); opacity: 0; } }
+  .pipe-shimmer-line { position: relative; height: 2px; border-radius: 1px; margin: 22px 6px 0; background: light-dark(oklch(50% 0.09 254 / 0.15), oklch(68% 0.11 254 / 0.15)); overflow: hidden; }
+  .pipe-shimmer-line::after { content: ''; position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: linear-gradient(90deg, transparent, light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)), transparent); animation: shimmerTravel 3.5s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .pipe-shimmer-line::after { display: none; } }
 
   .model-row { display: grid; grid-template-columns: 1.35fr 0.6fr 0.7fr 0.7fr 0.85fr 1.5fr; gap: 8px; padding: 13px 4px; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)); font-size: 13.5px; align-items: baseline; }
   .model-row:hover { background: light-dark(oklch(100% 0 0 / 0.55), rgba(255,255,255,0.06)); }
@@ -331,10 +331,7 @@
             <b>Your cursor</b><span>finished text</span>
           </div>
         </div>
-        <div style="position: relative; height: 2px; background: light-dark(oklch(50% 0.09 254 / 0.15), oklch(68% 0.11 254 / 0.15)); border-radius: 1px; margin: 22px 6px 0;" aria-hidden="true">
-          <span class="pipe-packet"></span>
-          <span class="pipe-packet p2"></span>
-        </div>
+        <div class="pipe-shimmer-line" aria-hidden="true"></div>
       </div>
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 12px 0 30px; position: relative;">
         <div style="position: absolute; left: 0; top: 50%; width: 30px; border-top: 2px dashed light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25));" aria-hidden="true"></div>
