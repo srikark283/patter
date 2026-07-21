@@ -15,6 +15,9 @@ fn default_play_sounds() -> bool {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub hotkey: String,
+    /// Toggles meeting recording start/stop. Empty = unset (no hotkey registered).
+    #[serde(default)]
+    pub meeting_hotkey: String,
     pub microphone: Option<String>,
     pub output_mode: String,
     pub custom_prompt: String,
@@ -91,6 +94,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             hotkey: "Alt+Space".to_string(),
+            meeting_hotkey: "".to_string(),
             microphone: None,
             output_mode: "type".to_string(),
             custom_prompt: "".to_string(),

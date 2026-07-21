@@ -49,6 +49,11 @@ pub fn stop_meeting_recording(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn cancel_meeting_recording(app: tauri::AppHandle) -> Result<(), String> {
+    crate::meeting::cancel_meeting(&app)
+}
+
+#[tauri::command]
 pub fn is_meeting_recording(app: tauri::AppHandle) -> bool {
     app.state::<AppState>().is_meeting_recording.load(Ordering::SeqCst)
 }
@@ -135,6 +140,7 @@ pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<
     
     let mut current_settings = state.settings.lock().unwrap();
     let old_hotkey = current_settings.hotkey.clone();
+    let old_meeting_hotkey = current_settings.meeting_hotkey.clone();
     let old_hud_position = current_settings.hud_position.clone();
     
     // Apply autostart if changed
@@ -162,6 +168,24 @@ pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<
         
         if let Ok(new_shortcut) = settings.hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
             let _ = manager.register(new_shortcut);
+        }
+    }
+
+    // Same dance for the meeting hotkey, which is a second, independent
+    // registration (may be empty — no hotkey bound).
+    if old_meeting_hotkey != settings.meeting_hotkey {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+        let manager = app.global_shortcut();
+        if !old_meeting_hotkey.is_empty() {
+            if let Ok(old_shortcut) = old_meeting_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                let _ = manager.unregister(old_shortcut);
+            }
+        }
+        if !settings.meeting_hotkey.is_empty() {
+            if let Ok(new_shortcut) = settings.meeting_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                let _ = manager.register(new_shortcut);
+            }
         }
     }
 

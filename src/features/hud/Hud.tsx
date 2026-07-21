@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { X, AudioLines, WandSparkles, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording } from "../../lib/ipc";
+import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording, cancelMeetingRecording } from "../../lib/ipc";
 import RecordingVisualizer from "./RecordingVisualizer";
 
 type Phase = "idle" | "recording" | "processing" | "cleanup" | "notice" | "meeting";
@@ -34,6 +34,7 @@ export default function Hud() {
   const heights = useRef<number[]>(new Array(BARS).fill(0));
   const phaseRef = useRef<Phase>("idle");
   const meetingActive = useRef(false);
+  const meetingPipeline = useRef(false);
   const meetingStart = useRef(0);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -81,20 +82,26 @@ export default function Hud() {
       clearTimeout(revertTimer.current);
       if (state === "recording") {
         meetingActive.current = true;
+        meetingPipeline.current = false;
         meetingStart.current = Date.now();
         setElapsed(0);
         applyPhase("meeting");
       } else if (state === "idle") {
         meetingActive.current = false;
+        meetingPipeline.current = false;
         applyPhase("idle");
       } else {
         // transcribing / summarizing / error — post-recording progress.
         meetingActive.current = false;
+        meetingPipeline.current = true;
         setStatus(state.charAt(0).toUpperCase() + state.slice(1));
         applyPhase("notice");
         // Errors never get a follow-up "idle" event; auto-dismiss.
         if (state.startsWith("error")) {
-          revertTimer.current = setTimeout(() => applyPhase("idle"), 5000);
+          revertTimer.current = setTimeout(() => {
+            meetingPipeline.current = false;
+            applyPhase("idle");
+          }, 5000);
         }
       }
     });
@@ -173,7 +180,7 @@ export default function Hud() {
               {phase === "notice" && <span className="hud-label">{status}</span>}
             </div>
 
-            {(phase === "recording" || phase === "processing" || phase === "cleanup" || phase === "meeting") && (
+            {(phase === "recording" || phase === "processing" || phase === "cleanup" || phase === "meeting" || (phase === "notice" && meetingPipeline.current)) && (
               <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
                 {phase === "meeting" ? (
                   <button
@@ -182,6 +189,14 @@ export default function Hud() {
                     onClick={() => stopMeetingRecording().catch(console.error)}
                   >
                     <Square size={10} strokeWidth={2.5} fill="currentColor" />
+                  </button>
+                ) : phase === "notice" && meetingPipeline.current ? (
+                  <button
+                    className="hud-cancel-btn text-white/40 hover:text-white/80"
+                    title="Cancel meeting processing"
+                    onClick={() => cancelMeetingRecording().catch(console.error)}
+                  >
+                    <X size={12} strokeWidth={2.5} />
                   </button>
                 ) : (
                   <button className="hud-cancel-btn text-white/40 hover:text-white/80" onClick={() => cancelDictation().catch(console.error)}>

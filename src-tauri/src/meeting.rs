@@ -66,6 +66,7 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     }
 
     let settings = state.settings.lock().unwrap().clone();
+    state.meeting_cancelled.store(false, Ordering::SeqCst);
     *state.meeting_captured.lock().unwrap() = Vec::new();
     let path = buffer_path(app);
     if let Some(dir) = path.parent() {
@@ -100,6 +101,39 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     let _ = app.emit("patter://meeting_state", "recording");
     crate::tray::refresh(app);
     Ok(())
+}
+
+/// Cancels a meeting in progress: while still capturing, discards the buffer
+/// immediately (no transcription); once stopped, flags the running pipeline
+/// to bail at its next checkpoint instead of saving.
+pub fn cancel_meeting(app: &tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<AppState>();
+
+    if state.is_meeting_recording.load(Ordering::SeqCst) {
+        state.is_meeting_recording.store(false, Ordering::SeqCst);
+        let _ = state.audio_tx.send(AudioCommand::Stop);
+        *state.meeting_file.lock().unwrap() = None;
+        *state.meeting_captured.lock().unwrap() = Vec::new();
+        let _ = std::fs::remove_file(buffer_path(app));
+        crate::tray::refresh(app);
+        let _ = app.emit("patter://meeting_state", "idle");
+        return Ok(());
+    }
+
+    state.meeting_cancelled.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+/// Checks the cancellation flag; if set, resets it, emits idle, and returns
+/// true so the caller can bail out of the pipeline without saving.
+fn bail_if_cancelled(app: &tauri::AppHandle) -> bool {
+    let state = app.state::<AppState>();
+    if state.meeting_cancelled.swap(false, Ordering::SeqCst) {
+        let _ = app.emit("patter://meeting_state", "idle");
+        true
+    } else {
+        false
+    }
 }
 
 pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
@@ -144,6 +178,10 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
         let language = settings.language;
 
+        if bail_if_cancelled(&app_handle) {
+            return;
+        }
+
         // Strip silence/noise before ASR — see recording.rs; failure = use raw audio.
         let audio = if settings.trim_silence {
             match crate::vad::ensure_model(&app_handle)
@@ -162,6 +200,10 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         } else {
             audio
         };
+
+        if bail_if_cancelled(&app_handle) {
+            return;
+        }
 
         // Speaker labels: diarize + per-segment transcription. The engine lock
         // is taken per segment inside diarize_and_transcribe, so an hour-long
@@ -208,6 +250,10 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
             return;
         }
 
+        if bail_if_cancelled(&app_handle) {
+            return;
+        }
+
         // Analysis is best-effort: no Ollama model → save transcript-only record.
         // Meetings can use their own model; falls back to the cleanup model.
         let meeting_model = settings.meeting_ollama_model.or(settings.ollama_model);
@@ -237,6 +283,10 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         } else {
             Default::default()
         };
+
+        if bail_if_cancelled(&app_handle) {
+            return;
+        }
 
         let timestamp_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

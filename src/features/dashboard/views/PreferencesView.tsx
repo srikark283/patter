@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck, Video, X } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
@@ -33,10 +33,36 @@ const MODES = [
   },
 ];
 
+const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
+
+// rdev's stored key names are platform-neutral identifiers ("AltGr", "Super",
+// "ControlLeft"...) — display them using the labels each OS actually uses.
+const KEY_LABELS: Record<string, [mac: string, other: string]> = {
+  Alt: ["Option", "Alt"],
+  AltGr: ["Right Option", "Right Alt"],
+  Super: ["Command", "Win"],
+  Control: ["Control", "Ctrl"],
+  Shift: ["Shift", "Shift"],
+  ControlLeft: ["Left Control", "Left Ctrl"],
+  ControlRight: ["Right Control", "Right Ctrl"],
+  ShiftLeft: ["Left Shift", "Left Shift"],
+  ShiftRight: ["Right Shift", "Right Shift"],
+  MetaLeft: ["Left Command", "Left Win"],
+  MetaRight: ["Right Command", "Right Win"],
+  Space: ["Space", "Space"],
+};
+
+function formatHotkey(combo: string): string {
+  return combo
+    .split("+")
+    .map((part) => KEY_LABELS[part]?.[IS_MAC ? 0 : 1] ?? part)
+    .join(" + ");
+}
+
 export function PreferencesView() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mics, setMics] = useState<string[]>([]);
-  const [recordingHotkey, setRecordingHotkey] = useState(false);
+  const [recordingField, setRecordingField] = useState<"hotkey" | "meeting_hotkey" | null>(null);
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
 
@@ -74,21 +100,35 @@ export function PreferencesView() {
     }
   };
 
-  const handleHotkeyRecord = (e: KeyboardEvent<HTMLInputElement>) => {
+  const applyHotkey = (field: "hotkey" | "meeting_hotkey", combo: string) => {
+    setRecordingField(null);
+    const other = field === "hotkey" ? settings?.meeting_hotkey : settings?.hotkey;
+    if (other && other === combo) {
+      toast.error(`"${formatHotkey(combo)}" is already the ${field === "hotkey" ? "meeting" : "dictation"} hotkey`);
+      return;
+    }
+    update({ [field]: combo });
+  };
+
+  const handleHotkeyRecord = (field: "hotkey" | "meeting_hotkey") => (e: KeyboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    if (!recordingHotkey) return;
-    
+    if (recordingField !== field) return;
+
+    if (e.key === "Escape") {
+      setRecordingField(null);
+      return;
+    }
+
     // If standalone modifier, just use the exact modifier code
     if (["Meta", "Shift", "Control", "Alt"].includes(e.key)) {
       // Map JS code to rdev keys
       let key = e.code;
       if (key === "AltLeft") key = "Alt";
       if (key === "AltRight") key = "AltGr";
-      setRecordingHotkey(false);
-      update({ hotkey: key });
+      applyHotkey(field, key);
       return;
     }
-    
+
     let key = e.key;
     if (key === " ") key = "Space";
     else if (key.length === 1) key = key.toUpperCase();
@@ -100,9 +140,7 @@ export function PreferencesView() {
     if (e.shiftKey) parts.push("Shift");
     parts.push(key);
 
-    const combo = parts.join("+");
-    setRecordingHotkey(false);
-    update({ hotkey: combo });
+    applyHotkey(field, parts.join("+"));
   };
 
   if (!settings) return null;
@@ -165,17 +203,51 @@ export function PreferencesView() {
             </div>
             <input
               readOnly
-              value={recordingHotkey ? "Listening..." : settings.hotkey}
-              onClick={() => setRecordingHotkey(true)}
-              onBlur={() => setRecordingHotkey(false)}
-              onKeyDown={handleHotkeyRecord}
+              value={recordingField === "hotkey" ? "Listening..." : formatHotkey(settings.hotkey)}
+              onClick={() => setRecordingField("hotkey")}
+              onBlur={() => setRecordingField(null)}
+              onKeyDown={handleHotkeyRecord("hotkey")}
               className={cn(
                 "w-32 bg-background border border-white/10 rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
-                recordingHotkey ? "border-steel/50 bg-steel/10 text-steelIce" : "hover:border-white/20 text-muted-foreground"
+                recordingField === "hotkey" ? "border-steel/50 bg-steel/10 text-steelIce" : "hover:border-white/20 text-muted-foreground"
               )}
             />
           </div>
 
+          {/* Meeting Hotkey */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                <Video size={14} className="text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">Meeting Hotkey</p>
+                <p className="text-[11px] text-muted-foreground">Press to start/stop meeting recording</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                readOnly
+                value={recordingField === "meeting_hotkey" ? "Listening..." : (settings.meeting_hotkey ? formatHotkey(settings.meeting_hotkey) : "Not set")}
+                onClick={() => setRecordingField("meeting_hotkey")}
+                onBlur={() => setRecordingField(null)}
+                onKeyDown={handleHotkeyRecord("meeting_hotkey")}
+                className={cn(
+                  "w-32 bg-background border border-white/10 rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                  recordingField === "meeting_hotkey" ? "border-steel/50 bg-steel/10 text-steelIce" : "hover:border-white/20 text-muted-foreground"
+                )}
+              />
+              {settings.meeting_hotkey && (
+                <button
+                  onClick={() => update({ meeting_hotkey: "" })}
+                  className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
+                  title="Clear meeting hotkey"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Push to Talk */}
           <div className="flex items-center justify-between p-4">
@@ -399,7 +471,7 @@ export function PreferencesView() {
               <ShieldCheck size={14} className="text-emerald-500" />
             </div>
             <div>
-              <p className="text-[13px] font-medium text-foreground/90">Everything stays on your Mac</p>
+              <p className="text-[13px] font-medium text-foreground/90">Everything stays on your machine</p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                 Audio is captured, transcribed, and cleaned up entirely on-device. Whisper and Parakeet
                 run locally; Ollama runs on localhost. Nothing is ever uploaded — the only network

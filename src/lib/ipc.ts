@@ -9,6 +9,7 @@ export interface AppProfile {
 
 export interface Settings {
   hotkey: string;
+  meeting_hotkey: string;
   microphone: string | null;
   output_mode: string;
   custom_prompt: string;
@@ -91,6 +92,10 @@ export function startMeetingRecording() {
 
 export function stopMeetingRecording() {
   return invoke<void>("stop_meeting_recording");
+}
+
+export function cancelMeetingRecording() {
+  return invoke<void>("cancel_meeting_recording");
 }
 
 export function isMeetingRecording() {

@@ -17,6 +17,7 @@ import {
   User,
   Check,
   RefreshCcw,
+  X,
 } from "lucide-react";
 import { UsersIcon } from '@heroicons/react/24/outline'
 import { MeetingRecord } from "../../../types";
@@ -26,6 +27,7 @@ import {
   updateMeeting,
   startMeetingRecording,
   stopMeetingRecording,
+  cancelMeetingRecording,
   isMeetingRecording,
   getSettings,
   updateSettings,
@@ -320,6 +322,17 @@ export function MeetingsView() {
     }
   };
 
+  const handleCancel = async () => {
+    try {
+      await cancelMeetingRecording();
+      setState("idle");
+      setProgress("");
+      toast.info("Meeting cancelled");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await deleteMeeting(id);
@@ -341,11 +354,25 @@ export function MeetingsView() {
         <Button variant="destructive" className="rounded-full" onClick={handleStop}>
           <Square size={14} /> Stop &amp; Process
         </Button>
+        <button
+          onClick={handleCancel}
+          className="text-muted-foreground/60 hover:text-destructive transition-colors p-1.5"
+          title="Cancel — discard without processing"
+        >
+          <X size={16} />
+        </button>
       </div>
     ) : processing ? (
       <div className="flex items-center gap-2 rounded-full border border-steel/20 bg-steel/5 px-3.5 py-2 text-[13px] text-foreground/80">
         <Loader2 size={14} className="animate-spin text-steelIce" />
         {progress || (state === "transcribing" ? "Transcribing…" : "Generating notes…")}
+        <button
+          onClick={handleCancel}
+          className="text-muted-foreground/60 hover:text-destructive transition-colors -mr-1"
+          title="Cancel processing"
+        >
+          <X size={14} />
+        </button>
       </div>
     ) : (
       <Button className="rounded-full" onClick={handleStart}>

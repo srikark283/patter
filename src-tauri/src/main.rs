@@ -127,6 +127,7 @@ fn main() {
             }
 
             let hotkey_str = settings.hotkey.clone();
+            let meeting_hotkey_str = settings.meeting_hotkey.clone();
             let hud_position_str = settings.hud_position.clone();
             let auto_update = settings.auto_update;
 
@@ -140,6 +141,7 @@ fn main() {
                 meeting_captured: Arc::new(Mutex::new(Vec::new())),
                 meeting_file: Arc::new(Mutex::new(None)),
                 is_meeting_recording: Arc::new(AtomicBool::new(false)),
+                meeting_cancelled: Arc::new(AtomicBool::new(false)),
                 engine: Arc::new(Mutex::new(initial_engine)),
                 active_engine_id: Arc::new(Mutex::new(initial_engine_id)),
                 model_manager,
@@ -153,32 +155,32 @@ fn main() {
             std::thread::spawn(move || {
                 let callback = move |event: Event| {
                     let state = app_handle_for_rdev.state::<AppState>();
-                    let (hotkey, push_to_talk) = {
+                    let (hotkey, push_to_talk, meeting_hotkey) = {
                         let s = state.settings.lock().unwrap();
-                        (s.hotkey.clone(), s.push_to_talk)
+                        (s.hotkey.clone(), s.push_to_talk, s.meeting_hotkey.clone())
                     };
-                    
-                    // Only use rdev if hotkey doesn't contain a plus (meaning it's a single key)
+
+                    let is_match = |key_str: &str, target_hotkey: &str| -> bool {
+                        if key_str == target_hotkey { return true; }
+                        match target_hotkey {
+                            "ControlLeft" | "ControlRight" => {
+                                key_str == "ControlLeft" || key_str == "ControlRight" || key_str == "Unknown(17)" || key_str == "Unknown(162)" || key_str == "Unknown(163)"
+                            },
+                            "Alt" | "AltGr" => {
+                                key_str == "Alt" || key_str == "AltGr" || key_str == "Unknown(18)" || key_str == "Unknown(164)" || key_str == "Unknown(165)"
+                            },
+                            "ShiftLeft" | "ShiftRight" => {
+                                key_str == "ShiftLeft" || key_str == "ShiftRight" || key_str == "Unknown(16)" || key_str == "Unknown(160)" || key_str == "Unknown(161)"
+                            },
+                            "MetaLeft" | "MetaRight" => {
+                                key_str == "MetaLeft" || key_str == "MetaRight" || key_str == "Unknown(91)" || key_str == "Unknown(92)"
+                            },
+                            _ => false,
+                        }
+                    };
+
+                    // Only use rdev if the hotkey doesn't contain a plus (meaning it's a single key).
                     if !hotkey.contains('+') {
-                        let is_match = |key_str: &str, target_hotkey: &str| -> bool {
-                            if key_str == target_hotkey { return true; }
-                            match target_hotkey {
-                                "ControlLeft" | "ControlRight" => {
-                                    key_str == "ControlLeft" || key_str == "ControlRight" || key_str == "Unknown(17)" || key_str == "Unknown(162)" || key_str == "Unknown(163)"
-                                },
-                                "Alt" | "AltGr" => {
-                                    key_str == "Alt" || key_str == "AltGr" || key_str == "Unknown(18)" || key_str == "Unknown(164)" || key_str == "Unknown(165)"
-                                },
-                                "ShiftLeft" | "ShiftRight" => {
-                                    key_str == "ShiftLeft" || key_str == "ShiftRight" || key_str == "Unknown(16)" || key_str == "Unknown(160)" || key_str == "Unknown(161)"
-                                },
-                                "MetaLeft" | "MetaRight" => {
-                                    key_str == "MetaLeft" || key_str == "MetaRight" || key_str == "Unknown(91)" || key_str == "Unknown(92)"
-                                },
-                                _ => false,
-                            }
-                        };
-                        
                         match event.event_type {
                             EventType::KeyPress(key) => {
                                 let key_str = format!("{:?}", key);
@@ -203,6 +205,20 @@ fn main() {
                             _ => {}
                         }
                     }
+
+                    // Meeting hotkey is a simple press-to-toggle, independent of push-to-talk.
+                    if !meeting_hotkey.is_empty() && !meeting_hotkey.contains('+') {
+                        if let EventType::KeyPress(key) = event.event_type {
+                            let key_str = format!("{:?}", key);
+                            if is_match(&key_str, &meeting_hotkey) {
+                                if state.is_meeting_recording.load(Ordering::SeqCst) {
+                                    let _ = meeting::stop_meeting(&app_handle_for_rdev);
+                                } else if !state.is_recording.load(Ordering::SeqCst) {
+                                    let _ = meeting::start_meeting(&app_handle_for_rdev);
+                                }
+                            }
+                        }
+                    }
                 };
 
                 if let Err(error) = rdev::listen(callback) {
@@ -225,6 +241,11 @@ fn main() {
                 let shortcut = hotkey_str.parse::<tauri_plugin_global_shortcut::Shortcut>()
                     .unwrap_or_else(|_| "Alt+Space".parse().unwrap());
                 let _ = app.global_shortcut().register(shortcut);
+            }
+            if !meeting_hotkey_str.is_empty() && meeting_hotkey_str.contains('+') {
+                if let Ok(shortcut) = meeting_hotkey_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    let _ = app.global_shortcut().register(shortcut);
+                }
             }
 
             #[cfg(target_os = "macos")]
@@ -298,9 +319,30 @@ fn main() {
         })
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
+                .with_handler(|app, shortcut, event| {
                     let state = app.state::<AppState>();
-                    let push_to_talk = state.settings.lock().unwrap().push_to_talk;
+                    let (push_to_talk, meeting_hotkey) = {
+                        let s = state.settings.lock().unwrap();
+                        (s.push_to_talk, s.meeting_hotkey.clone())
+                    };
+
+                    // Meeting hotkey is a separate registration — only handle it
+                    // (press-to-toggle) if this event is actually for it.
+                    if !meeting_hotkey.is_empty() {
+                        if let Ok(meeting_shortcut) = meeting_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                            if *shortcut == meeting_shortcut {
+                                if event.state == ShortcutState::Pressed {
+                                    if state.is_meeting_recording.load(Ordering::SeqCst) {
+                                        let _ = meeting::stop_meeting(app);
+                                    } else if !state.is_recording.load(Ordering::SeqCst) {
+                                        let _ = meeting::start_meeting(app);
+                                    }
+                                }
+                                return;
+                            }
+                        }
+                    }
+
                     match event.state {
                         ShortcutState::Pressed => {
                             if state.is_recording.load(Ordering::SeqCst) {
@@ -342,6 +384,7 @@ fn main() {
             commands::list_ollama_models,
             commands::start_meeting_recording,
             commands::stop_meeting_recording,
+            commands::cancel_meeting_recording,
             commands::is_meeting_recording,
             commands::get_meetings,
             commands::get_ollama_embedding,
