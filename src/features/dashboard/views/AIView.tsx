@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Trash2, RefreshCw } from "lucide-react";
+import { RefreshCw, Trash2, SparkleIcon } from "lucide-react";
 import { NativeAppIcon } from "../components/NativeAppIcon";
-import { MagicWandIcon, LightningAIcon, SparkleIcon } from '@phosphor-icons/react'
+import { MagicWandIcon, LightningAIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Switch } from "@/components/ui/switch";
@@ -52,7 +52,7 @@ export function AIView() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
   const [checkingOllama, setCheckingOllama] = useState(false);
-
+  
   const refreshOllama = () => {
     setCheckingOllama(true);
     listOllamaModels()
@@ -214,6 +214,8 @@ export function AIView() {
           </div>
         </div>
       </section>
+
+      
 
       {/* App profiles */}
       <section className="space-y-4">

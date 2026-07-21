@@ -135,7 +135,7 @@ export default function Dashboard() {
   const tabs = [
     { id: "dashboard", label: "Home", icon: HomeIcon },
     { id: "meetings", label: "Meetings", icon: MeetingsIcon },
-    { id: "history", label: "History", icon: HistoryIcon },
+    { id: "history", label: "Transcripts", icon: HistoryIcon },
     { id: "memory", label: "Memory", icon: MemoryIcon },
     { id: "dictionary", label: "Dictionary", icon: DictionaryIcon },
     { id: "snippets", label: "Voice Macros", icon: SnippetsIcon },

@@ -12,6 +12,14 @@ fn default_play_sounds() -> bool {
     true
 }
 
+fn default_sound_theme() -> String {
+    "pop".to_string()
+}
+
+fn default_trim_silence() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub hotkey: String,
@@ -35,6 +43,8 @@ pub struct Settings {
     pub hud_position: String,
     #[serde(default = "default_play_sounds")]
     pub play_sounds: bool,
+    #[serde(default = "default_sound_theme")]
+    pub sound_theme: String,
     #[serde(default = "default_trim_silence")]
     pub trim_silence: bool,
     /// False for fresh installs and installs predating onboarding.
@@ -58,7 +68,8 @@ pub struct Settings {
     /// Facts for RAG
     #[serde(default)]
     pub memories: Vec<MemoryFact>,
-}
+    
+    }
 
 fn default_auto_update() -> bool {
     true
@@ -86,10 +97,6 @@ pub struct MemoryFact {
     pub embedding: Vec<f32>,
 }
 
-fn default_trim_silence() -> bool {
-    true
-}
-
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -105,9 +112,10 @@ impl Default for Settings {
             llm_cleanup_enabled: false,
             ollama_model: None,
             meeting_ollama_model: None,
-            hud_position: "bottom".to_string(),
-            play_sounds: true,
-            trim_silence: true,
+            hud_position: default_hud_position(),
+            play_sounds: default_play_sounds(),
+            sound_theme: default_sound_theme(),
+            trim_silence: default_trim_silence(),
             onboarding_done: false,
             push_to_talk: false,
             diarize_meetings: false,
@@ -140,7 +148,7 @@ pub struct MeetingRecord {
     pub decisions: Vec<String>,
     #[serde(default)]
     pub action_items: Vec<String>,
-}
+    }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TranscriptionRecord {
@@ -154,7 +162,7 @@ pub struct TranscriptionRecord {
     pub transcribe_ms: u32,
     #[serde(default)]
     pub app_name: Option<String>,
-}
+    }
 
 pub struct Db {
     data_dir: PathBuf,

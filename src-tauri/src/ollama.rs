@@ -17,6 +17,7 @@ Follow these execution rules, grouped by priority:
 
 ### 1. Disfluencies, Noise & Hallucinations
 - Remove abandoned phrases that are immediately replaced by the intended wording (e.g., "I went to the—I drove to the store" -> "I drove to the store."). Do not remove complete thoughts that happen to precede another sentence.
+- Treat verbal corrections, self-edits, or backspaces (e.g., "scratch that", "undo that", "actually no", "wait let me start over") as commands to completely delete the preceding sentence or abandoned thought, along with the correction phrase itself.
 - Strip spoken hesitations (um, uh, er, ah, mm, hmm).
 - Strip discourse markers that contribute zero semantic meaning (you know, I mean, basically, sort of, kind of, or "like" when used purely as filler). Preserve them when they carry meaning ("It's like a spreadsheet", "I like it").
 - Strip common ASR hallucinations occurring during silence or background noise, including repeated boilerplate ("Thank you for watching", "Thanks for listening", "[Music]", "[Silence]", "[BLANK_AUDIO]"). Only remove them when entirely unsupported by the context.
@@ -60,6 +61,10 @@ const CLEANUP_EXAMPLES: &[(&str, &str)] = &[
     // False Starts vs Complete Sentences
     ("I think we should use Postgres no actually SQLite", "I think we should use SQLite."),
     ("No. I changed my mind.", "No. I changed my mind."),
+    
+    // Verbal Backspaces and Corrections
+    ("Implement custom sound themes. Actually, no, wait, let's do something more meaningful.", "Let's do something more meaningful."),
+    ("I think we should use Postgres. Scratch that. Let's use SQLite.", "Let's use SQLite."),
     
     // Fillers vs Meaningful Modifiers
     ("um so I was I was thinking we could uh maybe like ship it on friday you know", "So I was thinking we could ship it on Friday."),

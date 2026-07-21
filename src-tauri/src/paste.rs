@@ -99,3 +99,16 @@ pub fn paste_text(mode: &str, text: &str) {
         }
     }
 }
+
+pub fn undo() {
+    if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
+        #[cfg(target_os = "macos")]
+        let modifier = Key::Meta;
+        #[cfg(not(target_os = "macos"))]
+        let modifier = Key::Control;
+
+        let _ = enigo.key(modifier, Direction::Press);
+        let _ = enigo.key(Key::Unicode('z'), Direction::Click);
+        let _ = enigo.key(modifier, Direction::Release);
+    }
+}

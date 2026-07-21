@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer, Mic } from "lucide-react";
+import { Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer, Mic, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { listen } from "@tauri-apps/api/event";
 import { AppStats, TranscriptionRecord } from "../../../types";
@@ -7,6 +7,7 @@ import { getSettings, onHudState, isRecording, isMeetingRecording } from "../../
 // import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { AreaChart, Area, Tooltip, ResponsiveContainer } from "recharts";
 import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
 
@@ -16,26 +17,58 @@ interface Props {
   onViewAll?: () => void;
 }
 
-const ACTIVITY_DAYS = 7;
-
 const hour = new Date().getHours();
 const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
 
-function activitySeries(history: TranscriptionRecord[]): { label: string; words: number }[] {
-  const days: { label: string; words: number }[] = [];
+function areaChartSeries(history: TranscriptionRecord[], timeframe: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  for (let i = ACTIVITY_DAYS - 1; i >= 0; i--) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - i);
-    const next = new Date(day);
-    next.setDate(day.getDate() + 1);
-    const words = history
-      .filter((r) => r.timestamp_ms >= day.getTime() && r.timestamp_ms < next.getTime())
-      .reduce((sum, r) => sum + r.words, 0);
-    days.push({ label: day.toLocaleDateString(undefined, { weekday: "short" }), words });
+
+  let numDays = 7;
+  let totalHistoryDays = 7;
+  
+  if (history.length > 0) {
+    const earliest = Math.min(...history.map(r => r.timestamp_ms));
+    const earliestDate = new Date(earliest);
+    earliestDate.setHours(0, 0, 0, 0);
+    totalHistoryDays = Math.ceil((today.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    if (totalHistoryDays < 7) totalHistoryDays = 7;
   }
-  return days;
+
+  if (timeframe === "all") {
+    numDays = totalHistoryDays;
+  } else {
+    numDays = parseInt(timeframe);
+    // Clamp so we don't show empty days before the user's first dictation
+    if (numDays > totalHistoryDays) {
+      numDays = totalHistoryDays;
+    }
+  }
+
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - numDays + 1);
+
+  const data = [];
+  let current = new Date(startDate);
+
+  while (current <= today) {
+    const next = new Date(current);
+    next.setDate(current.getDate() + 1);
+
+    const words = history
+      .filter((r) => r.timestamp_ms >= current.getTime() && r.timestamp_ms < next.getTime())
+      .reduce((sum, r) => sum + r.words, 0);
+
+    data.push({
+      dateStr: current.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      fullDate: current.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+      words,
+    });
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return data;
 }
 
 function getTopWords(history: TranscriptionRecord[]): { word: string, count: number }[] {
@@ -54,6 +87,21 @@ function getTopWords(history: TranscriptionRecord[]): { word: string, count: num
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([word, count]) => ({ word, count }));
+}
+
+function getTopApps(history: TranscriptionRecord[]): { app: string, count: number }[] {
+  const apps: Record<string, number> = {};
+  
+  history.forEach(r => {
+    if (r.app_name) {
+      apps[r.app_name] = (apps[r.app_name] || 0) + 1;
+    }
+  });
+
+  return Object.entries(apps)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([app, count]) => ({ app, count }));
 }
 
 function calculateStreak(history: TranscriptionRecord[]) {
@@ -80,6 +128,7 @@ function calculateStreak(history: TranscriptionRecord[]) {
 
 export function DashboardView({ stats, history, onViewAll }: Props) {
   const [hotkey, setHotkey] = useState<string>("");
+  const [timeframe, setTimeframe] = useState<string>("all");
 
   useEffect(() => {
     getSettings().then((s) => setHotkey(s.hotkey)).catch(console.error);
@@ -102,15 +151,16 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
     return `${days}d ago`;
   };
 
-  const series = history ? activitySeries(history) : null;
-  const maxWords = series ? Math.max(10, ...series.map((d) => d.words)) : 10;
+  const series = history ? areaChartSeries(history, timeframe) : null;
   const topWords = history ? getTopWords(history) : [];
+  const topApps = history ? getTopApps(history) : [];
   const longestStreak = history ? calculateStreak(history) : 0;
+  const uniqueAppsCount = history ? new Set(history.filter(r => r.app_name && r.app_name.trim() !== "").map(r => r.app_name)).size : 0;
   
   // Calculate this week's stats based on the exact same 7-day calendar window as the Activity chart
   const last7DaysStart = new Date();
   last7DaysStart.setHours(0, 0, 0, 0);
-  last7DaysStart.setDate(last7DaysStart.getDate() - (ACTIVITY_DAYS - 1));
+  last7DaysStart.setDate(last7DaysStart.getDate() - 6);
   
   const weekWords = history ? history.filter(r => r.timestamp_ms >= last7DaysStart.getTime()).reduce((a, r) => a + r.words, 0) : 0;
   const weekDictations = history ? history.filter(r => r.timestamp_ms >= last7DaysStart.getTime()).length : 0;
@@ -193,7 +243,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
       />
       
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         {/* Total Words */}
         <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
           {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3">+{weekWords} this week</div>}
@@ -227,59 +277,127 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
           <div className="text-xs text-muted-foreground font-medium">Longest Streak</div>
           <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none"><Flame size={100} strokeWidth={1} /></div>
         </div>
+
+        {/* Apps */}
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
+          <div className="h-5 mb-3" />
+          <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? uniqueAppsCount : <Skeleton className="h-8 w-16" />}</div>
+          <div className="text-xs text-muted-foreground font-medium">Apps Used</div>
+          <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none"><LayoutGrid size={100} strokeWidth={1} /></div>
+        </div>
       </div>
 
       {/* Insights Section */}
       <div className="space-y-4">
         <h2 className="text-[12px] font-bold text-muted-foreground uppercase tracking-widest px-1">Insights</h2>
-        <div className="grid grid-cols-2 gap-4">
-          
+        
+        <div className="grid grid-cols-3 gap-4">
           {/* Activity Chart */}
-          <div className="rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
-            <h3 className="text-sm font-medium text-muted-foreground mb-6">Activity (Last 7 Days)</h3>
-            {series === null ? (
-              <Skeleton className="h-32 w-full mt-auto" />
-            ) : (
-              <div className="flex h-32 items-end justify-between gap-3 px-2 mt-auto">
-                {series.map((d) => (
-                  <div key={d.label} className="group relative flex flex-col items-center flex-1 gap-3 h-full">
-                    <div className="w-full relative flex-1 flex flex-col justify-end items-center">
-                      <div
-                        className={`w-full max-w-[24px] rounded-sm transition-all duration-300 ${
-                          d.words > 0
-                            ? "bg-linear-to-t from-blue-500/80 to-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                            : "bg-white/3"
-                        }`}
-                        style={{ height: d.words > 0 ? `${Math.max(15, (d.words / maxWords) * 100)}%` : "15%" }}
-                      />
-                      <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2 py-1 font-sans text-[10px] text-foreground opacity-0 ring-1 ring-border transition-opacity group-hover:opacity-100">
-                        {d.words}w
-                      </div>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground/70 font-medium">{d.label}</span>
-                  </div>
+          <div className="col-span-2 rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
+              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                {[
+                  { label: "All", value: "all" },
+                  { label: "30d", value: "30" },
+                  { label: "7d", value: "7" },
+                ].map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => setTimeframe(t.value)}
+                    className={`px-3 py-1 text-[11px] font-medium rounded-md transition-colors ${
+                      timeframe === t.value
+                        ? "bg-white/15 text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
                 ))}
+              </div>
+            </div>
+            {series === null ? (
+              <Skeleton className="h-[180px] w-full mt-auto" />
+            ) : (
+              <div className="h-[180px] w-full mt-auto -ml-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={series} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorWords" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="rounded-lg border border-border/50 bg-popover/90 backdrop-blur-sm p-3 shadow-xl">
+                              <p className="text-[11px] font-medium text-muted-foreground mb-1">{data.fullDate}</p>
+                              <p className="text-sm font-bold text-foreground">
+                                {data.words.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">words</span>
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                      cursor={{ stroke: '#ffffff20', strokeWidth: 1, strokeDasharray: '4 4' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="words"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorWords)"
+                      animationDuration={1000}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             )}
           </div>
 
-          {/* Top Words */}
-          <div className="rounded-xl border border-border/60 bg-white/1.5 p-5">
-            <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Words</h3>
-            {!history ? (
-              <Skeleton className="h-32 w-full" />
-            ) : topWords.length === 0 ? (
-              <div className="h-32 flex items-center text-sm text-muted-foreground">Not enough data.</div>
-            ) : (
-              <div className="flex flex-wrap gap-2.5 mt-2">
-                {topWords.map((w) => (
-                  <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/4 border border-white/5">
-                    <span className="text-[13px] text-foreground/90 font-medium">{w.word}</span>
-                    <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{w.count}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="col-span-1 flex flex-col gap-4">
+            {/* Top Words */}
+            <div className="flex-1 rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Words</h3>
+              {!history ? (
+                <Skeleton className="h-full w-full" />
+              ) : topWords.length === 0 ? (
+                <div className="h-full flex items-center text-sm text-muted-foreground">Not enough data.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2 mt-auto">
+                  {topWords.slice(0, 4).map((w) => (
+                    <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/4 border border-white/5">
+                      <span className="text-[12px] text-foreground/90 font-medium">{w.word}</span>
+                      <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{w.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Top Apps */}
+            <div className="flex-1 rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Apps</h3>
+              {!history ? (
+                <Skeleton className="h-full w-full" />
+              ) : topApps.length === 0 ? (
+                <div className="h-full flex items-center text-sm text-muted-foreground">Not enough data.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2 mt-auto">
+                  {topApps.slice(0, 4).map((a) => (
+                    <div key={a.app} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/4 border border-white/5">
+                      <span className="text-[12px] text-foreground/90 font-medium">{a.app}</span>
+                      <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{a.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

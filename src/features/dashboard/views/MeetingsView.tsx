@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import {
   Mic,
+  Search,
   Square,
   Loader2,
   Trash2,
@@ -30,6 +31,7 @@ import {
   cancelMeetingRecording,
   isMeetingRecording,
   getSettings,
+
   updateSettings,
   isModelDownloaded,
   downloadModel,
@@ -38,6 +40,7 @@ import {
 } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -167,6 +170,8 @@ export function MeetingsView() {
   const [progress, setProgress] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
+  // Semantic search state
+  const [searchQuery, setSearchQuery] = useState("");
   // Edit mode: title, transcript, and speaker renames are user-correctable.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -232,6 +237,19 @@ export function MeetingsView() {
         .join("\n")
     );
   };
+
+  const sortedMeetings = (() => {
+    if (!meetings) return [];
+    
+    let sorted = [...meetings];
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      sorted = sorted.filter(r => (r.title + " " + r.summary + " " + r.transcript).toLowerCase().includes(q));
+    }
+    return sorted.sort((a, b) => {
+      return b.timestamp_ms - a.timestamp_ms;
+    });
+  })();
 
   const loadMeetings = () => getMeetings().then(setMeetings).catch(console.error);
 
@@ -388,6 +406,19 @@ export function MeetingsView() {
         action={headerAction}
       />
 
+      {meetings && meetings.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+          <Input 
+            placeholder="Search meetings..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9 bg-white/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
+          />
+          
+        </div>
+      )}
+
       <div className="flex items-center justify-between bg-card ring-1 ring-border rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
@@ -434,7 +465,7 @@ export function MeetingsView() {
             </div>
           </div>
         )}
-        {meetings?.map((m) => {
+        {sortedMeetings?.map((m) => {
           const expanded = expandedId === m.id;
           const hasNotes = m.summary || m.minutes.length > 0 || m.decisions.length > 0 || m.action_items.length > 0;
           return (
@@ -501,7 +532,7 @@ export function MeetingsView() {
                   {m.action_items.length > 0 && (
                     <Section icon={ListChecks} title="Action Items" tint="text-emerald-400">
                       <ul className="space-y-1.5">
-                        {m.action_items.map((item, i) => {
+                        {m.action_items.map((item: string, i: number) => {
                           const isChecked = item.startsWith("[x] ");
                           const text = item.replace(/^\[[ x]\] /, "");
                           return (

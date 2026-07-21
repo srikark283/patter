@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { TranscriptionRecord } from "../../../types";
-import { Trash2, Copy, Loader2, MicOff, Pencil, Check, X, Search, Filter } from "lucide-react";
-import { clearHistory, deleteHistoryRecord, updateHistoryRecord } from "../../../lib/ipc";
+import { Trash2, Copy, MicOff, Pencil, Check, X, Search, Filter, Loader2 } from "lucide-react";
+import { clearHistory, deleteHistoryRecord, updateHistoryRecord, } from "../../../lib/ipc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,7 +38,6 @@ export function HistoryView({ history, setHistory }: Props) {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
   const [appFilter, setAppFilter] = useState<string | null>(null);
-
   const handleClearHistory = async () => {
     setClearing(true);
     try {
@@ -105,11 +104,15 @@ export function HistoryView({ history, setHistory }: Props) {
   // Filtered History
   const filteredHistory = useMemo(() => {
     if (!history) return null;
+    
     let filtered = history;
+    
     if (searchQuery) {
+      // Fallback to local exact match if semantic search is disabled
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(r => r.text.toLowerCase().includes(q));
     }
+
     if (appFilter) {
       filtered = filtered.filter(r => r.app_name === appFilter);
     }
@@ -182,8 +185,9 @@ export function HistoryView({ history, setHistory }: Props) {
               placeholder="Search history..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-white/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
+              className="pl-9 pr-9 bg-white/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
             />
+            
           </div>
           
           {uniqueApps.length > 0 && (

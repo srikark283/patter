@@ -430,10 +430,28 @@ export function PreferencesView() {
                 <p className="text-[11px] text-muted-foreground">Play a sound when recording starts/stops</p>
               </div>
             </div>
-            <Switch
-              checked={settings.play_sounds !== false}
-              onCheckedChange={(checked) => update({ play_sounds: checked })}
-            />
+            <div className="flex items-center gap-3">
+              {settings.play_sounds && (
+                <Select
+                  value={settings.sound_theme ?? "pop"}
+                  onValueChange={(val) => update({ sound_theme: val })}
+                >
+                  <SelectTrigger className="w-28 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pop">Pop</SelectItem>
+                    <SelectItem value="chime">Chime</SelectItem>
+                    <SelectItem value="wood">Wood</SelectItem>
+                    <SelectItem value="pluck">Pluck</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <Switch
+                checked={settings.play_sounds !== false}
+                onCheckedChange={(checked) => update({ play_sounds: checked })}
+              />
+            </div>
           </div>
         </div>
       </section>

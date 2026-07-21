@@ -22,6 +22,7 @@ export interface Settings {
   trim_silence: boolean;
   hud_position: string;
   play_sounds: boolean;
+  sound_theme: string;
   onboarding_done: boolean;
   push_to_talk: boolean;
   diarize_meetings: boolean;
@@ -29,6 +30,7 @@ export interface Settings {
   auto_update: boolean;
   snippets: Snippet[];
   memories: MemoryFact[];
+  embedding_model?: string;
 }
 
 export interface Snippet {
@@ -220,4 +222,16 @@ export function installUpdate() {
 
 export function restartApp() {
   return invoke<void>("restart_app");
+}
+
+export async function searchHistory(query: string): Promise<{ record: TranscriptionRecord; score: number }[]> {
+  return invoke("search_history", { query });
+}
+
+export async function searchMeetings(query: string): Promise<{ record: MeetingRecord; score: number }[]> {
+  return invoke("search_meetings", { query });
+}
+
+export async function getIndexingStatus(): Promise<boolean> {
+  return invoke('get_indexing_status');
 }

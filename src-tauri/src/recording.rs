@@ -12,16 +12,8 @@ use tauri::{Emitter, Manager};
 
 const WHISPER_SAMPLE_RATE: u32 = 16_000;
 
-fn play_system_sound(sound_name: &str, rate: f32) {
-    let path = format!("/System/Library/Sounds/{}", sound_name);
-    let rate_str = rate.to_string();
-    thread::spawn(move || {
-        let _ = std::process::Command::new("afplay")
-            .arg("-r")
-            .arg(&rate_str)
-            .arg(&path)
-            .output();
-    });
+fn play_system_sound(app: &tauri::AppHandle, event_type: &str) {
+    let _ = app.emit("play_sound", event_type);
 }
 
 /// Moves the HUD window to whichever monitor the cursor is on right now —
@@ -72,7 +64,7 @@ pub fn start_recording(app: &tauri::AppHandle) {
     let settings = state.settings.lock().unwrap().clone();
     state.dictation_session_id.fetch_add(1, Ordering::SeqCst);
     if settings.play_sounds {
-        play_system_sound("Pop.aiff", 1.5);
+        play_system_sound(app, "start");
     }
 
     // Reinitialize the buffer for a new recording
@@ -146,7 +138,7 @@ pub fn cancel(app: &tauri::AppHandle) {
     println!("Cancelling recording...");
     
     if state.settings.lock().unwrap().play_sounds {
-        play_system_sound("Pop.aiff", 0.9);
+        play_system_sound(app, "stop");
     }
 
     if state.is_recording.load(Ordering::SeqCst) {
@@ -167,7 +159,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     println!("Stopping recording...");
     
     if state.settings.lock().unwrap().play_sounds {
-        play_system_sound("Pop.aiff", 0.9);
+        play_system_sound(app, "stop");
     }
 
     state.is_recording.store(false, Ordering::SeqCst);
@@ -370,9 +362,28 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
 
         if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
 
+        // --- Undo / Scratch That Interception ---
+        // --- Undo / Scratch That Interception ---
+        let clean_text = text.trim().trim_matches(|c: char| c.is_ascii_punctuation()).to_lowercase();
+        if clean_text == "scratch that" || clean_text == "undo that" {
+            println!("[undo] Intercepted undo voice command");
+            crate::paste::undo();
+            let _ = app_handle.emit("patter://hud_state", "idle");
+            if settings.play_sounds {
+                play_system_sound(&app_handle, "stop");
+            }
+            return;
+        } else if clean_text.ends_with("scratch that") || clean_text.ends_with("undo that") {
+            println!("[undo] User aborted dictation mid-sentence");
+            let _ = app_handle.emit("patter://hud_state", "idle");
+            if settings.play_sounds {
+                play_system_sound(&app_handle, "stop");
+            }
+            return;
+        }
+
         // --- Snippet Expansion ---
         let text = {
-            let clean_text = text.trim().trim_matches(|c: char| c.is_ascii_punctuation()).to_lowercase();
             if let Some(snippet) = settings.snippets.iter().find(|s| s.trigger.trim().to_lowercase() == clean_text) {
                 println!("[snippet] Expanding macro: {}", snippet.trigger);
                 snippet.content.clone()
@@ -396,6 +407,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             words: word_count as u32,
             transcribe_ms,
             app_name: frontmost,
+            
         });
         let _ = app_handle.emit("patter://db_updated", ());
         tray::refresh(&app_handle);

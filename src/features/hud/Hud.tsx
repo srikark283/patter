@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { X, AudioLines, WandSparkles, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording, cancelMeetingRecording } from "../../lib/ipc";
@@ -55,6 +56,23 @@ export default function Hud() {
   };
 
   useEffect(() => {
+    const unlistenSound = listen<string>("play_sound", async (event) => {
+      // event.payload is "start" | "stop" | "cancel"
+      const { invoke } = await import("@tauri-apps/api/core");
+      const settings: any = await invoke("get_settings");
+      const theme = settings.sound_theme || "pop";
+      
+      const audio = new Audio(`/sounds/${theme}.wav`);
+      if (event.payload === "stop" || event.payload === "cancel") {
+        audio.playbackRate = 0.9;
+        audio.preservesPitch = false;
+      } else {
+        audio.playbackRate = 1.5;
+        audio.preservesPitch = false;
+      }
+      audio.play().catch(e => console.error("Audio playback failed:", e));
+    });
+
     const unlisten = onHudState((state) => {
       const next = phaseFor(state);
       if (meetingActive.current) {
@@ -74,6 +92,7 @@ export default function Hud() {
     });
     return () => {
       unlisten.then((f) => f());
+      unlistenSound.then((f) => f());
     };
   }, []);
 

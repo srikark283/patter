@@ -56,7 +56,8 @@ fn main() {
 
             commands::apply_dock_icon();
             audio::capture::set_app_handle(app.handle().clone());
-
+            
+            
             // Background update check: notify only — download and install
             // happen when the user asks (install_update command). Runs once
             // at launch, then on a timer, so a long-lived tray session (the
@@ -129,7 +130,7 @@ fn main() {
                                 if let Some(path) = model_manager.variant_file_path(engine_id) {
                                     if let Ok(whisper) = asr::whisper::WhisperEngine::new(&path.to_string_lossy()) {
                                         initial_engine = Some(Box::new(whisper));
-                                        initial_engine_id = Some(engine_id.clone());
+                                        initial_engine_id = Some(engine_id.to_string());
                                     }
                                 }
                             }
@@ -137,7 +138,7 @@ fn main() {
                                 if let Some(path) = model_manager.variant_dir(engine_id) {
                                     if let Ok(parakeet) = asr::parakeet::ParakeetEngine::new(&path.to_string_lossy()) {
                                         initial_engine = Some(Box::new(parakeet));
-                                        initial_engine_id = Some(engine_id.clone());
+                                        initial_engine_id = Some(engine_id.to_string());
                                     }
                                 }
                             }
@@ -418,7 +419,7 @@ fn main() {
             commands::update_history_record,
             commands::cancel_dictation,
             commands::open_dashboard,
-            commands::list_ollama_models,
+                                                commands::list_ollama_models,
             commands::start_meeting_recording,
             commands::stop_meeting_recording,
             commands::cancel_meeting_recording,
