@@ -421,6 +421,16 @@ pub fn get_permission_status() -> crate::permissions::PermissionStatus {
 }
 
 #[tauri::command]
+pub fn request_accessibility_permission() -> bool {
+    crate::permissions::request_accessibility_permission()
+}
+
+#[tauri::command]
+pub fn request_input_monitoring_permission() -> bool {
+    crate::permissions::request_input_monitoring_permission()
+}
+
+#[tauri::command]
 pub fn open_input_monitoring_settings() -> Result<(), String> {
     crate::permissions::open_input_monitoring_settings()
 }
@@ -428,6 +438,11 @@ pub fn open_input_monitoring_settings() -> Result<(), String> {
 #[tauri::command]
 pub fn open_microphone_settings() -> Result<(), String> {
     crate::permissions::open_microphone_settings()
+}
+
+#[tauri::command]
+pub fn request_microphone_permission() -> bool {
+    crate::permissions::request_microphone_permission()
 }
 
 #[tauri::command]

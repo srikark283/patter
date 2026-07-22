@@ -2,7 +2,7 @@ import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck, Video, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2 } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
-import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, openInputMonitoringSettings, openMicrophoneSettings, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
+import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, requestAccessibilityPermission, openInputMonitoringSettings, requestInputMonitoringPermission, openMicrophoneSettings, requestMicrophonePermission, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { PageHeader } from "../components/PageHeader";
@@ -76,10 +76,11 @@ interface PermissionRowProps {
   description: string;
   /** Omit when the OS gives no reliable way to query the live status. */
   granted?: boolean;
+  onRequestAccess?: () => Promise<boolean | void>;
   onOpenSettings: () => Promise<void>;
 }
 
-function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onOpenSettings }: PermissionRowProps) {
+function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onRequestAccess, onOpenSettings }: PermissionRowProps) {
   return (
     <div className="flex items-center justify-between p-4">
       <div className="flex items-center gap-3">
@@ -95,13 +96,21 @@ function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onOp
         {granted === undefined ? (
           <span className="text-[11px] text-muted-foreground">Check in System Settings</span>
         ) : granted ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
             <CheckCircle2 size={12} /> Granted
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400">
+          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-medium">
             <AlertCircle size={12} /> Not granted
           </span>
+        )}
+        {granted !== true && onRequestAccess && (
+          <button
+            onClick={() => onRequestAccess().catch(console.error)}
+            className="text-[11px] px-2 py-1 rounded bg-steel/15 text-steelIce hover:bg-steel/25 transition-colors font-medium"
+          >
+            Request Access
+          </button>
         )}
         {granted !== true && (
           <button
@@ -588,6 +597,7 @@ export function PreferencesView() {
             title="Accessibility"
             description="Lets Patter type finished text into other apps"
             granted={permissions?.accessibility ?? true}
+            onRequestAccess={requestAccessibilityPermission}
             onOpenSettings={openAccessibilitySettings}
           />
           <PermissionRow
@@ -597,6 +607,7 @@ export function PreferencesView() {
             title="Input Monitoring"
             description="Needed for the global hotkey to work anywhere"
             granted={permissions?.input_monitoring ?? true}
+            onRequestAccess={requestInputMonitoringPermission}
             onOpenSettings={openInputMonitoringSettings}
           />
           <PermissionRow
@@ -606,6 +617,7 @@ export function PreferencesView() {
             title="Microphone"
             description="Required to capture dictation and meeting audio"
             granted={permissions?.microphone ?? true}
+            onRequestAccess={requestMicrophonePermission}
             onOpenSettings={openMicrophoneSettings}
           />
           <PermissionRow

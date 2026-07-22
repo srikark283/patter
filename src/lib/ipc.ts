@@ -197,12 +197,24 @@ export function getPermissionStatus() {
   return invoke<PermissionStatus>("get_permission_status");
 }
 
+export function requestAccessibilityPermission() {
+  return invoke<boolean>("request_accessibility_permission");
+}
+
 export function openInputMonitoringSettings() {
   return invoke<void>("open_input_monitoring_settings");
 }
 
+export function requestInputMonitoringPermission() {
+  return invoke<boolean>("request_input_monitoring_permission");
+}
+
 export function openMicrophoneSettings() {
   return invoke<void>("open_microphone_settings");
+}
+
+export function requestMicrophonePermission() {
+  return invoke<boolean>("request_microphone_permission");
 }
 
 export function openNotificationSettings() {
