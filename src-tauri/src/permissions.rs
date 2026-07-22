@@ -34,22 +34,19 @@ pub fn input_monitoring_trusted() -> bool {
     true
 }
 
-#[cfg(target_os = "macos")]
-#[link(name = "AVFoundation", kind = "framework")]
-unsafe extern "C" {
-    static AVMediaTypeAudio: *const objc2::runtime::AnyObject;
-}
 
 #[cfg(target_os = "macos")]
 pub fn microphone_authorized() -> bool {
     use objc2::msg_send;
     use objc2::runtime::AnyClass;
+    use objc2_foundation::NSString;
 
     unsafe {
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
             return true;
         };
-        let status: i64 = msg_send![cls, authorizationStatusForMediaType: AVMediaTypeAudio];
+        let media_type = NSString::from_str("soun");
+        let status: i64 = msg_send![cls, authorizationStatusForMediaType: &*media_type];
         // AVAuthorizationStatus: notDetermined=0, restricted=1, denied=2, authorized=3.
         status == 3
     }
@@ -60,6 +57,7 @@ pub fn request_microphone_permission() -> bool {
     use block2::RcBlock;
     use objc2::msg_send;
     use objc2::runtime::AnyClass;
+    use objc2_foundation::NSString;
     use std::sync::mpsc;
     use std::time::Duration;
 
@@ -67,26 +65,37 @@ pub fn request_microphone_permission() -> bool {
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
             return true;
         };
-        let status: i64 = msg_send![cls, authorizationStatusForMediaType: AVMediaTypeAudio];
+        let media_type = NSString::from_str("soun");
+        let status: i64 = msg_send![cls, authorizationStatusForMediaType: &*media_type];
+        eprintln!("[permissions] authorizationStatusForMediaType returned: {}", status);
         if status == 3 {
             return true;
         }
 
         if status == 0 {
             // Not determined: prompt the system permission dialog for Microphone access
+            eprintln!("[permissions] Status is 0 (NotDetermined). Requesting access via block...");
             let (tx, rx) = mpsc::channel();
             let block = RcBlock::new(move |granted: objc2::runtime::Bool| {
+                eprintln!("[permissions] block called with granted: {}", granted.as_bool());
                 let _ = tx.send(granted.as_bool());
             });
-            let _: () = msg_send![cls, requestAccessForMediaType: AVMediaTypeAudio, completionHandler: &*block];
+            let _: () = msg_send![cls, requestAccessForMediaType: &*media_type, completionHandler: &*block];
+            eprintln!("[permissions] requestAccessForMediaType called. Waiting for user response...");
 
-            let granted = rx.recv_timeout(Duration::from_secs(30)).unwrap_or(false);
+            let granted = rx.recv_timeout(Duration::from_secs(30)).unwrap_or_else(|e| {
+                eprintln!("[permissions] Timeout or error waiting for block: {:?}", e);
+                false
+            });
+            eprintln!("[permissions] Final granted status: {}", granted);
             if !granted {
+                eprintln!("[permissions] Not granted. Opening settings.");
                 let _ = open_microphone_settings();
             }
             return granted;
         }
 
+        eprintln!("[permissions] Status is {} (Denied or Restricted). Opening settings.", status);
         // Status is denied (2) or restricted (1): open privacy settings directly
         let _ = open_microphone_settings();
         false

@@ -1,6 +1,6 @@
 [package]
 name = "patter"
-version = "0.3.10"
+version = "0.3.11"
 description = "Patter - Open Source Voice-to-Text Transcriber"
 authors = ["Srikar"]
 edition = "2021"
@@ -27,6 +27,7 @@ rdev = { path = "./rdev-local" }
 base64 = "0.22.1"
 tokio = { version = "1.53.1", features = ["time", "sync", "macros"] }
 tauri-plugin-dialog = "2"
+objc2-foundation = "0.3"
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
  
