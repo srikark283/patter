@@ -44,8 +44,8 @@ pub fn start_meeting_recording(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn stop_meeting_recording(app: tauri::AppHandle) -> Result<(), String> {
-    crate::meeting::stop_meeting(&app)
+pub fn stop_meeting_recording(app: tauri::AppHandle, num_speakers: Option<i32>) -> Result<(), String> {
+    crate::meeting::stop_meeting(&app, num_speakers)
 }
 
 #[tauri::command]
@@ -56,6 +56,19 @@ pub fn cancel_meeting_recording(app: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn is_meeting_recording(app: tauri::AppHandle) -> bool {
     app.state::<AppState>().is_meeting_recording.load(Ordering::SeqCst)
+}
+
+/// Wall-clock start (ms since epoch) of the current meeting recording, so a
+/// view that mounts mid-meeting can compute the same elapsed time the HUD
+/// shows instead of starting its own counter from 0.
+#[tauri::command]
+pub fn get_meeting_start_ms(app: tauri::AppHandle) -> Option<u64> {
+    let state = app.state::<AppState>();
+    if state.is_meeting_recording.load(Ordering::SeqCst) {
+        Some(state.meeting_start_ms.load(Ordering::SeqCst))
+    } else {
+        None
+    }
 }
 
 #[tauri::command]
@@ -100,9 +113,9 @@ pub fn regenerate_meeting_summary(
         match crate::ollama::summarize_meeting(&model, &transcript, |current, total| {
             if total > 1 {
                 if current < total {
-                    let _ = app_handle.emit("patter://meeting_state", format!("summarizing (part {}/{})", current, total - 1));
+                    let _ = app_handle.emit("patter://meeting_progress", format!("Summarizing part {}/{}", current, total - 1));
                 } else {
-                    let _ = app_handle.emit("patter://meeting_state", "synthesizing final summary".to_string());
+                    let _ = app_handle.emit("patter://meeting_progress", "Synthesizing final summary".to_string());
                 }
             }
         }) {

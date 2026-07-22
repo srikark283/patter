@@ -40,6 +40,7 @@ pub fn diarize_and_transcribe(
     engine: &Arc<Mutex<Option<Box<dyn ASREngine>>>>,
     audio: &[f32],
     language: &str,
+    num_speakers: Option<i32>,
 ) -> Result<String, String> {
     const SAMPLE_RATE: usize = 16_000;
 
@@ -64,9 +65,13 @@ pub fn diarize_and_transcribe(
             model: Some(emb_path.to_string_lossy().into_owned()),
             ..Default::default()
         },
-        // ponytail: num_clusters=-1 auto-estimates speaker count via threshold
-        // 0.5; expose a "number of speakers" setting if auto proves flaky.
-        clustering: FastClusteringConfig::default(),
+        // Auto (-1) estimates speaker count via a distance threshold, which can
+        // badly over-segment on some recordings; an explicit count from the
+        // user forces exact clustering instead.
+        clustering: FastClusteringConfig {
+            num_clusters: num_speakers.unwrap_or(-1),
+            ..Default::default()
+        },
         ..Default::default()
     };
 

@@ -29,7 +29,7 @@ import {
   startMeetingRecording,
   stopMeetingRecording,
   cancelMeetingRecording,
-  isMeetingRecording,
+  getMeetingStartMs,
   getSettings,
 
   updateSettings,
@@ -43,6 +43,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 type MeetingState = "idle" | "recording" | "transcribing" | "summarizing";
@@ -164,11 +172,17 @@ export function MeetingsView() {
   const [elapsed, setElapsed] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Wall-clock start of the current recording — shared source of truth with
+  // the HUD's timer, so both show the same elapsed time even if this page
+  // mounts after the meeting already started.
+  const meetingStartRef = useRef(0);
 
   const [diarize, setDiarize] = useState(false);
   const [downloadingDiar, setDownloadingDiar] = useState(false);
   const [progress, setProgress] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [speakerCountDialogOpen, setSpeakerCountDialogOpen] = useState(false);
+  const [speakerCountInput, setSpeakerCountInput] = useState("");
 
   // Semantic search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -280,7 +294,12 @@ export function MeetingsView() {
 
   useEffect(() => {
     loadMeetings();
-    isMeetingRecording().then((rec) => rec && setState("recording")).catch(console.error);
+    getMeetingStartMs().then((ms) => {
+      if (ms) {
+        meetingStartRef.current = ms;
+        setState("recording");
+      }
+    }).catch(console.error);
     getSettings().then((s) => setDiarize(s.diarize_meetings)).catch(console.error);
 
     const unlistenState = listen<string>("patter://meeting_state", (e) => {
@@ -289,6 +308,7 @@ export function MeetingsView() {
         toast.error("Meeting failed: " + s.slice(6).trim());
         setState("idle");
       } else {
+        if (s === "recording") meetingStartRef.current = Date.now();
         setState(s as MeetingState);
       }
     });
@@ -309,11 +329,13 @@ export function MeetingsView() {
     };
   }, []);
 
-  // Elapsed timer while recording
+  // Elapsed timer while recording — computed from the shared start timestamp
+  // (not a naive per-tick counter) so it can't drift from the HUD's timer.
   useEffect(() => {
     if (state === "recording") {
-      setElapsed(0);
-      timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+      const tick = () => setElapsed(Math.floor((Date.now() - meetingStartRef.current) / 1000));
+      tick();
+      timerRef.current = setInterval(tick, 1000);
     } else if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -331,13 +353,28 @@ export function MeetingsView() {
     }
   };
 
-  const handleStop = async () => {
+  const handleStop = async (numSpeakers?: number) => {
     try {
-      await stopMeetingRecording();
+      await stopMeetingRecording(numSpeakers);
     } catch (e) {
       toast.error(String(e));
       setState("idle");
     }
+  };
+
+  const handleStopClick = () => {
+    if (diarize) {
+      setSpeakerCountInput("");
+      setSpeakerCountDialogOpen(true);
+    } else {
+      handleStop();
+    }
+  };
+
+  const confirmSpeakerCount = () => {
+    const n = parseInt(speakerCountInput, 10);
+    setSpeakerCountDialogOpen(false);
+    handleStop(Number.isFinite(n) && n > 0 ? n : undefined);
   };
 
   const handleCancel = async () => {
@@ -369,7 +406,7 @@ export function MeetingsView() {
           <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
           <span className="font-sans text-[13px] text-foreground/80 tabular-nums">{formatElapsed(elapsed)}</span>
         </div>
-        <Button variant="destructive" className="rounded-full" onClick={handleStop}>
+        <Button variant="destructive" className="rounded-full" onClick={handleStopClick}>
           <Square size={14} /> Stop &amp; Process
         </Button>
         <button
@@ -494,6 +531,10 @@ export function MeetingsView() {
                 <div className="space-y-6 border-t border-border/60 px-5 py-5">
                   {regeneratingId === m.id ? (
                     <div className="space-y-6">
+                      <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-white/[0.02] px-3 py-1.5 rounded-full border border-border w-fit">
+                        <Loader2 size={13} className="animate-spin text-steelIce" />
+                        {progress || "Generating notes…"}
+                      </div>
                       <div className="space-y-3">
                         <div className="h-3 w-20 rounded bg-sky-400/20 animate-pulse" />
                         <div className="h-14 w-full rounded bg-white/[0.03] animate-pulse" />
@@ -636,6 +677,7 @@ export function MeetingsView() {
                       size="sm"
                       className="text-muted-foreground hover:text-foreground"
                       onClick={() => {
+                        setProgress("");
                         setRegeneratingId(m.id);
                         regenerateMeetingSummary(m.id).catch(e => {
                           toast.error(String(e));
@@ -675,6 +717,32 @@ export function MeetingsView() {
           );
         })}
       </div>
+
+      <Dialog open={speakerCountDialogOpen} onOpenChange={setSpeakerCountDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>How many speakers?</DialogTitle>
+            <DialogDescription>
+              Helps speaker-label detection avoid over-splitting a single voice into multiple speakers. Leave blank to auto-detect.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            type="number"
+            min={1}
+            autoFocus
+            value={speakerCountInput}
+            onChange={(e) => setSpeakerCountInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && confirmSpeakerCount()}
+            placeholder="Auto-detect"
+            className="w-full bg-background border border-white/10 rounded-md text-[13px] px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={confirmSpeakerCount}>
+              {speakerCountInput ? "Continue" : "Skip — Auto-detect"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

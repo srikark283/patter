@@ -22,6 +22,10 @@ pub struct AppState {
     /// also orders concurrent drains.
     pub meeting_file: Arc<Mutex<Option<std::fs::File>>>,
     pub is_meeting_recording: Arc<AtomicBool>,
+    /// Wall-clock start (ms since epoch) of the current meeting recording, so
+    /// any UI that mounts mid-meeting (not just the always-running HUD) can
+    /// compute the same elapsed time instead of counting from 0 at mount.
+    pub meeting_start_ms: Arc<std::sync::atomic::AtomicU64>,
     /// Set by `cancel_meeting` (increments ID) to tell the post-recording pipeline (transcribe
     /// → diarize → summarize) to bail at its next checkpoint instead of saving.
     pub meeting_session_id: Arc<std::sync::atomic::AtomicU64>,

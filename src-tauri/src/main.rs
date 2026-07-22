@@ -179,6 +179,7 @@ fn main() {
                 meeting_captured: Arc::new(Mutex::new(Vec::new())),
                 meeting_file: Arc::new(Mutex::new(None)),
                 is_meeting_recording: Arc::new(AtomicBool::new(false)),
+                meeting_start_ms: Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 meeting_session_id: Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 dictation_session_id: Arc::new(std::sync::atomic::AtomicU64::new(0)),
                 engine: Arc::new(Mutex::new(initial_engine)),
@@ -251,7 +252,7 @@ fn main() {
                             let key_str = format!("{:?}", key);
                             if is_match(&key_str, &meeting_hotkey) {
                                 if state.is_meeting_recording.load(Ordering::SeqCst) {
-                                    let _ = meeting::stop_meeting(&app_handle_for_rdev);
+                                    let _ = meeting::stop_meeting(&app_handle_for_rdev, None);
                                 } else if !state.is_recording.load(Ordering::SeqCst) {
                                     let _ = meeting::start_meeting(&app_handle_for_rdev);
                                 }
@@ -372,7 +373,7 @@ fn main() {
                             if *shortcut == meeting_shortcut {
                                 if event.state == ShortcutState::Pressed {
                                     if state.is_meeting_recording.load(Ordering::SeqCst) {
-                                        let _ = meeting::stop_meeting(app);
+                                        let _ = meeting::stop_meeting(app, None);
                                     } else if !state.is_recording.load(Ordering::SeqCst) {
                                         let _ = meeting::start_meeting(app);
                                     }
@@ -428,6 +429,7 @@ fn main() {
             commands::stop_meeting_recording,
             commands::cancel_meeting_recording,
             commands::is_meeting_recording,
+            commands::get_meeting_start_ms,
             commands::get_meetings,
             commands::get_ollama_embedding,
             commands::delete_meeting,

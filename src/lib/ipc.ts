@@ -92,8 +92,8 @@ export function startMeetingRecording() {
   return invoke<void>("start_meeting_recording");
 }
 
-export function stopMeetingRecording() {
-  return invoke<void>("stop_meeting_recording");
+export function stopMeetingRecording(numSpeakers?: number) {
+  return invoke<void>("stop_meeting_recording", { numSpeakers: numSpeakers ?? null });
 }
 
 export function cancelMeetingRecording() {
@@ -102,6 +102,11 @@ export function cancelMeetingRecording() {
 
 export function isMeetingRecording() {
   return invoke<boolean>("is_meeting_recording");
+}
+
+/** Ms-since-epoch the current meeting recording started, or null if none is active. */
+export function getMeetingStartMs() {
+  return invoke<number | null>("get_meeting_start_ms");
 }
 
 export function getMeetings() {

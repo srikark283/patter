@@ -86,6 +86,11 @@ pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         return Err("Audio thread unavailable".to_string());
     }
     state.is_meeting_recording.store(true, Ordering::SeqCst);
+    let start_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    state.meeting_start_ms.store(start_ms, Ordering::SeqCst);
 
     // Compact the raw buffer every couple of seconds for the whole recording.
     let app_handle = app.clone();
@@ -134,7 +139,7 @@ fn bail_if_cancelled(app: &tauri::AppHandle, session_id: u64) -> bool {
     state.meeting_session_id.load(Ordering::SeqCst) != session_id
 }
 
-pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
+pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result<(), String> {
     let state = app.state::<AppState>();
 
     if !state.is_meeting_recording.load(Ordering::SeqCst) {
@@ -210,8 +215,13 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
         // plain transcription.
         let diarized = if settings.diarize_meetings && crate::diarize::models_downloaded(&app_handle)
         {
-            match crate::diarize::diarize_and_transcribe(&app_handle, &engine_arc, &audio, &language)
-            {
+            match crate::diarize::diarize_and_transcribe(
+                &app_handle,
+                &engine_arc,
+                &audio,
+                &language,
+                num_speakers,
+            ) {
                 Ok(t) => Some(t),
                 Err(e) => {
                     eprintln!("[diarize] failed, plain transcription: {}", e);
@@ -261,9 +271,9 @@ pub fn stop_meeting(app: &tauri::AppHandle) -> Result<(), String> {
             match crate::ollama::summarize_meeting(model, &transcript, |current, total| {
                 if total > 1 {
                     if current < total {
-                        let _ = app_handle.emit("patter://meeting_state", format!("summarizing (part {}/{})", current, total - 1));
+                        let _ = app_handle.emit("patter://meeting_progress", format!("Summarizing part {}/{}", current, total - 1));
                     } else {
-                        let _ = app_handle.emit("patter://meeting_state", "synthesizing final summary".to_string());
+                        let _ = app_handle.emit("patter://meeting_progress", "Synthesizing final summary".to_string());
                     }
                 }
             }) {

@@ -273,7 +273,7 @@ pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 .is_meeting_recording
                 .load(Ordering::SeqCst);
             let result = if active {
-                crate::meeting::stop_meeting(app)
+                crate::meeting::stop_meeting(app, None)
             } else {
                 crate::meeting::start_meeting(app)
             };
