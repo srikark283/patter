@@ -88,12 +88,61 @@
   .copy-btn { flex: none; background: none; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.18), rgba(255,255,255,0.18)); color: light-dark(oklch(40% 0.012 90), #c7ccd4); font-size: 12px; border-radius: 4px; padding: 7px 14px; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
   .copy-btn:hover { background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); border-color: light-dark(oklch(22% 0.008 90), #e7eaee); }
 
-  .pipe-node { border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); border-radius: 8px; padding: 12px 14px; background: light-dark(oklch(100% 0 0 / 0.65), rgba(20,22,27,0.75)); text-align: center; flex: 1; min-width: 96px; transition: border-color .25s ease, box-shadow .25s ease; position: relative; }
-  .pipe-node:hover { border-color: light-dark(oklch(50% 0.09 254 / 0.6), oklch(68% 0.11 254 / 0.6)); box-shadow: 0 8px 20px light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); }
+  /* Hero App Profile Switcher */
+  .app-switcher-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: light-dark(oklch(93% 0.006 90), rgba(0, 0, 0, 0.35));
+    padding: 3px;
+    border-radius: 7px;
+    border: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255, 255, 255, 0.12));
+  }
+  .hero-app-tab {
+    font: 500 11px 'Geist Mono', monospace;
+    letter-spacing: 0.01em;
+    padding: 4px 11px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: light-dark(oklch(45% 0.012 90), #828b99);
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .hero-app-tab:hover {
+    color: light-dark(oklch(22% 0.008 90), #e7eaee);
+    background: light-dark(oklch(100% 0 0 / 0.5), rgba(255, 255, 255, 0.05));
+  }
+  .hero-app-tab.active {
+    background: light-dark(oklch(100% 0 0), rgba(255, 255, 255, 0.14));
+    color: light-dark(oklch(22% 0.008 90), #ffffff);
+    border-color: light-dark(oklch(22% 0.008 90 / 0.12), rgba(255, 255, 255, 0.18));
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+    font-weight: 600;
+  }
+
+  /* Pipeline node tooltip & packets */
+  .pipe-node { border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); border-radius: 8px; padding: 12px 14px; background: light-dark(oklch(100% 0 0 / 0.65), rgba(20,22,27,0.75)); text-align: center; flex: 1; min-width: 96px; transition: border-color .25s ease, box-shadow .25s ease, transform .2s ease; position: relative; cursor: default; }
+  .pipe-node:hover { border-color: light-dark(oklch(50% 0.09 254 / 0.6), oklch(68% 0.11 254 / 0.6)); box-shadow: 0 8px 20px light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); transform: translateY(-2px); }
   .pipe-node svg { display: block; margin: 0 auto 6px; color: light-dark(oklch(50% 0.09 254 / 0.7), oklch(68% 0.11 254 / 0.7)); }
   .pipe-node b { display: block; font-size: 13px; font-weight: 600; letter-spacing: -0.005em; }
   .pipe-node span { display: block; font: 500 10.5px 'Geist Mono', monospace; letter-spacing: 0.04em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); margin-top: 3px; }
   .pipe-node .pipe-latency { position: absolute; top: -8px; right: -6px; font: 600 9.5px 'Geist Mono', monospace; letter-spacing: 0.02em; text-transform: none; background: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); color: light-dark(oklch(98% 0.007 90), #0a0b0d); border-radius: 999px; padding: 2px 6px; margin-top: 0; box-shadow: 0 2px 6px light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); }
+  
+  .pipe-tooltip {
+    position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%) translateY(4px);
+    background: light-dark(oklch(18% 0.01 90), #16181d); color: light-dark(oklch(96% 0.005 90), #e7eaee);
+    border: 1px solid light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.2)); border-radius: 8px;
+    padding: 9px 12px; font-size: 11.5px; font-family: 'Geist', sans-serif; line-height: 1.45; text-align: left;
+    width: 210px; opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.3); z-index: 20;
+  }
+  .pipe-tooltip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid;
+    border-color: light-dark(oklch(18% 0.01 90), #16181d) transparent transparent transparent;
+  }
+  .pipe-node:hover .pipe-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
   .pipe-arrow { flex: none; color: light-dark(oklch(50% 0.09 254 / 0.7), oklch(68% 0.11 254 / 0.7)); font-size: 15px; }
   @keyframes shimmerTravel { 0% { transform: translateX(-100%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateX(350%); opacity: 0; } }
   .pipe-shimmer-line { position: relative; height: 2px; border-radius: 1px; margin: 22px 6px 0; background: light-dark(oklch(50% 0.09 254 / 0.15), oklch(68% 0.11 254 / 0.15)); overflow: hidden; }
@@ -189,19 +238,30 @@
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
       </span>
     </div>
-    <div style="margin-top: 34px; width: min(560px, calc(100% - 64px)); background: light-dark(oklch(100% 0 0 / 0.72), rgba(20,22,27,0.88)); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); border-radius: 10px; box-shadow: 0 24px 60px light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)), 0 2px 8px light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.06)); overflow: hidden;">
+    <div id="demoWindow" style="margin-top: 34px; width: min(580px, calc(100% - 64px)); background: light-dark(oklch(100% 0 0 / 0.72), rgba(20,22,27,0.88)); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.14), rgba(255,255,255,0.14)); border-radius: 10px; box-shadow: 0 8px 18px light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)), 0 2px 8px light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.06)); overflow: hidden; transition: border-color .3s ease, background .3s ease;">
       <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1));">
         <span style="width: 10px; height: 10px; border-radius: 50%; background: #f0555f; opacity: .85;"></span>
         <span style="width: 10px; height: 10px; border-radius: 50%; background: #f5bf4f; opacity: .85;"></span>
         <span style="width: 10px; height: 10px; border-radius: 50%; background: #34c759; opacity: .85;"></span>
-        <span style="margin-left: 10px; font: 500 11px 'Geist Mono', monospace; color: light-dark(oklch(50% 0.012 90), #828b99); letter-spacing: 0.04em;">Notes — Untitled</span>
+        <span id="demoTitle" style="margin-left: 10px; font: 500 11px 'Geist Mono', monospace; color: light-dark(oklch(50% 0.012 90), #828b99); letter-spacing: 0.04em;">Notes — Untitled</span>
         <span id="demoStatus" style="margin-left: auto; font: 500 10px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #c04b53; transition: color .3s ease;">listening</span>
       </div>
       <div style="padding: 20px 22px 24px; min-height: 96px;">
         <p style="margin: 0; font: 400 15px/1.7 'Geist', sans-serif; color: light-dark(oklch(28% 0.01 90), #c7ccd4);"><span id="demoTyped"></span><span style="display: inline-block; width: 2px; height: 1.1em; background: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); vertical-align: text-bottom; margin-left: 2px; animation: caretBlink 1.1s step-end infinite;"></span></p>
       </div>
     </div>
-    <div style="margin-top: 22px; display: flex; align-items: center; gap: 10px;">
+    
+    <div style="margin-top: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
+      <span style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.05em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99);">Profile:</span>
+      <div class="app-switcher-bar">
+        <button type="button" class="hero-app-tab active" data-app="notes">Notes</button>
+        <button type="button" class="hero-app-tab" data-app="slack">Slack</button>
+        <button type="button" class="hero-app-tab" data-app="vscode">VS Code</button>
+        <button type="button" class="hero-app-tab" data-app="mail">Mail</button>
+      </div>
+    </div>
+
+    <div style="margin-top: 18px; display: flex; align-items: center; gap: 10px;">
       <p style="margin: 0; font: 500 12.5px 'Geist', sans-serif; color: light-dark(oklch(48% 0.012 90), #828b99);">Fig. 1 — spoken, transcribed, and cleaned up — all on your device</p>
       <button id="soundToggle" type="button" title="Sound effects for the demo" aria-pressed="false" style="flex: none; width: 24px; height: 24px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); background: transparent; color: light-dark(oklch(45% 0.012 90), #828b99); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s ease, color .2s ease, border-color .2s ease;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
@@ -221,42 +281,42 @@
       <p style="font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(50% 0.012 90), #828b99); margin: 0;">§ Everything on-device</p>
     </div>
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); border-left: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); margin-bottom: 80px;">
-        <div class="feature-card">
+        <div class="feature-card spotlight-card">
           <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">I</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">On-device transcription</h3>
             <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">OpenAI Whisper and Nvidia Parakeet, Metal-accelerated. Six models from 78MB to 1.6GB — pick fast or accurate.</p>
           </div>
         </div>
-        <div class="feature-card">
+        <div class="feature-card spotlight-card">
           <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">II</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">AI cleanup</h3>
             <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">A local Ollama model fixes grammar and strips filler words before the text is typed. Silence trimmed by on-device VAD.</p>
           </div>
         </div>
-        <div class="feature-card">
+        <div class="feature-card spotlight-card">
           <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">III</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Meeting notes</h3>
             <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">Record a meeting, get timestamped speaker-labeled transcripts plus minutes, decisions, and action items.</p>
           </div>
         </div>
-        <div class="feature-card">
+        <div class="feature-card spotlight-card">
           <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">IV</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Personal memory</h3>
             <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">Teach Patter facts about you and your work. It gets your names, projects, and jargon right — matched with local embeddings.</p>
           </div>
         </div>
-        <div class="feature-card">
+        <div class="feature-card spotlight-card">
           <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">V</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Voice macros</h3>
             <p style="font-size: 13px; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0; line-height: 1.55;">Say a short trigger phrase, get a whole block of text — addresses, sign-offs, boilerplate — as you dictate.</p>
           </div>
         </div>
-        <div class="feature-card">
+        <div class="feature-card spotlight-card">
           <p style="font: 500 24px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(68% 0.11 254 / 0.55)); margin: 0 0 auto; transition: color .25s ease;">VI</p>
           <div>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 7px; letter-spacing: -0.005em;">Push-to-talk</h3>
@@ -321,7 +381,31 @@
               </div>
             </div>
         </div>
-        <p style="font-size: 13px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 8px 0 0; line-height: 1.6;">Words dictated, time saved, and transcription latency — tallied locally, never uploaded.</p>
+        
+        <!-- Interactive Savings Calculator -->
+        <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: light-dark(oklch(28% 0.01 90), #c7ccd4);">Daily dictation estimate:</span>
+            <span id="calcWordVal" style="font: 600 13px 'Geist Mono', monospace; color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254));">1,500 words/day</span>
+          </div>
+          <input id="calcSlider" type="range" min="300" max="10000" step="100" value="1500" style="width: 100%; accent-color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254)); cursor: pointer;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 14px; text-align: center;">
+            <div style="background: light-dark(oklch(96% 0.005 90), rgba(255,255,255,0.04)); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)); border-radius: 8px; padding: 10px 4px;">
+              <div id="calcHours" style="font: 600 14px 'Geist Mono', monospace; color: light-dark(oklch(28% 0.01 90), #e7eaee);">116 hrs</div>
+              <div style="font-size: 10.5px; color: light-dark(oklch(50% 0.012 90), #828b99);">Saved / yr</div>
+            </div>
+            <div style="background: light-dark(oklch(96% 0.005 90), rgba(255,255,255,0.04)); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)); border-radius: 8px; padding: 10px 4px;">
+              <div id="calcSavings" style="font: 600 14px 'Geist Mono', monospace; color: #2f9e52;">$144/yr</div>
+              <div style="font-size: 10.5px; color: light-dark(oklch(50% 0.012 90), #828b99);">vs Cloud</div>
+            </div>
+            <div style="background: light-dark(oklch(96% 0.005 90), rgba(255,255,255,0.04)); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12)); border-radius: 8px; padding: 10px 4px;">
+              <div style="font: 600 14px 'Geist Mono', monospace; color: light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254));">0 Bytes</div>
+              <div style="font-size: 10.5px; color: light-dark(oklch(50% 0.012 90), #828b99);">Uploaded</div>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size: 13px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 12px 0 0; line-height: 1.6;">Words dictated, time saved, and transcription latency — tallied locally, never uploaded.</p>
       </div>
     </div>
   </section>
@@ -333,31 +417,36 @@
       <div style="border: 1px solid light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); border-radius: 14px; padding: 28px 26px 24px; position: relative; background: light-dark(oklch(100% 0 0 / 0.35), rgba(20,22,27,0.45));">
         <span style="position: absolute; top: -10px; left: 22px; background: light-dark(oklch(98% 0.007 90), #0a0b0d); padding: 0 10px; font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99);">Your device</span>
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <div class="pipe-node">
-            <span class="pipe-latency">~5ms</span>
+          <div class="pipe-node spotlight-card">
+            <div class="pipe-tooltip"><b>Microphone Input</b><br>16kHz mono PCM stream buffer. Zero audio recorded or cached to disk.</div>
+            <!-- <span class="pipe-latency">~5ms</span> -->
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></svg>
             <b>Microphone</b><span>raw audio</span>
           </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node">
-            <span class="pipe-latency">~10ms</span>
+          <div class="pipe-node spotlight-card">
+            <div class="pipe-tooltip"><b>Silero VAD v4</b><br>On-device Voice Activity Detection. Trims leading and trailing silence instantly.</div>
+            <!-- <span class="pipe-latency">~10ms</span> -->
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>
             <b>VAD</b><span>silence trimmed</span>
           </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node">
-            <span class="pipe-latency">~180ms</span>
+          <div class="pipe-node spotlight-card">
+            <div class="pipe-tooltip"><b>GPU Accelerated ASR</b><br>OpenAI Whisper / Nvidia Parakeet models executing locally on Metal or DirectML.</div>
+            <!-- <span class="pipe-latency">~180ms</span> -->
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v2"></path><path d="M12 2v2"></path><path d="M17 20v2"></path><path d="M17 2v2"></path><path d="M2 12h2"></path><path d="M2 17h2"></path><path d="M2 7h2"></path><path d="M20 12h2"></path><path d="M20 17h2"></path><path d="M20 7h2"></path><path d="M7 20v2"></path><path d="M7 2v2"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>
             <b>Whisper / Parakeet</b><span>ASR · your GPU</span>
           </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node">
-            <span class="pipe-latency">~120ms</span>
+          <div class="pipe-node spotlight-card">
+            <div class="pipe-tooltip"><b>Local LLM Cleanup</b><br>Llama 3.2 or Qwen model via Ollama. Fixes grammar, removes filler words &amp; memory.</div>
+            <!-- <span class="pipe-latency">~120ms</span> -->
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"></path><path d="m14 7 3 3"></path><path d="M5 6v4"></path><path d="M19 14v4"></path><path d="M10 2v2"></path><path d="M7 8H3"></path><path d="M21 16h-4"></path><path d="M11 3H9"></path></svg>
             <b>Ollama LLM</b><span>cleanup · memory</span>
           </div>
           <div class="pipe-arrow" aria-hidden="true">→</div>
-          <div class="pipe-node">
+          <div class="pipe-node spotlight-card">
+            <div class="pipe-tooltip"><b>Synthetic OS Insertion</b><br>Sends native OS keyboard events directly to your active text cursor location.</div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"></path><path d="M7 22h1a4 4 0 0 0 4-4"></path><path d="M7 2h1a4 4 0 0 1 4 4"></path></svg>
             <b>Your cursor</b><span>finished text</span>
           </div>
@@ -636,11 +725,43 @@
     if (soundEnabled) playTick(660, 0.08);
   });
 
-  const demoPairs = [
-    { raw: 'um so the q3 launch uh moves to like the second week of july', clean: 'The Q3 launch moves to the second week of July.' },
-    { raw: 'hey can you uh send me the figma link for the you know onboarding flow', clean: 'Hey — can you send me the Figma link for the onboarding flow?' },
-    { raw: 'lets uh circle back on pricing after the um board meeting on thursday', clean: 'Let’s circle back on pricing after the board meeting on Thursday.' },
-  ];
+  const appProfiles = {
+    notes: {
+      title: 'Notes — Untitled',
+      pairs: [
+        { raw: 'um so the q3 launch uh moves to like the second week of july', clean: 'The Q3 launch moves to the second week of July.' },
+        { raw: 'hey can you uh send me the figma link for the you know onboarding flow', clean: 'Hey — can you send me the Figma link for the onboarding flow?' },
+        { raw: 'lets uh circle back on pricing after the um board meeting on thursday', clean: 'Let’s circle back on pricing after the board meeting on Thursday.' },
+      ]
+    },
+    slack: {
+      title: '#general — Slack',
+      pairs: [
+        { raw: 'hey team uh just pushed the fix for the session timeout issue', clean: 'Hey team, just pushed the fix for the session timeout issue!' },
+        { raw: 'is anyone free to hop on a quick screen share to check this pr', clean: 'Is anyone free to hop on a quick screen share to check this PR?' },
+        { raw: 'yeah we should probably deploy to staging first right', clean: 'Yeah we should probably deploy to staging first right?' }
+      ]
+    },
+    vscode: {
+      title: 'app.rs — VS Code',
+      pairs: [
+        { raw: 'todo refactor audio buffer pipeline to support directml acceleration', clean: '// TODO: Refactor audio buffer pipeline to support DirectML acceleration' },
+        { raw: 'function process audio chunk raw bytes return silence trimmed buffer', clean: 'fn process_audio_chunk(raw_bytes: &[u8]) -> SilenceTrimmedBuffer {' },
+        { raw: 'fix race condition in thread pool shutdown signal handler', clean: '// Fix race condition in thread pool shutdown signal handler' }
+      ]
+    },
+    mail: {
+      title: 'New Message — Outlook',
+      pairs: [
+        { raw: 'hi team following up on the design feedback for the v2 onboarding flow', clean: 'Hi Team,\n\nFollowing up on the design feedback for the v2 onboarding flow. Overall user response has been positive.\n\nBest regards,' },
+        { raw: 'dear board members attached is the quarterly performance summary for review', clean: 'Dear Board Members,\n\nAttached is the quarterly performance summary for your review.\n\nSincerely,' }
+      ]
+    }
+  };
+
+  let activeApp = 'notes';
+  let demoTimer = null;
+  let demoTimeout = null;
 
   function updateHud() {
     hudTilt.style.opacity = hudPhase === 'idle' ? '0' : '1';
@@ -674,8 +795,10 @@
   }
 
   function runDemo() {
+    const pairs = appProfiles[activeApp].pairs;
+
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      demoTyped.textContent = demoPairs[0].clean;
+      demoTyped.textContent = pairs[0].clean;
       demoStatus.textContent = 'typed ✓';
       demoStatus.style.color = '#2f9e52';
       hudPhase = 'notice';
@@ -685,10 +808,13 @@
     }
 
     let idx = 0;
-    let demoTimer, demoTimeout;
 
     function typePair() {
-      const pair = demoPairs[idx % demoPairs.length];
+      if (demoTimer) clearInterval(demoTimer);
+      if (demoTimeout) clearTimeout(demoTimeout);
+
+      const currentPairs = appProfiles[activeApp].pairs;
+      const pair = currentPairs[idx % currentPairs.length];
       idx++;
       let i = 0;
       
@@ -738,6 +864,51 @@
       }, 38);
     }
     typePair();
+  }
+
+  // App Tabs Switcher
+  document.querySelectorAll('.hero-app-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.hero-app-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeApp = tab.dataset.app;
+      const titleEl = document.getElementById('demoTitle');
+      if (titleEl) titleEl.textContent = appProfiles[activeApp].title;
+      runDemo();
+    });
+  });
+
+  // Spotlight halo mouse movement
+  function setupSpotlight() {
+    document.querySelectorAll('.spotlight-card').forEach((card) => {
+      card.addEventListener('mousemove', (e) => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x', (e.clientX - r.left) + 'px');
+        card.style.setProperty('--mouse-y', (e.clientY - r.top) + 'px');
+      });
+    });
+  }
+
+  // Savings Calculator
+  function setupCalculator() {
+    const slider = document.getElementById('calcSlider');
+    const wordVal = document.getElementById('calcWordVal');
+    const hoursVal = document.getElementById('calcHours');
+    const savingsVal = document.getElementById('calcSavings');
+
+    if (!slider) return;
+    slider.addEventListener('input', () => {
+      const words = parseInt(slider.value, 10);
+      wordVal.textContent = words.toLocaleString() + ' words/day';
+      
+      const typingMins = words / 40;
+      const dictationMins = words / 150;
+      const hoursSaved = Math.round((typingMins - dictationMins) * 260 / 60);
+      hoursVal.textContent = hoursSaved + ' hrs';
+
+      const dollarsSaved = Math.round(words * 0.096);
+      savingsVal.textContent = '$' + Math.max(120, dollarsSaved) + '/yr';
+    });
   }
 
   function startWave() {
@@ -969,6 +1140,8 @@
   setupReveal();
   setupTilt();
   setupHeroStreaks();
+  setupSpotlight();
+  setupCalculator();
   runDemo();
 </script>
 </body>
