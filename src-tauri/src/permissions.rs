@@ -35,33 +35,9 @@ pub fn input_monitoring_trusted() -> bool {
 }
 
 #[cfg(target_os = "macos")]
-fn get_av_media_type_audio() -> Option<*const objc2::runtime::AnyObject> {
-    extern "C" {
-        fn dlopen(path: *const std::ffi::c_char, mode: std::ffi::c_int) -> *mut std::ffi::c_void;
-        fn dlsym(handle: *mut std::ffi::c_void, symbol: *const std::ffi::c_char) -> *mut std::ffi::c_void;
-        fn dlclose(handle: *mut std::ffi::c_void) -> std::ffi::c_int;
-    }
-    unsafe {
-        let handle = dlopen(
-            c"/System/Library/Frameworks/AVFoundation.framework/AVFoundation".as_ptr(),
-            1, // RTLD_LAZY
-        );
-        if handle.is_null() {
-            return None;
-        }
-        let sym = dlsym(handle, c"AVMediaTypeAudio".as_ptr());
-        if sym.is_null() {
-            dlclose(handle);
-            return None;
-        }
-        let media_type_ptr = *(sym as *const *const objc2::runtime::AnyObject);
-        dlclose(handle);
-        if media_type_ptr.is_null() {
-            None
-        } else {
-            Some(media_type_ptr)
-        }
-    }
+#[link(name = "AVFoundation", kind = "framework")]
+unsafe extern "C" {
+    static AVMediaTypeAudio: *const objc2::runtime::AnyObject;
 }
 
 #[cfg(target_os = "macos")]
@@ -70,13 +46,10 @@ pub fn microphone_authorized() -> bool {
     use objc2::runtime::AnyClass;
 
     unsafe {
-        let Some(media_type_ptr) = get_av_media_type_audio() else {
-            return true;
-        };
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
             return true;
         };
-        let status: i64 = msg_send![cls, authorizationStatusForMediaType: media_type_ptr];
+        let status: i64 = msg_send![cls, authorizationStatusForMediaType: AVMediaTypeAudio];
         // AVAuthorizationStatus: notDetermined=0, restricted=1, denied=2, authorized=3.
         status == 3
     }
@@ -84,32 +57,39 @@ pub fn microphone_authorized() -> bool {
 
 #[cfg(target_os = "macos")]
 pub fn request_microphone_permission() -> bool {
+    use block2::RcBlock;
     use objc2::msg_send;
     use objc2::runtime::AnyClass;
+    use std::sync::mpsc;
+    use std::time::Duration;
 
     unsafe {
-        let Some(media_type_ptr) = get_av_media_type_audio() else {
-            return true;
-        };
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
             return true;
         };
-        let status: i64 = msg_send![cls, authorizationStatusForMediaType: media_type_ptr];
+        let status: i64 = msg_send![cls, authorizationStatusForMediaType: AVMediaTypeAudio];
         if status == 3 {
             return true;
         }
 
-        // Force host audio input query to nudge macOS TCC prompt if notDetermined
-        use cpal::traits::HostTrait;
-        if let Ok(devices) = cpal::default_host().input_devices() {
-            let _ = devices.count();
+        if status == 0 {
+            // Not determined: prompt the system permission dialog for Microphone access
+            let (tx, rx) = mpsc::channel();
+            let block = RcBlock::new(move |granted: objc2::runtime::Bool| {
+                let _ = tx.send(granted.as_bool());
+            });
+            let _: () = msg_send![cls, requestAccessForMediaType: AVMediaTypeAudio, completionHandler: &*block];
+
+            let granted = rx.recv_timeout(Duration::from_secs(30)).unwrap_or(false);
+            if !granted {
+                let _ = open_microphone_settings();
+            }
+            return granted;
         }
 
-        let status_after: i64 = msg_send![cls, authorizationStatusForMediaType: media_type_ptr];
-        if status_after != 3 {
-            let _ = open_microphone_settings();
-        }
-        status_after == 3
+        // Status is denied (2) or restricted (1): open privacy settings directly
+        let _ = open_microphone_settings();
+        false
     }
 }
 
