@@ -217,6 +217,11 @@
 //!
 //! Event data returned by the `listen` and `grab` functions can be serialized and de-serialized with
 //! Serde if you install this library with the `serialize` feature.
+
+// Vendored fork — upstream has since removed/reworked these paths; suppressing
+// rather than editing FFI/keyboard-state internals we didn't write.
+#![allow(dead_code, unused_variables, improper_ctypes_definitions, static_mut_refs)]
+
 mod rdev;
 pub use crate::rdev::{
     Button, DisplayError, Event, EventType, GrabCallback, GrabError, Key, KeyboardState,

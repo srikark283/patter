@@ -89,7 +89,7 @@ pub type QCallback = unsafe extern "C" fn(
 pub unsafe fn convert(
     _type: CGEventType,
     cg_event: &CGEvent,
-    keyboard_state: &mut Keyboard,
+    _keyboard_state: &mut Keyboard,
 ) -> Option<Event> {
     let option_type = match _type {
         CGEventType::LeftMouseDown => Some(EventType::ButtonPress(Button::Left)),
