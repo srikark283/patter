@@ -368,6 +368,19 @@ pub fn get_active_engine(app: tauri::AppHandle) -> Option<String> {
     app.state::<AppState>().active_engine_id.lock().unwrap().clone()
 }
 
+#[cfg(target_os = "macos")]
+pub fn activate_app() {
+    use objc2_app_kit::NSApplication;
+    use objc2_foundation::MainThreadMarker;
+    if let Some(mtm) = MainThreadMarker::new() {
+        let app = NSApplication::sharedApplication(mtm);
+        app.activate();
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn activate_app() {}
+
 #[tauri::command]
 pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
     // Menubar app normally hides from the Dock; show while the dashboard is
@@ -376,8 +389,13 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     // Re-apply after the Dock tile exists — a set made under Accessory can be dropped.
     apply_dock_icon();
+    activate_app();
 
-    if app.get_webview_window("dashboard").is_none() {
+    if let Some(window) = app.get_webview_window("dashboard") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    } else {
         #[allow(unused_mut)]
         let mut builder = tauri::WebviewWindowBuilder::new(&app, "dashboard", WebviewUrl::App("dashboard.html".into()))
             .title("Patter Dashboard")
@@ -391,12 +409,13 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
                 .hidden_title(true);
         }
 
-        let _window = builder.build().map_err(|e| e.to_string())?;
+        let window = builder.build().map_err(|e| e.to_string())?;
 
         #[cfg(target_os = "macos")]
-        let _ = apply_vibrancy(&_window, NSVisualEffectMaterial::UnderWindowBackground, None, None);
-    } else {
-        app.get_webview_window("dashboard").unwrap().set_focus().unwrap();
+        let _ = apply_vibrancy(&window, NSVisualEffectMaterial::UnderWindowBackground, None, None);
+
+        let _ = window.show();
+        let _ = window.set_focus();
     }
     Ok(())
 }

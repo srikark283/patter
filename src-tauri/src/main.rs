@@ -275,6 +275,17 @@ fn main() {
                 .icon_as_template(true)
                 .menu(&tray::build_menu(app.handle())?)
                 .on_menu_event(|app, event| tray::on_menu_event(app, event))
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        let _ = commands::open_dashboard(app.clone());
+                    }
+                })
                 .build(app)?;
 
             if hotkey_str.contains('+') {

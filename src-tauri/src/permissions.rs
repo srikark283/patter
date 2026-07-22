@@ -35,17 +35,48 @@ pub fn input_monitoring_trusted() -> bool {
 }
 
 #[cfg(target_os = "macos")]
+fn get_av_media_type_audio() -> Option<*const objc2::runtime::AnyObject> {
+    extern "C" {
+        fn dlopen(path: *const std::ffi::c_char, mode: std::ffi::c_int) -> *mut std::ffi::c_void;
+        fn dlsym(handle: *mut std::ffi::c_void, symbol: *const std::ffi::c_char) -> *mut std::ffi::c_void;
+        fn dlclose(handle: *mut std::ffi::c_void) -> std::ffi::c_int;
+    }
+    unsafe {
+        let handle = dlopen(
+            c"/System/Library/Frameworks/AVFoundation.framework/AVFoundation".as_ptr(),
+            1, // RTLD_LAZY
+        );
+        if handle.is_null() {
+            return None;
+        }
+        let sym = dlsym(handle, c"AVMediaTypeAudio".as_ptr());
+        if sym.is_null() {
+            dlclose(handle);
+            return None;
+        }
+        let media_type_ptr = *(sym as *const *const objc2::runtime::AnyObject);
+        dlclose(handle);
+        if media_type_ptr.is_null() {
+            None
+        } else {
+            Some(media_type_ptr)
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
 pub fn microphone_authorized() -> bool {
     use objc2::msg_send;
     use objc2::runtime::AnyClass;
-    use objc2_foundation::NSString;
 
     unsafe {
+        let Some(media_type_ptr) = get_av_media_type_audio() else {
+            return true;
+        };
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
             return true;
         };
-        let media_type = NSString::from_str("avft");
-        let status: i64 = msg_send![cls, authorizationStatusForMediaType: &*media_type];
+        let status: i64 = msg_send![cls, authorizationStatusForMediaType: media_type_ptr];
         // AVAuthorizationStatus: notDetermined=0, restricted=1, denied=2, authorized=3.
         status == 3
     }
@@ -55,14 +86,15 @@ pub fn microphone_authorized() -> bool {
 pub fn request_microphone_permission() -> bool {
     use objc2::msg_send;
     use objc2::runtime::AnyClass;
-    use objc2_foundation::NSString;
 
     unsafe {
+        let Some(media_type_ptr) = get_av_media_type_audio() else {
+            return true;
+        };
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
             return true;
         };
-        let media_type = NSString::from_str("avft");
-        let status: i64 = msg_send![cls, authorizationStatusForMediaType: &*media_type];
+        let status: i64 = msg_send![cls, authorizationStatusForMediaType: media_type_ptr];
         if status == 3 {
             return true;
         }
@@ -73,7 +105,10 @@ pub fn request_microphone_permission() -> bool {
             let _ = devices.count();
         }
 
-        let status_after: i64 = msg_send![cls, authorizationStatusForMediaType: &*media_type];
+        let status_after: i64 = msg_send![cls, authorizationStatusForMediaType: media_type_ptr];
+        if status_after != 3 {
+            let _ = open_microphone_settings();
+        }
         status_after == 3
     }
 }
@@ -90,21 +125,11 @@ pub fn request_microphone_permission() -> bool {
 
 #[cfg(target_os = "macos")]
 pub fn request_accessibility_permission() -> bool {
-    use objc2_foundation::{NSDictionary, NSNumber, NSString};
-    unsafe {
-        #[link(name = "ApplicationServices", kind = "framework")]
-        extern "C" {
-            fn AXIsProcessTrustedWithOptions(options: *const objc2::runtime::AnyObject) -> u8;
-        }
-        let key = NSString::from_str("AXTrustedCheckOptionPrompt");
-        let val = NSNumber::numberWithBool(true);
-        let dict = NSDictionary::from_slices(&[&*key], &[&*val]);
-        let trusted = AXIsProcessTrustedWithOptions(&*dict as *const _ as *const _) != 0;
-        if !trusted {
-            let _ = open_accessibility_settings();
-        }
-        trusted
+    let trusted = crate::paste::accessibility_trusted();
+    if !trusted {
+        let _ = open_accessibility_settings();
     }
+    trusted
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -114,17 +139,11 @@ pub fn request_accessibility_permission() -> bool {
 
 #[cfg(target_os = "macos")]
 pub fn request_input_monitoring_permission() -> bool {
-    unsafe {
-        #[link(name = "ApplicationServices", kind = "framework")]
-        extern "C" {
-            fn CGRequestListenEventAccess() -> u8;
-        }
-        let trusted = CGRequestListenEventAccess() != 0;
-        if !trusted {
-            let _ = open_input_monitoring_settings();
-        }
-        trusted
+    let trusted = input_monitoring_trusted();
+    if !trusted {
+        let _ = open_input_monitoring_settings();
     }
+    trusted
 }
 
 #[cfg(not(target_os = "macos"))]
