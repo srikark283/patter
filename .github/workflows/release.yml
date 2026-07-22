@@ -31,14 +31,41 @@ jobs:
 
       - run: npm ci
 
+      # Self-signed (not Apple Developer ID) codesigning, macOS only. Without
+      # this, every release is signed ad-hoc with a fresh identity each build,
+      # so macOS TCC treats each update as a "new app" and drops the user's
+      # Accessibility/Input Monitoring grants — this keeps the signing identity
+      # stable across releases so those grants survive updates. Gatekeeper's
+      # "unidentified developer" warning is unaffected; that needs a paid
+      # Apple Developer ID + notarization, which this is not.
+      - name: Import macOS signing certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          CERT_PATH=$RUNNER_TEMP/cert.p12
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
       # Builds the .app/.dmg, plus .app.tar.gz + .sig updater artifacts and
-      # latest.json (createUpdaterArtifacts). No Apple signing — the DMG is
-      # unsigned; the updater verifies its own minisign signature instead.
+      # latest.json (createUpdaterArtifacts). Self-signed on macOS (see above)
+      # — still not notarized, so Gatekeeper still flags it as unidentified.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && 'Patter Local Signing' || '' }}
           # M1 baseline: avoids ggml i8mm always_inline build break on the
           # runner's Xcode clang, and keeps the binary running on every
           # Apple Silicon Mac (i8mm only exists on M2+).
