@@ -23,7 +23,7 @@ use tauri::tray::TrayIconBuilder;
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{tauri_panel, PanelBuilder, PanelLevel};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-use rdev::{Event, EventType, Button};
+use rdev::{Event, EventType};
 
 #[cfg(target_os = "macos")]
 tauri_panel! {
@@ -42,7 +42,8 @@ fn main() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_notification::init());
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init());
 
     #[cfg(target_os = "macos")]
     {
@@ -417,6 +418,9 @@ fn main() {
             commands::clear_history,
             commands::delete_history_record,
             commands::update_history_record,
+            commands::export_data,
+            commands::import_data,
+            commands::is_recording,
             commands::cancel_dictation,
             commands::open_dashboard,
                                                 commands::list_ollama_models,

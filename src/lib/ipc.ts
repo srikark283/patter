@@ -224,14 +224,12 @@ export function restartApp() {
   return invoke<void>("restart_app");
 }
 
-export async function searchHistory(query: string): Promise<{ record: TranscriptionRecord; score: number }[]> {
-  return invoke("search_history", { query });
+/** Opens a native save dialog; resolves false if the user cancels. */
+export function exportData() {
+  return invoke<boolean>("export_data");
 }
 
-export async function searchMeetings(query: string): Promise<{ record: MeetingRecord; score: number }[]> {
-  return invoke("search_meetings", { query });
-}
-
-export async function getIndexingStatus(): Promise<boolean> {
-  return invoke('get_indexing_status');
+/** Opens a native file-picker dialog; resolves false if the user cancels. */
+export function importData() {
+  return invoke<boolean>("import_data");
 }

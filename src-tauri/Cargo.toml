@@ -26,6 +26,7 @@ window-vibrancy = "0.7"
 rdev = { path = "./rdev-local" }
 base64 = "0.22.1"
 tokio = { version = "1.53.1", features = ["time", "sync", "macros"] }
+tauri-plugin-dialog = "2"
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
  

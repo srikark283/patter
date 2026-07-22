@@ -254,6 +254,61 @@ pub fn update_history_record(app: tauri::AppHandle, id: String, text: String) ->
 }
 
 #[tauri::command]
+pub async fn export_data(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let db = db::Db::new(&app);
+    let backup = db::Backup {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        exported_at_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64,
+        settings: db.get_settings(),
+        history: db.get_history(),
+        meetings: db.get_meetings(),
+    };
+    let json = serde_json::to_string_pretty(&backup).map_err(|e| e.to_string())?;
+
+    let Some(file_path) = app
+        .dialog()
+        .file()
+        .set_file_name("patter-backup.json")
+        .add_filter("JSON", &["json"])
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
+    let path = file_path.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn import_data(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let Some(file_path) = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .blocking_pick_file()
+    else {
+        return Ok(false);
+    };
+    let path = file_path.into_path().map_err(|e| e.to_string())?;
+    let json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let backup: db::Backup = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+
+    let db = db::Db::new(&app);
+    db.save_settings(&backup.settings);
+    db.save_history(&backup.history);
+    db.save_meetings(&backup.meetings);
+    let _ = app.emit("patter://db_updated", ());
+    Ok(true)
+}
+
+#[tauri::command]
 pub fn is_recording(app: tauri::AppHandle) -> bool {
     app.state::<AppState>().is_recording.load(Ordering::SeqCst)
 }
@@ -425,7 +480,6 @@ pub fn apply_dock_icon() {}
 #[cfg(target_os = "macos")]
 pub async fn get_app_icon(app_name: String) -> Result<Vec<u8>, String> {
     use std::process::Command;
-    use std::path::PathBuf;
     use std::fs;
 
     let safe_name: String = app_name

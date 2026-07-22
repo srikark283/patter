@@ -1,12 +1,13 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck, Video, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck, Video, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2 } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
-import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, openInputMonitoringSettings, openMicrophoneSettings, openNotificationSettings } from "../../../lib/ipc";
+import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, openInputMonitoringSettings, openMicrophoneSettings, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { PageHeader } from "../components/PageHeader";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -15,6 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const MODES = [
   {
@@ -114,6 +123,9 @@ export function PreferencesView() {
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [permissions, setPermissions] = useState<PermissionStatus | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [confirmImportOpen, setConfirmImportOpen] = useState(false);
 
   useEffect(() => {
     getSettings().then(setSettings).catch(console.error);
@@ -141,6 +153,34 @@ export function PreferencesView() {
       toast.error("Update check failed: " + e);
     } finally {
       setCheckingUpdate(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const saved = await exportData();
+      if (saved) toast.success("Data exported");
+    } catch (e) {
+      toast.error("Export failed: " + e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const confirmImport = async () => {
+    setImporting(true);
+    try {
+      const imported = await importData();
+      setConfirmImportOpen(false);
+      if (imported) {
+        toast.success("Data imported — reloading");
+        window.location.reload();
+      }
+    } catch (e) {
+      toast.error("Import failed: " + e);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -578,6 +618,50 @@ export function PreferencesView() {
           />
         </div>
       </section>
+
+      <section className="space-y-4">
+        <span className="t-label block px-1 pb-1">Data</span>
+        <div className="bg-card ring-1 ring-border rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-medium text-foreground/90">Backup &amp; restore</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                Export settings, dictionary, snippets, memory, history, and meetings to a single file — or restore from one.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+                {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                Export
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setConfirmImportOpen(true)}>
+                <Upload size={14} />
+                Import
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Dialog open={confirmImportOpen} onOpenChange={setConfirmImportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replace all data with a backup?</DialogTitle>
+            <DialogDescription>
+              You'll be asked to pick a backup file. Its contents overwrite your current settings, dictionary, snippets, memory, history, and meetings. This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmImportOpen(false)} disabled={importing}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmImport} disabled={importing}>
+              {importing && <Loader2 size={14} className="animate-spin" />}
+              Choose File &amp; Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Privacy</span>

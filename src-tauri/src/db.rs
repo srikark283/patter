@@ -164,6 +164,15 @@ pub struct TranscriptionRecord {
     pub app_name: Option<String>,
     }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Backup {
+    pub version: String,
+    pub exported_at_ms: u64,
+    pub settings: Settings,
+    pub history: Vec<TranscriptionRecord>,
+    pub meetings: Vec<MeetingRecord>,
+}
+
 pub struct Db {
     data_dir: PathBuf,
 }
