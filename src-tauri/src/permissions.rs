@@ -36,6 +36,10 @@ pub fn input_monitoring_trusted() -> bool {
 
 
 #[cfg(target_os = "macos")]
+#[link(name = "AVFoundation", kind = "framework")]
+extern "C" {}
+
+#[cfg(target_os = "macos")]
 pub fn microphone_authorized() -> bool {
     use objc2::msg_send;
     use objc2::runtime::AnyClass;
@@ -43,7 +47,7 @@ pub fn microphone_authorized() -> bool {
 
     unsafe {
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
-            return true;
+            return false;
         };
         let media_type = NSString::from_str("soun");
         let status: i64 = msg_send![cls, authorizationStatusForMediaType: &*media_type];
@@ -63,7 +67,7 @@ pub fn request_microphone_permission() -> bool {
 
     unsafe {
         let Some(cls) = AnyClass::get(c"AVCaptureDevice") else {
-            return true;
+            return false;
         };
         let media_type = NSString::from_str("soun");
         let status: i64 = msg_send![cls, authorizationStatusForMediaType: &*media_type];
