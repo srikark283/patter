@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy - Patter</title>
+<link rel="icon" href="logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    var saved = localStorage.getItem('patter-theme');
+    if (saved === 'light' || saved === 'dark') {
+      document.documentElement.style.colorScheme = saved;
+    }
+  })();
+</script>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; color-scheme: light dark; overflow-x: hidden; }
+  body {
+    margin: 0; background-color: light-dark(oklch(98% 0.007 90), #0a0b0d); color: light-dark(oklch(22% 0.008 90), #e7eaee);
+    font-family: 'Geist', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6;
+    background-image:
+      radial-gradient(ellipse 900px 500px at 12% -6%, light-dark(oklch(50% 0.09 254 / 0.06), oklch(68% 0.11 254 / 0.06)), transparent 60%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+  a { color: light-dark(oklch(45% 0.09 254), oklch(68% 0.1 254)); }
+  a:hover { color: light-dark(oklch(35% 0.1 254), oklch(75% 0.1 254)); }
+  .nav-link { text-decoration: none; color: light-dark(oklch(45% 0.012 90), #828b99); transition: color .2s ease; }
+  .nav-link:hover { color: light-dark(oklch(22% 0.008 90), #e7eaee); }
+  .nav-cta { text-decoration: none; color: light-dark(oklch(22% 0.008 90), #e7eaee); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); border-radius: 999px; padding: 7px 16px; transition: background .2s ease, color .2s ease, transform .2s ease; }
+  .nav-cta:hover { background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); transform: translateY(-1px); }
+</style>
+</head>
+<body>
+
+<nav style="position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: light-dark(oklch(98% 0.007 90 / 0.7), rgba(10,11,13,0.7)); border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.08));">
+  <div style="max-width: 1040px; margin: 0 auto; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between;">
+    <a href="index.html" style="text-decoration: none; color: inherit; font: 600 19px 'Geist', sans-serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
+      <img src="logo.png" alt="" style="width: 28px; height: 28px; border-radius: 7px;"> Patter
+    </a>
+    <div style="display: flex; gap: 28px; align-items: center; font-size: 13.5px;">
+      <a href="index.html#features" class="nav-link">Features</a>
+      <a href="index.html#models" class="nav-link">Models</a>
+      <a href="index.html#faq" class="nav-link">FAQ</a>
+      <a href="index.html#install" class="nav-link">Install</a>
+      <a href="privacy.html" class="nav-link" style="color: light-dark(oklch(22% 0.008 90), #e7eaee);">Privacy</a>
+    </div>
+  </div>
+</nav>
+
+<div style="max-width: 800px; margin: 0 auto; padding: 80px 32px 120px;">
+  <h1 style="font: 500 clamp(32px, 4vw, 48px)/1.1 'Geist', sans-serif; letter-spacing: -0.02em; margin: 0 0 16px;">Privacy Policy</h1>
+  <p style="font-size: 15px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 48px;">Last Updated: July 2026</p>
+  
+  <div style="font-size: 16px; color: light-dark(oklch(35% 0.012 90), #c7ccd4); line-height: 1.7;">
+    <p style="margin: 0 0 28px;">Patter is designed from the ground up to be completely private by default. This policy applies to the Patter desktop applications (macOS and Windows) and the Patter companion Android app. We believe that your voice, your conversations, and your personal data belong to you.</p>
+
+    <h2 style="font: 600 20px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee); margin: 48px 0 16px; letter-spacing: -0.01em;">1. On-Device Processing</h2>
+    <p style="margin: 0 0 28px;">Whether you are using Patter on your desktop or our companion Android app, <strong>all audio processing, transcription, and AI cleanup happen locally on your device</strong>. The transcription models (OpenAI Whisper and Nvidia Parakeet) and the LLM (Ollama) execute directly on your device's hardware. Your audio data is never streamed to, processed by, or stored on any external servers.</p>
+
+    <h2 style="font: 600 20px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee); margin: 48px 0 16px; letter-spacing: -0.01em;">2. Data Storage &amp; Collection</h2>
+    <p style="margin: 0 0 16px;"><strong>Zero Telemetry:</strong> Patter does not collect usage analytics, crash reports, or any form of telemetry. We have no way of knowing how you use the app, when you use it, or what you say.</p>
+    <p style="margin: 0 0 28px;"><strong>Local Storage Only:</strong> Any data generated by Patter—including your transcribed text, custom profiles, voice macros, and personal memory embeddings—is saved strictly on your local disk or Android device storage. You have full ownership and control over this data and can delete it at any time.</p>
+
+    <h2 style="font: 600 20px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee); margin: 48px 0 16px; letter-spacing: -0.01em;">3. Android Companion App</h2>
+    <p style="margin: 0 0 16px;">The Patter companion Android app is built with the same privacy-first philosophy as the desktop version. It runs its own local instances of speech models (like Open Whisper or Parakeet) so that speech-to-text processing occurs directly on your smartphone.</p>
+    <ul style="margin: 0 0 28px; padding-left: 20px;">
+      <li style="margin-bottom: 8px;"><strong>Local Transcription:</strong> When you select a text box and trigger the recording UI, your voice is captured and transcribed entirely by the model running on your Android device.</li>
+      <li style="margin-bottom: 8px;"><strong>Microphone Access:</strong> The app requires microphone permission strictly for capturing speech during active dictation. It does not record in the background without your explicit action.</li>
+      <li style="margin-bottom: 8px;"><strong>No Cloud APIs:</strong> Patter does not use cloud speech APIs or Android's built-in cloud dictation services. All inference is done on-device, meaning your voice data never leaves your phone.</li>
+    </ul>
+
+    <h2 style="font: 600 20px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee); margin: 48px 0 16px; letter-spacing: -0.01em;">4. Third-Party Services</h2>
+    <p style="margin: 0 0 28px;">Because Patter operates entirely offline after the initial model downloads, it does not share your information with third-party services, advertisers, or cloud providers. Downloading models (like Whisper or Ollama) involves fetching data from standard public repositories (like GitHub or HuggingFace) during setup, but your personal usage data is never sent to them.</p>
+
+    <h2 style="font: 600 20px 'Geist', sans-serif; color: light-dark(oklch(22% 0.008 90), #e7eaee); margin: 48px 0 16px; letter-spacing: -0.01em;">5. Changes to this Policy</h2>
+    <p style="margin: 0 0 0;">If we ever add features that require network access (e.g., an optional cloud backup feature), this policy will be updated to reflect those changes, and any such features will be strictly opt-in.</p>
+  </div>
+</div>
+
+</body>
+</html>
