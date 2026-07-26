@@ -188,7 +188,7 @@
     <div style="display: flex; gap: 28px; align-items: center; font-size: 13.5px;">
       <a href="#features" class="nav-link">Features</a>
       <a href="#models" class="nav-link">Models</a>
-      <a href="#android" class="nav-link">Android</a>
+      <a href="android.html" class="nav-link">Android</a>
       <a href="#faq" class="nav-link">FAQ</a>
       <a href="#install" class="nav-link">Install</a>
       <a href="privacy.html" class="nav-link">Privacy</a>
@@ -227,9 +227,10 @@
       <div style="display: flex; gap: 16px; margin-top: 32px; flex-wrap: wrap; align-items: center;">
         <a id="primaryDownload" href="https://github.com/srikark283/patter/releases/latest" class="download-btn">Download for macOS</a>
         <a id="secondaryDownload" href="https://github.com/srikark283/patter/releases/latest" class="download-btn-secondary">Download for Windows</a>
+        <a id="androidDownload" href="https://github.com/srikark283/patter/releases?q=android&amp;expanded=true" class="download-btn-secondary">Download APK</a>
         <a href="#install" class="install-link">Install with one command</a>
       </div>
-      <p style="margin-top: 22px; font-size: 12.5px; color: light-dark(oklch(48% 0.012 90), #828b99);">macOS 11+ (Apple Silicon) &amp; Windows 10+ (x64) · Free &amp; open source · <a href="#android" style="color: inherit;">Android companion app</a></p>
+      <p style="margin-top: 22px; font-size: 12.5px; color: light-dark(oklch(48% 0.012 90), #828b99);">macOS 11+ (Apple Silicon) &amp; Windows 10+ (x64) · Free &amp; open source · <a href="android.html" style="color: inherit;">Android companion app</a></p>
     </div>
   </header>
 
@@ -557,59 +558,7 @@
     <p style="font-size: 13px; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 18px 0 0; line-height: 1.6;">Fair's fair: cloud tools need no GPU and set up in seconds. Patter asks for one model download and an optional Ollama install — and never asks for anything again.</p>
   </section>
 
-  <section id="android" class="reveal-section" style="padding: 0 32px 96px; max-width: 1040px; margin: 0 auto; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
-    <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 16px;">Android</p>
-    <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 20px;">The same idea, in your pocket</h2>
-    <p style="text-align: center; max-width: 620px; margin: 0 auto 44px; font-size: 15.5px; line-height: 1.75; color: light-dark(oklch(35% 0.012 90), #c7ccd4);">
-      Patter for Android is a companion app, not a remote control — it runs its own Whisper or
-      Parakeet model on the phone. Tap the floating bubble in any app, speak, and the text lands in
-      whatever field you're in. No account, no server, works on a plane.
-    </p>
 
-    <div style="display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; margin-bottom: 52px;">
-      <img src="android/home.png" alt="Dictate into any app — the Android home screen, showing word count, dictation count and a streak" width="440" height="782" loading="lazy" style="width: 220px; height: auto; border-radius: 14px; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); box-shadow: 0 14px 34px light-dark(oklch(22% 0.008 90 / 0.14), rgba(0,0,0,0.4));">
-      <img src="android/transcripts.png" alt="Every word, kept on device — a list of saved transcripts" width="440" height="782" loading="lazy" style="width: 220px; height: auto; border-radius: 14px; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); box-shadow: 0 14px 34px light-dark(oklch(22% 0.008 90 / 0.14), rgba(0,0,0,0.4));">
-      <img src="android/macros.png" alt="Say less, type more — voice macros expanding a spoken phrase into longer text" width="440" height="782" loading="lazy" style="width: 220px; height: auto; border-radius: 14px; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); box-shadow: 0 14px 34px light-dark(oklch(22% 0.008 90 / 0.14), rgba(0,0,0,0.4));">
-    </div>
-
-    <div class="android-cols" style="display: grid; grid-template-columns: 1fr 1px 1fr; gap: 44px; align-items: start;">
-      <div>
-        <h3 style="font: 600 17px 'Geist', sans-serif; margin: 0 0 18px; letter-spacing: -0.01em;">Installing the APK</h3>
-        <ol style="margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: light-dark(oklch(42% 0.012 90), #c7ccd4);">
-          <li>Download <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">Patter.apk</code> and tap it. Allow installing from unknown sources if asked.</li>
-          <li>Open Patter once and grant microphone access.</li>
-          <li>Settings → Apps → Patter → <strong>⋮ → Allow restricted settings</strong>.</li>
-          <li>Settings → Accessibility → Patter → turn it on.</li>
-          <li>Back in Patter, download a speech model. One time, then it's offline forever.</li>
-        </ol>
-        <p style="font-size: 12.5px; color: light-dark(oklch(48% 0.012 90), #828b99); margin: 18px 0 0; line-height: 1.7;">
-          Step 3 is the one everyone gets stuck on. Android hides the accessibility toggle for apps
-          installed outside an app store, so without it step 4 is greyed out and Patter looks broken.
-        </p>
-      </div>
-      <div style="width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)) 15%, light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)) 85%, transparent);"></div>
-      <div>
-        <h3 style="font: 600 17px 'Geist', sans-serif; margin: 0 0 18px; letter-spacing: -0.01em;">Why the extra steps</h3>
-        <p style="font-size: 13.5px; line-height: 1.7; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0 0 16px;">
-          Patter types for you, which on Android means using the accessibility service — the same
-          mechanism screen readers use. That's a powerful permission, so the system deliberately
-          makes it awkward to grant for sideloaded apps. Patter only reads the text field you're
-          focused on, and only to insert what you dictated.
-        </p>
-        <p style="font-size: 13.5px; line-height: 1.7; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0;">
-          If you have a computer handy, <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">adb install -i com.android.vending -r Patter.apk</code>
-          skips steps 3 and 4 entirely.
-        </p>
-      </div>
-    </div>
-
-    <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; align-items: center; margin-top: 44px;">
-      <a id="androidDownload" href="https://github.com/srikark283/patter/releases?q=android&amp;expanded=true" class="download-btn">Download the APK</a>
-    </div>
-    <p style="text-align: center; margin-top: 20px; font-size: 12.5px; color: light-dark(oklch(48% 0.012 90), #828b99);">
-      Android 7.0+ · 64-bit ARM · ~34 MB · Not on the Play Store yet<span id="androidVersion"></span>
-    </p>
-  </section>
 
   <section id="faq" class="reveal-section" style="padding: 0 32px 96px; max-width: 840px; margin: 0 auto; opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);">
     <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 16px;">FAQ</p>
