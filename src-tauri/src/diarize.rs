@@ -123,6 +123,8 @@ pub fn diarize_and_transcribe(
         let text = {
             let mut lock = engine.lock().unwrap();
             let eng = lock.as_mut().ok_or("no model loaded")?;
+            // Engine is shared with dictation — room audio is not whispered.
+            eng.set_whisper_mode(false);
             eng.transcribe(&audio[s..e], None, Some(language))
         };
         match text {

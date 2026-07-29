@@ -12,6 +12,58 @@ use tauri::{Emitter, Manager};
 
 const WHISPER_SAMPLE_RATE: u32 = 16_000;
 
+/// RMS the ASR models are happiest with (~-20 dBFS). Whispered speech lands
+/// two orders of magnitude below this, deep in the log-mel floor.
+const TARGET_RMS: f32 = 0.1;
+/// Ceiling on the boost, so a near-silent recording turns into quiet noise
+/// rather than a wall of amplified room tone.
+const MAX_GAIN: f32 = 30.0;
+/// Below this RMS there is no speech in the buffer at all — don't amplify it.
+const MIN_BOOSTABLE_RMS: f32 = 0.0004;
+
+/// Band level above which normal speech is assumed to be happening.
+const SPEECH_THRESHOLD: f32 = 0.005;
+/// Floor for whisper mode's adaptive threshold, for rooms quiet enough that
+/// three times the noise floor would be below the microphone's own hiss.
+const WHISPER_MIN_THRESHOLD: f32 = 0.0003;
+/// Frames of `LEVEL_INTERVAL_MS` used to sample the room's noise floor.
+const CALIBRATION_FRAMES: u32 = 10;
+const LEVEL_INTERVAL_MS: u64 = 33;
+/// Whispering barely moves the HUD meter; scale it so the user can still see
+/// the app is hearing them.
+const HUD_WHISPER_GAIN: f32 = 8.0;
+
+/// RMS of the loudest tenth of the buffer rather than of the whole clip.
+/// A whole-clip average is dominated by the pauses and the silence before the
+/// first word, which drags the gain up and amplifies room noise instead of the
+/// voice. The 90th-percentile frame is the speech.
+fn speech_rms(audio: &[f32], frame: usize) -> f32 {
+    let frame = frame.max(1);
+    let mut frames: Vec<f32> = audio
+        .chunks(frame)
+        .map(|c| (c.iter().map(|s| s * s).sum::<f32>() / c.len() as f32).sqrt())
+        .collect();
+    if frames.is_empty() {
+        return 0.0;
+    }
+    frames.sort_by(f32::total_cmp);
+    frames[frames.len() * 9 / 10]
+}
+
+/// Gain to bring `rms` up to `TARGET_RMS` without pushing `peak` into clipping.
+/// Returns 1.0 when the buffer is too quiet to be anything but noise.
+fn boost_gain(rms: f32, peak: f32) -> f32 {
+    if rms < MIN_BOOSTABLE_RMS || peak <= 0.0 {
+        return 1.0;
+    }
+    let gain = (TARGET_RMS / rms).min(MAX_GAIN);
+    if peak * gain > 0.95 {
+        (0.95 / peak).max(1.0)
+    } else {
+        gain.max(1.0)
+    }
+}
+
 fn play_system_sound(app: &tauri::AppHandle, event_type: &str) {
     let _ = app.emit("play_sound", event_type);
 }
@@ -81,7 +133,8 @@ pub fn start_recording(app: &tauri::AppHandle) {
     let is_rec = state.is_recording.clone();
     let captured = state.captured.clone();
 
-    let max_silence_frames = (settings.silence_timeout_ms / 33).max(15); // min 0.5s
+    let max_silence_frames = (settings.silence_timeout_ms / LEVEL_INTERVAL_MS as u32).max(15); // min 0.5s
+    let whisper_mode = settings.whisper_mode;
 
     thread::spawn(move || {
         let mut planner = FftPlanner::new();
@@ -89,9 +142,16 @@ pub fn start_recording(app: &tauri::AppHandle) {
 
         let mut speech_detected = false;
         let mut silence_frames = 0;
+        // A fixed cutoff never fires for whispered speech, so the silence
+        // timeout never arms and recording runs until the hotkey stops it.
+        // Whisper mode tracks the actual room instead: the quietest of the
+        // first ~330ms is the noise floor, and speech is what rises above it.
+        let mut calibration_frames = 0u32;
+        let mut noise_floor = f32::MAX;
+        let mut threshold = SPEECH_THRESHOLD;
 
         while is_rec.load(Ordering::SeqCst) {
-            thread::sleep(Duration::from_millis(33));
+            thread::sleep(Duration::from_millis(LEVEL_INTERVAL_MS));
 
             let samples: Vec<f32> = {
                 let lock = captured.lock().unwrap();
@@ -106,11 +166,26 @@ pub fn start_recording(app: &tauri::AppHandle) {
             };
 
             let levels = extract_levels(&fft, &samples);
-            let _ = app_handle.emit("levels", levels);
+            let displayed = if whisper_mode {
+                levels.map(|l| l * HUD_WHISPER_GAIN)
+            } else {
+                levels
+            };
+            let _ = app_handle.emit("levels", displayed);
 
             // VAD logic: stop recording after 1.5s of silence
             let max_level = levels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-            if max_level > 0.005 {
+
+            if whisper_mode && calibration_frames < CALIBRATION_FRAMES {
+                noise_floor = noise_floor.min(max_level);
+                calibration_frames += 1;
+                if calibration_frames == CALIBRATION_FRAMES {
+                    threshold =
+                        (noise_floor * 3.0).clamp(WHISPER_MIN_THRESHOLD, SPEECH_THRESHOLD);
+                }
+            }
+
+            if max_level > threshold {
                 speech_detected = true;
                 silence_frames = 0;
             } else if speech_detected {
@@ -180,6 +255,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     let engine_arc = state.engine.clone();
     let app_handle = app.clone();
     let dictation_session_id = state.dictation_session_id.load(Ordering::SeqCst);
+    let whisper_mode = state.settings.lock().unwrap().whisper_mode;
 
     thread::spawn(move || {
         let mono: Vec<f32> = if channels > 1 {
@@ -200,14 +276,38 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
 
         // Normalize if it exceeds 1.0 (some cpal drivers output raw unnormalized integers as f32)
         let max_amp = mono.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
-        let mono = if max_amp > 1.0 {
+        let mono: Vec<f32> = if max_amp > 1.0 {
             println!("Normalizing audio, max amp was {}", max_amp);
             mono.into_iter().map(|s| s / max_amp).collect()
         } else {
             mono
         };
 
+        // The other direction: whispering peaks around 0.02, so the model sees
+        // a signal buried in the log-mel floor. Lift it to the level normal
+        // speech would have arrived at.
+        let mono = if whisper_mode && max_amp <= 1.0 {
+            let rms = speech_rms(&mono, src_rate as usize / 50); // 20ms frames
+            let gain = boost_gain(rms, max_amp);
+            if gain > 1.0 {
+                println!("Whisper mode: boosting {:.1}x (rms {:.5})", gain, rms);
+                mono.into_iter().map(|s| s * gain).collect()
+            } else {
+                mono
+            }
+        } else {
+            mono
+        };
+
         let audio = resample_linear(&mono, src_rate, WHISPER_SAMPLE_RATE);
+
+        // Shape the spectrum toward what the models were trained on. Runs before
+        // the VAD so Silero sees the cleaned-up signal too.
+        let audio = if whisper_mode {
+            crate::audio::filter::whisper_tilt(&audio, WHISPER_SAMPLE_RATE)
+        } else {
+            audio
+        };
 
         if audio.len() < WHISPER_SAMPLE_RATE as usize {
              let _ = app_handle.emit("patter://state", "Audio too short");
@@ -222,10 +322,22 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
 
         // Silero VAD: strip silence/noise so Whisper never hallucinates on it.
         // Any VAD failure falls back to untrimmed audio — never lose a recording.
+        let vad_threshold = if whisper_mode {
+            crate::vad::WHISPER_THRESHOLD
+        } else {
+            crate::vad::DEFAULT_THRESHOLD
+        };
         let audio = if settings.trim_silence {
             match crate::vad::ensure_model(&app_handle)
-                .and_then(|p| crate::vad::trim_silence(&p, &audio))
+                .and_then(|p| crate::vad::trim_silence(&p, &audio, vad_threshold))
             {
+                // Silero scores whispers low even at the lower threshold. Losing
+                // the recording is worse than transcribing untrimmed audio, so
+                // whisper mode keeps it and lets the model decide.
+                Ok(trimmed) if trimmed.is_empty() && whisper_mode => {
+                    eprintln!("VAD found no speech, using raw audio (whisper mode)");
+                    audio
+                }
                 Ok(trimmed) if trimmed.is_empty() => {
                     let _ = app_handle.emit("patter://state", "No speech detected");
                     thread::sleep(Duration::from_secs(1));
@@ -251,6 +363,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         let text = {
             let mut lock = engine_arc.lock().unwrap();
             if let Some(engine) = lock.as_mut() {
+                engine.set_whisper_mode(whisper_mode);
                 match engine.transcribe(&audio, if prompt.is_empty() { None } else { Some(&prompt) }, Some(&language)) {
                     Ok(t) => t,
                     Err(e) => {
@@ -304,6 +417,20 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                 
                 // RAG: Find relevant memories
                 let mut context_prompt = profile_prompt.unwrap_or_default();
+
+                // Whispered speech misrecognizes as phonetically similar words,
+                // which is the one kind of error a language model can undo.
+                if whisper_mode {
+                    if !context_prompt.is_empty() {
+                        context_prompt.push_str("\n\n");
+                    }
+                    context_prompt.push_str(
+                        "This transcript came from whispered speech, so some words may be \
+                         misheard as similar-sounding ones. Where a word is implausible in \
+                         context, replace it with the word it was most likely misheard from. \
+                         Do not add content that isn't there.",
+                    );
+                }
                 if !settings.memories.is_empty() {
                     // Embed the current text
                     if let Ok(text_emb) = crate::ollama::get_embedding("nomic-embed-text", &text) {
@@ -430,4 +557,41 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         thread::sleep(Duration::from_millis(1500));
         let _ = app_handle.emit("patter://state", "Idle");
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn boost_gain_lifts_whispers_without_clipping() {
+        // Typical whisper into a laptop mic: rms 0.004, peak 0.02.
+        let gain = boost_gain(0.004, 0.02);
+        assert!(gain > 1.0 && 0.02 * gain <= 0.95, "gain was {gain}");
+        assert!((0.004 * gain - TARGET_RMS).abs() < 0.01, "gain was {gain}");
+
+        // A peaky recording is limited by the peak, not the RMS target.
+        assert!(boost_gain(0.004, 0.5) * 0.5 <= 0.95);
+
+        // Never boost silence, never attenuate audio that is already loud.
+        assert_eq!(boost_gain(0.00001, 0.0001), 1.0);
+        assert_eq!(boost_gain(0.0, 0.0), 1.0);
+        assert_eq!(boost_gain(0.3, 0.9), 1.0);
+    }
+
+    #[test]
+    fn speech_rms_ignores_leading_silence() {
+        // 9s of near-silence then 1s of whispering: the whisper sets the level,
+        // not the average, which would be ~10x lower and over-boost the noise.
+        let frame = 960; // 20ms at 48kHz
+        let mut audio = vec![0.0001f32; 48_000 * 9];
+        audio.extend(std::iter::repeat(0.004).take(48_000));
+        let rms = speech_rms(&audio, frame);
+        assert!(rms > 0.003, "rms was {rms}");
+
+        let global = (audio.iter().map(|s| s * s).sum::<f32>() / audio.len() as f32).sqrt();
+        assert!(boost_gain(rms, 0.02) < boost_gain(global, 0.02));
+
+        assert_eq!(speech_rms(&[], frame), 0.0);
+    }
 }

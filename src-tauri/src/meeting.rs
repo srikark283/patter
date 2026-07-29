@@ -189,7 +189,7 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
         // Strip silence/noise before ASR — see recording.rs; failure = use raw audio.
         let audio = if settings.trim_silence {
             match crate::vad::ensure_model(&app_handle)
-                .and_then(|p| crate::vad::trim_silence(&p, &audio))
+                .and_then(|p| crate::vad::trim_silence(&p, &audio, crate::vad::DEFAULT_THRESHOLD))
             {
                 Ok(trimmed) if trimmed.is_empty() => {
                     let _ = app_handle.emit("patter://meeting_state", "error: no speech detected");
@@ -236,7 +236,11 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
             None => {
                 let mut lock = engine_arc.lock().unwrap();
                 match lock.as_mut() {
-                    Some(engine) => match engine.transcribe(&audio, None, Some(&language)) {
+                    // Engine is shared with dictation — room audio is not whispered.
+                    Some(engine) => match {
+                        engine.set_whisper_mode(false);
+                        engine.transcribe(&audio, None, Some(&language))
+                    } {
                         Ok(t) => t,
                         Err(e) => {
                             eprintln!("Meeting transcription failed: {}", e);

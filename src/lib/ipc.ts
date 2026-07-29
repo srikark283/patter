@@ -20,6 +20,7 @@ export interface Settings {
   ollama_model: string | null;
   meeting_ollama_model: string | null;
   trim_silence: boolean;
+  whisper_mode: boolean;
   hud_position: string;
   play_sounds: boolean;
   sound_theme: string;

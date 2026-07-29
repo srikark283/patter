@@ -47,6 +47,11 @@ pub struct Settings {
     pub sound_theme: String,
     #[serde(default = "default_trim_silence")]
     pub trim_silence: bool,
+    /// Tuned for whispering in shared spaces: boosts quiet audio to a level the
+    /// ASR model expects, tracks the room's noise floor instead of a fixed
+    /// speech threshold, and keeps audio the VAD would otherwise throw away.
+    #[serde(default)]
+    pub whisper_mode: bool,
     /// False for fresh installs and installs predating onboarding.
     #[serde(default)]
     pub onboarding_done: bool,
@@ -116,6 +121,7 @@ impl Default for Settings {
             play_sounds: default_play_sounds(),
             sound_theme: default_sound_theme(),
             trim_silence: default_trim_silence(),
+            whisper_mode: false,
             onboarding_done: false,
             push_to_talk: false,
             diarize_meetings: false,

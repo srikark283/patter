@@ -29,12 +29,18 @@ pub fn ensure_model(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// Default speech probability above which Silero calls a frame speech.
+pub const DEFAULT_THRESHOLD: f32 = 0.2;
+/// Whispered speech has no vocal-fold vibration, so Silero — trained on
+/// phonated speech — scores it far lower and would drop it entirely.
+pub const WHISPER_THRESHOLD: f32 = 0.08;
+
 /// Keep only speech from 16kHz mono audio. Empty result = no speech detected.
-pub fn trim_silence(model_path: &PathBuf, audio: &[f32]) -> Result<Vec<f32>, String> {
+pub fn trim_silence(model_path: &PathBuf, audio: &[f32], threshold: f32) -> Result<Vec<f32>, String> {
     let config = VadModelConfig {
         silero_vad: SileroVadModelConfig {
             model: Some(model_path.to_string_lossy().into_owned()),
-            threshold: 0.2,
+            threshold,
             min_silence_duration: 1.0,
             min_speech_duration: 0.1,
             max_speech_duration: 60.0,

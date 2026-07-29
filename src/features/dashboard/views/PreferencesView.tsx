@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, ShieldCheck, Video, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2 } from "lucide-react";
+import { Zap, Keyboard, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, EarOff, ShieldCheck, Video, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2 } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, requestAccessibilityPermission, openInputMonitoringSettings, requestInputMonitoringPermission, openMicrophoneSettings, requestMicrophonePermission, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
@@ -581,6 +581,26 @@ export function PreferencesView() {
             <Switch
               checked={settings.trim_silence}
               onCheckedChange={(checked) => update({ trim_silence: checked })}
+            />
+          </div>
+
+          {/* Whisper Mode */}
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <EarOff size={14} className="text-amber-400" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground/90">Whisper Mode</p>
+                <p className="text-[11px] text-muted-foreground">
+                  For dictating quietly in shared spaces — boosts quiet audio, tracks the
+                  room's noise floor, and keeps speech the VAD would discard
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.whisper_mode}
+              onCheckedChange={(checked) => update({ whisper_mode: checked })}
             />
           </div>
         </div>

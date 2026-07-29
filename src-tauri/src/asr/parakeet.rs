@@ -41,6 +41,11 @@ impl ParakeetEngine {
         config.model_config.transducer.joiner = Some(format!("{}/joiner.int8.onnx", model_dir));
         config.model_config.tokens = Some(format!("{}/tokens.txt", model_dir));
         config.model_config.num_threads = 4;
+        // Transducer equivalent of beam search, and the only decode knob sherpa
+        // exposes. Matters most on low-confidence audio like whispering. Cheap
+        // here because the cost is in the 650MB encoder, which runs once either
+        // way — only the 9MB decoder/joiner re-run per path.
+        config.decoding_method = Some("modified_beam_search".into());
 
         let recognizer = OfflineRecognizer::create(&config)
             .ok_or_else(|| anyhow::anyhow!("Failed to create OfflineRecognizer"))?;
