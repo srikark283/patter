@@ -469,7 +469,18 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                 
                 let final_extra = if context_prompt.is_empty() { None } else { Some(context_prompt.as_str()) };
                 
-                match crate::ollama::cleanup(model, &text, final_extra) {
+                // Throttled so a fast model doesn't fire hundreds of IPC events
+                // a second at a pill that can only show a couple dozen chars.
+                let partial_emitter = app_handle.clone();
+                let mut last_partial = std::time::Instant::now();
+                let on_partial = |partial: &str| {
+                    if last_partial.elapsed() >= Duration::from_millis(60) {
+                        last_partial = std::time::Instant::now();
+                        let _ = partial_emitter.emit("patter://cleanup_partial", partial);
+                    }
+                };
+
+                match crate::ollama::cleanup(model, &text, final_extra, on_partial) {
                     Ok(cleaned) => {
                         println!("Cleaned: {}", cleaned);
                         cleaned

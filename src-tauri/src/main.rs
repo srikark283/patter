@@ -190,6 +190,39 @@ fn main() {
 
             app.manage(app_state);
 
+            // Cold start is always the slowest dictation of a session: Whisper
+            // builds its compute graph on the first decode and Ollama loads
+            // weights on the first request. Pay both here, while the user is
+            // still reaching for the hotkey, rather than on their first word.
+            let warm_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let state = warm_handle.state::<AppState>();
+                // One second of silence is enough to build the graph — the
+                // transcript is thrown away. Holds the engine lock, so a hotkey
+                // pressed this early waits on it instead of racing it.
+                if let Some(engine) = state.engine.lock().unwrap().as_mut() {
+                    let started = std::time::Instant::now();
+                    let _ = engine.transcribe(&vec![0.0f32; 16_000], None, None);
+                    println!("[warm] ASR ready in {}ms", started.elapsed().as_millis());
+                }
+
+                let (cleanup_enabled, model) = {
+                    let s = state.settings.lock().unwrap();
+                    (s.llm_cleanup_enabled, s.ollama_model.clone())
+                };
+                if let (true, Some(model)) = (cleanup_enabled, model) {
+                    let started = std::time::Instant::now();
+                    match ollama::warm(&model) {
+                        Ok(()) => println!(
+                            "[warm] {} ready in {}ms",
+                            model,
+                            started.elapsed().as_millis()
+                        ),
+                        Err(e) => eprintln!("[warm] Ollama warm-up skipped: {}", e),
+                    }
+                }
+            });
+
             // Spawn global hook thread for single-key hotkey binding (e.g. "ControlLeft")
             let app_handle_for_rdev = app.handle().clone();
             std::thread::spawn(move || {
