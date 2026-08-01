@@ -33,3 +33,10 @@ graphify-out
 
 # Pipeline
 PIPELINE.md
+
+# Raw demo captures — only the processed docs/desktop/*.webp|mp4 get published
+docs/desktop/raw/
+
+# scripts
+scripts/capture-demo.sh
+

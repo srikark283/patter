@@ -1,0 +1,167 @@
+/* Patter — shared design layer.
+   Linked by index.html, android.html and privacy.html. Page-specific rules stay
+   in each page's own <style>. This file exists because three hand-kept copies
+   had already drifted into two different page backgrounds, two nav button
+   styles, and a --ease-soft that was referenced but never defined. */
+
+
+/* === Design Tokens === */
+:root {
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out-smooth: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Four ink levels, one accent, three hairlines. Everything on the page
+     draws from these — the values used to be inlined per element, which is
+     how the same label ended up at three different letter-spacings. */
+  --ink:        light-dark(oklch(22% 0.008 90), #e7eaee);   /* headings, strong text */
+  --ink-body:   light-dark(oklch(32% 0.011 90), #c7ccd4);   /* body copy */
+  --ink-2:      light-dark(oklch(42% 0.012 90), #c7ccd4);   /* secondary copy */
+  --ink-3:      light-dark(oklch(48% 0.012 90), #828b99);   /* labels, captions */
+  --ink-invert: light-dark(oklch(98% 0.007 90), #050506);   /* text on solid fills */
+  --bg:         light-dark(oklch(98% 0.007 90), #050506);
+
+  --accent:     light-dark(oklch(50% 0.09 254), oklch(68% 0.11 254));
+
+  --line:        light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.12));
+  --line-soft:   light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08));
+  --line-strong: light-dark(oklch(22% 0.008 90 / 0.18), rgba(255,255,255,0.18));
+
+  --surface:    light-dark(oklch(100% 0 0 / 0.55), rgba(255,255,255,0.03));
+  --surface-hi: light-dark(oklch(100% 0 0 / 0.7), rgba(255,255,255,0.06));
+  --code-bg:    light-dark(oklch(93% 0.006 90), #1a1d23);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; color-scheme: light dark; overflow-x: hidden; }
+section { scroll-margin-top: 110px; }
+body {
+  margin: 0; background-color: var(--bg); color: var(--ink);
+  font-family: 'Geist', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6;
+  /* One light source, top-left. Three stacked blobs in three hues is the
+     stock generated-page background; a single wash reads as a lit room. */
+  background-image:
+    radial-gradient(ellipse 1100px 600px at 8% -8%, light-dark(oklch(50% 0.09 254 / 0.08), oklch(60% 0.13 254 / 0.14)), transparent 65%);
+}
+/* Headlines carry the identity; Geist stays for UI, body and labels. A
+   single editorial serif is what stops the page reading as the default
+   Geist-everywhere template. Swap the family here to change the voice. */
+h1, h2 { font-family: 'Playfair Display', Georgia, serif; font-weight: 500; letter-spacing: -0.015em; }
+h1 { font-size: clamp(44px, 5.8vw, 72px); line-height: 1.08; }
+h2 { font-size: clamp(30px, 3.9vw, 41px); line-height: 1.15; }
+
+a { color: light-dark(oklch(45% 0.09 254), oklch(70% 0.11 254)); }
+/* Pill/nav anchors carry their own colour; the generic link hover would repaint
+   their label blue against a solid fill. Scope the hover to real links. */
+a:hover:not([class*="btn"], .nav-cta, .nav-link, .install-link, .src-link) { color: light-dark(oklch(35% 0.1 254), oklch(80% 0.1 254)); }
+/* Fixed grain overlay: opaque pointer-events isolated, never repaint */
+body::after {
+  content: ''; position: fixed; inset: 0; z-index: 60; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  opacity: 0.04; mix-blend-mode: overlay;
+}
+
+.nav-link { position: relative; text-decoration: none; color: var(--ink-3); transition: color .4s var(--ease-soft); }
+.nav-link:hover, .nav-link.active { color: var(--ink); }
+.nav-link::before { content: ''; position: absolute; inset: -6px -10px; border-radius: 99px; background: light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.08)); opacity: 0; transition: opacity .4s var(--ease-soft); z-index: -1; }
+.nav-link:hover::before, .nav-link.active::before { opacity: 1; }
+#themeToggle { position: relative; }
+#themeToggle svg { position: absolute; transition: opacity .3s var(--ease-soft), transform .45s var(--ease-soft); }
+/* Ids read backwards in the markup: #themeIconMoon is the rays glyph, shown in
+   dark mode to offer light; #themeIconSun is the crescent, shown in light mode. */
+#themeIconMoon { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+#themeToggle.is-dark #themeIconSun { opacity: 0; transform: rotate(90deg) scale(0.5); }
+#themeToggle.is-dark #themeIconMoon { opacity: 1; transform: none; }
+
+.nav-cta { text-decoration: none; color: var(--bg); background: var(--ink); border-radius: 999px; padding: 8px 16px; transition: background .4s var(--ease-soft), color .4s var(--ease-soft), transform .4s var(--ease-soft); }
+.nav-cta:hover { box-shadow: 0 8px 20px light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.25)); }
+
+.download-btn { text-decoration: none; background: var(--ink); color: var(--bg); font-size: 14.5px; font-weight: 600; padding: 15px 28px; border-radius: 999px; border: none; display: inline-flex; align-items: center; gap: 10px; transition: transform .5s var(--ease-soft), box-shadow .5s var(--ease-soft), background .4s var(--ease-soft); box-shadow: 0 12px 28px light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.18)); }
+.download-btn:hover { transform: translateY(-2px); box-shadow: 0 22px 40px light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.3)); }
+.download-btn:active { transform: translateY(-1px) scale(0.99); transition: transform .12s var(--ease-in-out-smooth); }
+
+.download-btn-secondary { text-decoration: none; background: light-dark(oklch(100% 0 0 / 0.5), rgba(255,255,255,0.04)); color: var(--ink); font-size: 14.5px; font-weight: 600; padding: 15px 28px; border-radius: 999px; border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 10px; transition: transform .5s var(--ease-soft), border-color .4s var(--ease-soft), background .4s var(--ease-soft), box-shadow .5s var(--ease-soft); }
+.download-btn-secondary:hover { border-color: light-dark(oklch(22% 0.008 90 / 0.3), rgba(255,255,255,0.3)); background: light-dark(oklch(100% 0 0 / 0.7), rgba(255,255,255,0.08)); }
+
+.install-link { text-decoration: none; border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.3), rgba(255,255,255,0.3)); font-size: 14.5px; padding: 14px 2px; color: var(--ink-body); transition: border-color .2s ease; }
+.install-link:hover { border-color: var(--accent); }
+
+.feature-card { border-radius: 18px; padding: 22px 20px; min-height: 160px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line-soft); transition: background .4s var(--ease-soft), border-color .4s var(--ease-soft); position: relative; z-index: 0; box-shadow: inset 0 1px 0 light-dark(oklch(100% 0 0 / 0.7), rgba(255,255,255,0.08)), 0 1px 2px light-dark(oklch(22% 0.008 90 / 0.04), rgba(255,255,255,0.03)); }
+.feature-card:hover { background: light-dark(oklch(100% 0 0 / 0.75), rgba(255,255,255,0.06)); border-color: var(--line-strong); }
+
+.step-card { position: relative; padding-left: 30px; }
+/* A pseudo-element rather than a border, so it can be drawn top to bottom on
+   scroll — three strokes landing in sequence read as one path through the steps. */
+.step-card::before {
+  content: ''; position: absolute; left: 0; top: 0; width: 1px; height: 100%;
+  background: var(--line); transform-origin: top;
+  transition: background .4s var(--ease-soft);
+}
+.step-card:hover::before { background: light-dark(oklch(50% 0.09 254 / 0.5), oklch(70% 0.13 254 / 0.5)); }
+
+.copy-btn { flex: none; background: none; border: 1px solid var(--line-strong); color: light-dark(oklch(40% 0.012 90), #c7ccd4); font-size: 12px; border-radius: 4px; padding: 7px 14px; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease; }
+.copy-btn:hover { background: var(--ink); color: var(--ink-invert); border-color: var(--ink); }
+
+/* One label style for every eyebrow, table header and caption on the page.
+   Declared after .model-row / .cmp-row so it wins the font shorthand when
+   a header row carries both classes. */
+.eyebrow { font: 500 11px 'Geist Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin: 0; }
+
+/* The standard panel: soft surface, hairline, top highlight. */
+.surface-card { border-radius: 18px; background: var(--surface); border: 1px solid var(--line-soft); box-shadow: inset 0 1px 0 var(--surface-hi); }
+
+.faq-item { border-top: 1px solid var(--line); }
+.faq-item summary { cursor: pointer; font-size: 15px; font-weight: 600; padding: 18px 4px; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: '+'; font: 400 20px 'Geist', sans-serif; color: var(--accent); transition: transform .25s ease; flex: none; }
+.faq-item[open] summary::after { transform: rotate(45deg); }
+.faq-item p { margin: 0 0 18px; padding: 0 4px; font-size: 13.5px; color: var(--ink-2); line-height: 1.65; max-width: 640px; }
+
+/* === Scroll-driven motion ===
+   Three moments, all native scroll timelines, all composited off the main
+   thread: sections reveal, the pipeline packet travels, the hero demo
+   recedes. Sections are visible by default — if `animation-timeline` is
+   missing (Firefox) and JS never runs, nothing on the page stays hidden. */
+@keyframes revealSection { from { opacity: 0; transform: translateY(34px); } to { opacity: 1; transform: none; } }
+@keyframes drawRule { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+@supports (animation-timeline: view()) {
+  /* Ranges are lengths, not percentages: a percentage of the cover phase
+     scales with section height, so tall sections reveal over a much longer
+     scroll than short ones. A fixed distance gives every section the same
+     reveal regardless of size, and completes well before the page bottom. */
+  .reveal-section {
+    animation: revealSection linear both;
+    animation-timeline: view();
+    animation-range: cover 40px cover 300px;
+  }
+  /* Alternating distances so the sections stop arriving on the same beat. */
+  .reveal-section:nth-of-type(even) { animation-range: cover 90px cover 420px; }
+
+  /* #8: each step's rule draws as the section arrives, staggered so they land
+     one after another rather than all at once. */
+  .step-card::before { animation: drawRule linear both; animation-timeline: view(); }
+  .step-card:nth-child(1)::before { animation-range: cover 60px cover 260px; }
+  .step-card:nth-child(2)::before { animation-range: cover 130px cover 330px; }
+  .step-card:nth-child(3)::before { animation-range: cover 200px cover 400px; }
+
+  /* The packet used to loop on a 3.5s timer whether or not anyone was
+     looking. Now the scroll is what moves data through the pipeline. */
+  .pipe-box { view-timeline-name: --pipe; }
+  .pipe-shimmer-line::after {
+    animation: shimmerTravel linear both;
+    animation-timeline: --pipe;
+    animation-range: cover 25% cover 80%;
+  }
+}
+
+/* Fallback path: the pre-paint script sets this when scroll timelines are
+   unavailable, and an IntersectionObserver flips .is-visible. */
+.no-scroll-timeline .step-card::before { transform: scaleY(1); }
+.no-scroll-timeline .reveal-section { opacity: 0; transform: translateY(28px); transition: opacity .9s var(--ease-out-quint), transform .9s var(--ease-out-quint); }
+.no-scroll-timeline .reveal-section.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-section, .pipe-shimmer-line::after { animation: none; }
+  .reveal-section { opacity: 1; transform: none; }
+  .step-card::before { animation: none; transform: scaleY(1); }
+}

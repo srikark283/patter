@@ -7,7 +7,8 @@
 <link rel="icon" href="logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="patter.css">
 <script>
   (function () {
     var saved = localStorage.getItem('patter-theme');
@@ -17,25 +18,6 @@
   })();
 </script>
 <style>
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; color-scheme: light dark; overflow-x: hidden; }
-  body {
-    margin: 0; background-color: light-dark(oklch(98% 0.007 90), #0a0b0d); color: light-dark(oklch(22% 0.008 90), #e7eaee);
-    font-family: 'Geist', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6;
-    background-image:
-      radial-gradient(ellipse 900px 500px at 12% -6%, light-dark(oklch(50% 0.09 254 / 0.06), oklch(68% 0.11 254 / 0.06)), transparent 60%),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-  }
-  a { color: light-dark(oklch(45% 0.09 254), oklch(68% 0.1 254)); }
-  a:hover:not([class*="btn"], .nav-cta, .nav-link, .install-link) { color: light-dark(oklch(35% 0.1 254), oklch(75% 0.1 254)); }
-  .nav-link { position: relative; text-decoration: none; color: light-dark(oklch(45% 0.012 90), #828b99); transition: color .4s var(--ease-soft); }
-  .nav-link:hover, .nav-link.active { color: light-dark(oklch(22% 0.008 90), #e7eaee); }
-  .nav-link::before { content: ''; position: absolute; inset: -6px -10px; border-radius: 99px; background: light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.08)); opacity: 0; transition: opacity .4s var(--ease-soft); z-index: -1; }
-  .nav-link:hover::before, .nav-link.active::before { opacity: 1; }
-  .nav-cta { text-decoration: none; color: light-dark(oklch(22% 0.008 90), #e7eaee); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); border-radius: 999px; padding: 7px 16px; transition: background .2s ease, color .2s ease, transform .2s ease; }
-  .nav-cta:hover { background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); transform: translateY(-1px); }
-  .download-btn { text-decoration: none; background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); font-size: 14.5px; font-weight: 600; padding: 14px 26px; border-radius: 999px; border: 1px solid light-dark(oklch(22% 0.008 90), #e7eaee); display: inline-block; transition: transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease; }
-  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25)); background: light-dark(oklch(15% 0.008 90), #ffffff); border-color: light-dark(oklch(15% 0.008 90), #ffffff); color: light-dark(oklch(98% 0.007 90), #0a0b0d); }
   @media (max-width: 720px) {
     .android-cols { grid-template-columns: 1fr; gap: 32px; }
     .android-cols > div:nth-child(2) { display: none; }
@@ -45,7 +27,7 @@
 <body>
 
 <nav style="position: sticky; top: 0; z-index: 50; padding: 14px 32px 0;">
-  <div style="max-width: 1040px; margin: 0 auto; padding: 8px 8px 8px 18px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-radius: 999px; background: light-dark(oklch(100% 0 0 / 0.55), rgba(10,11,13,0.5)); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); box-shadow: inset 0 1px 0 light-dark(oklch(100% 0 0 / 0.8), rgba(255,255,255,0.06)), 0 12px 32px light-dark(oklch(22% 0.008 90 / 0.08), rgba(0,0,0,0.35)); transition: box-shadow .5s var(--ease-soft), border-color .5s var(--ease-soft);">
+  <div style="max-width: 1040px; margin: 0 auto; padding: 8px 8px 8px 18px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-radius: 999px; background: light-dark(oklch(100% 0 0 / 0.55), rgba(10,11,13,0.5)); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5); border: 1px solid var(--line-soft); box-shadow: inset 0 1px 0 light-dark(oklch(100% 0 0 / 0.8), rgba(255,255,255,0.06)), 0 12px 32px light-dark(oklch(22% 0.008 90 / 0.08), rgba(0,0,0,0.35)); transition: box-shadow .5s var(--ease-soft), border-color .5s var(--ease-soft);">
     <a href="index.html" style="text-decoration: none; color: inherit; font: 600 18px 'Geist', sans-serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
       <img src="logo.png" alt="" style="width: 26px; height: 26px; border-radius: 7px;"> Patter
     </a>
@@ -59,7 +41,7 @@
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
         GitHub
       </a>
-      <button id="themeToggle" type="button" title="Toggle dark mode" aria-pressed="false" style="flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1)); background: transparent; color: light-dark(oklch(45% 0.012 90), #828b99); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .4s var(--ease-soft), background .4s var(--ease-soft), color .4s var(--ease-soft), border-color .4s var(--ease-soft);">
+      <button id="themeToggle" type="button" title="Toggle dark mode" aria-pressed="false" style="flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1)); background: transparent; color: var(--ink-3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .4s var(--ease-soft), background .4s var(--ease-soft), color .4s var(--ease-soft), border-color .4s var(--ease-soft);">
         <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
         <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
       </button>
@@ -69,9 +51,9 @@
 </nav>
 
 <div style="max-width: 1040px; margin: 0 auto; padding: 80px 32px 120px;">
-  <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(oklch(45% 0.012 90), #828b99); margin: 0 0 16px;">Android</p>
-  <h2 style="text-align: center; font: 500 clamp(26px, 3.6vw, 33px)/1.2 'Geist', sans-serif; letter-spacing: -0.01em; margin: 0 0 20px;">The same idea, in your pocket</h2>
-  <p style="text-align: center; max-width: 620px; margin: 0 auto 44px; font-size: 15.5px; line-height: 1.75; color: light-dark(oklch(35% 0.012 90), #c7ccd4);">
+  <p style="text-align: center; font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 16px;">Android</p>
+  <h2 style="text-align: center; margin: 0 0 20px;">The same idea, in your pocket</h2>
+  <p style="text-align: center; max-width: 620px; margin: 0 auto 44px; font-size: 15.5px; line-height: 1.75; color: var(--ink-body);">
     Patter for Android is a companion app, not a remote control — it runs its own Whisper or
     Parakeet model on the phone. Tap the floating bubble in any app, speak, and the text lands in
     whatever field you're in. No account, no server, works on a plane.
@@ -86,14 +68,14 @@
   <div class="android-cols" style="display: grid; grid-template-columns: 1fr 1px 1fr; gap: 44px; align-items: start;">
     <div>
       <h3 style="font: 600 17px 'Geist', sans-serif; margin: 0 0 18px; letter-spacing: -0.01em;">Installing the APK</h3>
-      <ol style="margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: light-dark(oklch(42% 0.012 90), #c7ccd4);">
-        <li>Download <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">Patter.apk</code> and tap it. Allow installing from unknown sources if asked.</li>
+      <ol style="margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: var(--ink-2);">
+        <li>Download <code style="font: 500 12px 'Geist Mono', monospace; background: var(--code-bg); border-radius: 4px; padding: 2px 7px;">Patter.apk</code> and tap it. Allow installing from unknown sources if asked.</li>
         <li>Open Patter once and grant microphone access.</li>
         <li>Settings → Apps → Patter → <strong>⋮ → Allow restricted settings</strong>.</li>
         <li>Settings → Accessibility → Patter → turn it on.</li>
         <li>Back in Patter, download a speech model. One time, then it's offline forever.</li>
       </ol>
-      <p style="font-size: 12.5px; color: light-dark(oklch(48% 0.012 90), #828b99); margin: 18px 0 0; line-height: 1.7;">
+      <p style="font-size: 12.5px; color: var(--ink-3); margin: 18px 0 0; line-height: 1.7;">
         Step 3 is the one everyone gets stuck on. Android hides the accessibility toggle for apps
         installed outside an app store, so without it step 4 is greyed out and Patter looks broken.
       </p>
@@ -101,14 +83,14 @@
     <div style="width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)) 15%, light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)) 85%, transparent);"></div>
     <div>
       <h3 style="font: 600 17px 'Geist', sans-serif; margin: 0 0 18px; letter-spacing: -0.01em;">Why the extra steps</h3>
-      <p style="font-size: 13.5px; line-height: 1.7; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0 0 16px;">
+      <p style="font-size: 13.5px; line-height: 1.7; color: var(--ink-2); margin: 0 0 16px;">
         Patter types for you, which on Android means using the accessibility service — the same
         mechanism screen readers use. That's a powerful permission, so the system deliberately
         makes it awkward to grant for sideloaded apps. Patter only reads the text field you're
         focused on, and only to insert what you dictated.
       </p>
-      <p style="font-size: 13.5px; line-height: 1.7; color: light-dark(oklch(42% 0.012 90), #c7ccd4); margin: 0;">
-        If you have a computer handy, <code style="font: 500 12px 'Geist Mono', monospace; background: light-dark(oklch(93% 0.006 90), #1a1d23); border-radius: 4px; padding: 2px 7px;">adb install -i com.android.vending -r Patter.apk</code>
+      <p style="font-size: 13.5px; line-height: 1.7; color: var(--ink-2); margin: 0;">
+        If you have a computer handy, <code style="font: 500 12px 'Geist Mono', monospace; background: var(--code-bg); border-radius: 4px; padding: 2px 7px;">adb install -i com.android.vending -r Patter.apk</code>
         skips steps 3 and 4 entirely.
       </p>
     </div>
@@ -117,7 +99,7 @@
   <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; align-items: center; margin-top: 44px;">
     <a id="androidDownload" href="https://github.com/srikark283/patter/releases?q=android&amp;expanded=true" class="download-btn">Download the APK</a>
   </div>
-  <p style="text-align: center; margin-top: 20px; font-size: 12.5px; color: light-dark(oklch(48% 0.012 90), #828b99);">
+  <p style="text-align: center; margin-top: 20px; font-size: 12.5px; color: var(--ink-3);">
     Android 7.0+ · 64-bit ARM · ~34 MB<span id="androidVersion"></span>
   </p>
 </div>
