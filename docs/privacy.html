@@ -43,7 +43,7 @@
       </a>
       <button id="themeToggle" type="button" title="Toggle dark mode" aria-pressed="false" style="flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1)); background: transparent; color: var(--ink-3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .4s var(--ease-soft), background .4s var(--ease-soft), color .4s var(--ease-soft), border-color .4s var(--ease-soft);">
         <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
-        <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+        <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
       </button>
       <a href="https://github.com/srikark283/patter/releases/latest" class="nav-cta">Download</a>
     </div>
@@ -82,8 +82,6 @@
 
 <script>
   const themeToggle = document.getElementById('themeToggle');
-  const themeIconSun = document.getElementById('themeIconSun');
-  const themeIconMoon = document.getElementById('themeIconMoon');
   function currentTheme() {
     const override = document.documentElement.style.colorScheme;
     if (override === 'light' || override === 'dark') return override;
@@ -92,8 +90,9 @@
   function applyThemeIcon() {
     if (!themeToggle) return;
     const dark = currentTheme() === 'dark';
-    themeIconSun.style.display = dark ? 'none' : 'block';
-    themeIconMoon.style.display = dark ? 'block' : 'none';
+    // patter.css cross-fades the two glyphs off this class. Toggling display
+    // here instead left the moon at opacity:0 in dark mode — a blank button.
+    themeToggle.classList.toggle('is-dark', dark);
     themeToggle.setAttribute('aria-pressed', String(dark));
   }
   if (themeToggle) {

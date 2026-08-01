@@ -223,7 +223,7 @@
 
   <div class="hero-wrap">
 
-  <header style="position: relative; z-index: 1; display: grid; grid-template-columns: 1.35fr 1px 1fr; gap: 56px; padding: 120px 32px 20px; align-items: start;">
+  <header class="hero-header" style="position: relative; z-index: 1; display: grid; grid-template-columns: 1.35fr 1px 1fr; gap: 56px; padding: 120px 32px 20px; align-items: start;">
     <div>
       <p class="eyebrow" style="margin: 0 0 28px; display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px 7px 12px; border-radius: 999px; background: light-dark(oklch(100% 0 0 / 0.55), rgba(255,255,255,0.04)); border: 1px solid var(--line-soft); animation: revealUp 1s var(--ease-out-quint) both;">
         <span style="width: 6px; height: 6px; border-radius: 50%; background: #2f9e52; display: inline-block; box-shadow: 0 0 12px rgba(47,158,82,0.7);"></span>On-device dictation for macOS, Windows & Android
@@ -301,7 +301,7 @@
       <h2 style="margin: 0;">A complete voice workflow,<br>not just dictation</h2>
       <p class="eyebrow">§ Everything on-device</p>
     </div>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 100px;">
+    <div class="feature-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 100px;">
         <div class="feature-card" style="grid-column: span 2;">
           <p style="font: 500 28px 'Geist', sans-serif; color: light-dark(oklch(50% 0.09 254 / 0.55), oklch(70% 0.13 254 / 0.55)); margin: 0 0 auto; transition: color .5s var(--ease-soft);">I</p>
           <div>
@@ -346,7 +346,7 @@
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; margin-bottom: 100px;">
+    <div class="feature-grid" style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; margin-bottom: 100px;">
       <div class="surface-card" style="padding: 34px 36px;">
         <p class="eyebrow" style="color: var(--accent); margin: 0 0 8px;">App-aware profiles</p>
         <h3 style="font: 500 22px 'Geist', sans-serif; margin: 0 0 24px; letter-spacing: -0.01em; line-height: 1.25;">Patter knows what app you're in — and writes accordingly</h3>
@@ -410,7 +410,7 @@
             <span id="calcWordVal" style="font: 600 13px 'Geist Mono', monospace; color: var(--accent);">1,500 words/day</span>
           </div>
           <input id="calcSlider" type="range" min="300" max="10000" step="100" value="1500" style="width: 100%; accent-color: var(--accent); cursor: pointer;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 14px; text-align: center;">
+          <div class="tri-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 14px; text-align: center;">
             <div style="background: light-dark(oklch(96% 0.005 90), rgba(255,255,255,0.04)); border: 1px solid var(--line); border-radius: 8px; padding: 10px 4px;">
               <div id="calcHours" style="font: 600 14px 'Geist Mono', monospace; color: light-dark(oklch(28% 0.01 90), #e7eaee);">116 hrs</div>
               <div style="font-size: 10.5px; color: var(--ink-3);">Saved / yr</div>
@@ -434,7 +434,7 @@
   <section class="reveal-section" style="padding: 0 32px 110px;">
     <p class="eyebrow" style="text-align: center; margin: 0 0 20px;">The pipeline</p>
     <h2 style="text-align: center; margin: 0 0 56px;">How nothing leaves</h2>
-    <div style="display: grid; grid-template-columns: 1fr auto; gap: 0; align-items: stretch;">
+    <div class="pipe-layout" style="display: grid; grid-template-columns: 1fr auto; gap: 0; align-items: stretch;">
       <div class="pipe-box" style="border: 1px solid var(--line); border-radius: 20px; padding: 34px 30px 28px; position: relative; background: light-dark(oklch(100% 0 0 / 0.4), rgba(255,255,255,0.02)); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); box-shadow: inset 0 1px 0 light-dark(oklch(100% 0 0 / 0.8), rgba(255,255,255,0.05));">
         <span class="eyebrow" style="position: absolute; top: -10px; left: 26px; background: var(--bg); padding: 0 12px;">Your device</span>
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -474,8 +474,8 @@
         </div>
         <div class="pipe-shimmer-line" aria-hidden="true"></div>
       </div>
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 12px 0 30px; position: relative;">
-        <div style="position: absolute; left: 0; top: 50%; width: 30px; border-top: 2px dashed light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25));" aria-hidden="true"></div>
+      <div class="pipe-aside" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 12px 0 30px; position: relative;">
+        <div class="pipe-connector" style="position: absolute; left: 0; top: 50%; width: 30px; border-top: 2px dashed light-dark(oklch(22% 0.008 90 / 0.25), rgba(255,255,255,0.25));" aria-hidden="true"></div>
         <svg width="52" height="36" viewBox="0 0 52 36" fill="none" stroke="var(--ink-3)" stroke-width="1.5" aria-hidden="true" style="opacity: 0.55;">
           <path d="M40 28H13a8 8 0 1 1 1.7-15.8A11 11 0 0 1 36 10a9 9 0 0 1 4 18Z" stroke-linejoin="round"/>
           <line x1="8" y1="34" x2="46" y2="2" stroke="#e05a5a" stroke-width="2.5" stroke-linecap="round"/>
@@ -724,7 +724,7 @@
     </div>
   </section>
 
-  <footer style="border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); padding: 48px 32px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 13.5px; color: var(--ink-3);">
+  <footer class="site-footer" style="border-top: 1px solid light-dark(oklch(22% 0.008 90 / 0.16), rgba(255,255,255,0.16)); padding: 48px 32px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; font-size: 13.5px; color: var(--ink-3);">
     <div>
       <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
         <img src="logo.png" alt="" style="width: 20px; height: 20px; border-radius: 4.5px; opacity: 0.8; filter: grayscale(100%);">
@@ -732,15 +732,17 @@
       </div>
       <p style="margin: 0; font-style: italic;">Dictation that stays home.</p>
     </div>
-    <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+    <div class="footer-links" style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
       <a href="https://github.com/srikark283/patter" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
         GitHub
       </a>
       <a href="https://github.com/srikark283/patter/releases" class="nav-link">Releases</a>
       <a href="https://github.com/srikark283/patter/issues" class="nav-link">Issues</a>
+      <a href="android.html" class="nav-link">Android</a>
+      <a href="privacy.html" class="nav-link">Privacy</a>
     </div>
-    <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;">
+    <div class="footer-meta" style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;">
       <div id="footerVersion" class="eyebrow" style="line-height: 1.5;">
         Version —<br>Latest Release
       </div>

@@ -165,3 +165,72 @@ body::after {
   .reveal-section { opacity: 1; transform: none; }
   .step-card::before { animation: none; transform: scaleY(1); }
 }
+
+/* ---------------------------------------------------------------------------
+   Mobile layout. Shared by index/android/privacy.
+
+   Most structural styles on these pages live in style attributes, which outrank
+   any selector here, so the layout overrides carry !important. That is the cost
+   of inline styles, not a specificity war worth having — everything below is
+   layout only (columns, padding, wrapping); nothing here restyles a component.
+   --------------------------------------------------------------------------- */
+/* The pill nav is a nowrap flex row; index.html's six links plus a CTA stop
+   fitting well before the phone breakpoint, so the links drop out and the
+   Download action stays. Scoped to `nav` on purpose: the footer reuses
+   .nav-link, and hiding those left mobile with no links at all. */
+@media (max-width: 900px) {
+  nav .nav-link { display: none !important; }
+}
+
+@media (max-width: 720px) {
+  h1 { font-size: clamp(34px, 9.5vw, 46px); }
+  h2 { font-size: clamp(25px, 6.6vw, 32px); }
+
+  /* Multi-column layouts all collapse to a single column. */
+  .hero-header,
+  .feature-grid,
+  .pipe-layout,
+  .site-footer { grid-template-columns: 1fr !important; }
+  .hero-header { gap: 28px !important; padding: 96px 20px 12px !important; }
+  .hero-header > div:nth-child(2) { display: none !important; }  /* vertical rule */
+  .feature-grid > * { grid-column: auto !important; }
+  .tri-grid { gap: 6px !important; }
+
+  /* Gutters: 32px each side is a tenth of a 390px screen. */
+  section,
+  #capture { padding-left: 20px !important; padding-right: 20px !important; }
+  .hero-wrap > .surface-card { margin-left: 20px !important; margin-right: 20px !important; }
+  .site-footer { padding-left: 20px !important; padding-right: 20px !important; }
+
+  /* The pipeline is a row of nodes; with the arrows already hidden at this
+     width, let the nodes wrap instead of forcing a horizontal scroll. */
+  .pipe-box { padding: 26px 18px 22px !important; }
+  .pipe-node { min-width: 0; flex-basis: calc(50% - 5px); }
+  /* Stacked, the "no server" note sits below the box instead of beside it, so
+     the dashed elbow that joined them points at nothing. */
+  .pipe-connector { display: none; }
+  .pipe-aside { padding: 22px 0 0 !important; }
+
+  /* Hover-only tooltip: unreachable on touch, and its fixed 210px width
+     centered on a narrow node was the last thing pushing the page sideways. */
+  .pipe-tooltip { display: none; }
+
+  /* Stacked, the three footer columns kept their desktop alignments — left,
+     centre, right — which reads as three unrelated blocks. One left rail, and
+     the link list goes two-up so five links cost three rows instead of five. */
+  .site-footer { gap: 30px !important; }
+  .footer-links {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px !important;
+    align-items: start !important;
+    justify-items: start;
+  }
+  .footer-meta {
+    text-align: left !important;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+
+  .model-row, .cmp-row { font-size: 11px; }
+}
