@@ -126,7 +126,16 @@ pub fn start_recording(app: &tauri::AppHandle) {
     if state.audio_tx.send(AudioCommand::Start(target, settings.microphone)).is_ok() {
         state.is_recording.store(true, Ordering::SeqCst);
     }
-    
+
+    // If the model got unloaded since the last dictation, start reloading it now
+    // rather than at cleanup time — the load then runs under the recording and
+    // transcription instead of after them.
+    if settings.llm_cleanup_enabled {
+        if let Some(model) = settings.ollama_model.clone() {
+            crate::ollama::warm_background(model);
+        }
+    }
+
     let _ = app.emit("patter://state", "Listening...");
 
     let app_handle = app.clone();

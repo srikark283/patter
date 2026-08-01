@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 use std::io::{BufRead, BufReader};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 const OLLAMA_URL: &str = "http://localhost:11434";
@@ -178,6 +179,26 @@ pub fn list_models() -> Result<Vec<String>, String> {
         .json()
         .map_err(|e| format!("Bad response from Ollama: {}", e))?;
     Ok(resp.models.into_iter().map(|m| m.name).collect())
+}
+
+/// Fire-and-forget `warm` on the hotkey press, so the weight load overlaps with
+/// recording and transcription instead of landing after them. Cheap when the
+/// model is already resident: Ollama returns immediately and the round trip
+/// also refreshes `keep_alive`. The flag stops rapid hotkey toggling from
+/// piling up threads on a load that is already in flight.
+pub fn warm_background(model: String) {
+    static WARMING: AtomicBool = AtomicBool::new(false);
+    if WARMING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    std::thread::spawn(move || {
+        let started = std::time::Instant::now();
+        match warm(&model) {
+            Ok(()) => println!("[warm] {} ready in {}ms", model, started.elapsed().as_millis()),
+            Err(e) => eprintln!("[warm] Ollama warm-up skipped: {}", e),
+        }
+        WARMING.store(false, Ordering::SeqCst);
+    });
 }
 
 /// Load `model` into Ollama's memory without generating anything, so the first

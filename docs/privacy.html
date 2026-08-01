@@ -28,25 +28,36 @@
   }
   a { color: light-dark(oklch(45% 0.09 254), oklch(68% 0.1 254)); }
   a:hover { color: light-dark(oklch(35% 0.1 254), oklch(75% 0.1 254)); }
-  .nav-link { text-decoration: none; color: light-dark(oklch(45% 0.012 90), #828b99); transition: color .2s ease; }
-  .nav-link:hover { color: light-dark(oklch(22% 0.008 90), #e7eaee); }
+  .nav-link { position: relative; text-decoration: none; color: light-dark(oklch(45% 0.012 90), #828b99); transition: color .4s var(--ease-soft); }
+  .nav-link:hover, .nav-link.active { color: light-dark(oklch(22% 0.008 90), #e7eaee); }
+  .nav-link::before { content: ''; position: absolute; inset: -6px -10px; border-radius: 99px; background: light-dark(oklch(22% 0.008 90 / 0.06), rgba(255,255,255,0.08)); opacity: 0; transition: opacity .4s var(--ease-soft); z-index: -1; }
+  .nav-link:hover::before, .nav-link.active::before { opacity: 1; }
   .nav-cta { text-decoration: none; color: light-dark(oklch(22% 0.008 90), #e7eaee); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.2), rgba(255,255,255,0.2)); border-radius: 999px; padding: 7px 16px; transition: background .2s ease, color .2s ease, transform .2s ease; }
   .nav-cta:hover { background: light-dark(oklch(22% 0.008 90), #e7eaee); color: light-dark(oklch(98% 0.007 90), #0a0b0d); transform: translateY(-1px); }
 </style>
 </head>
 <body>
 
-<nav style="position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: light-dark(oklch(98% 0.007 90 / 0.7), rgba(10,11,13,0.7)); border-bottom: 1px solid light-dark(oklch(22% 0.008 90 / 0.12), rgba(255,255,255,0.08));">
-  <div style="max-width: 1040px; margin: 0 auto; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between;">
-    <a href="index.html" style="text-decoration: none; color: inherit; font: 600 19px 'Geist', sans-serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
-      <img src="logo.png" alt="" style="width: 28px; height: 28px; border-radius: 7px;"> Patter
+<nav style="position: sticky; top: 0; z-index: 50; padding: 14px 32px 0;">
+  <div style="max-width: 1040px; margin: 0 auto; padding: 8px 8px 8px 18px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-radius: 999px; background: light-dark(oklch(100% 0 0 / 0.55), rgba(10,11,13,0.5)); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5); border: 1px solid light-dark(oklch(22% 0.008 90 / 0.08), rgba(255,255,255,0.08)); box-shadow: inset 0 1px 0 light-dark(oklch(100% 0 0 / 0.8), rgba(255,255,255,0.06)), 0 12px 32px light-dark(oklch(22% 0.008 90 / 0.08), rgba(0,0,0,0.35)); transition: box-shadow .5s var(--ease-soft), border-color .5s var(--ease-soft);">
+    <a href="index.html" style="text-decoration: none; color: inherit; font: 600 18px 'Geist', sans-serif; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px;">
+      <img src="logo.png" alt="" style="width: 26px; height: 26px; border-radius: 7px;"> Patter
     </a>
-    <div style="display: flex; gap: 28px; align-items: center; font-size: 13.5px;">
+    <div style="display: flex; gap: 24px; align-items: center; font-size: 13.5px;">
       <a href="index.html#features" class="nav-link">Features</a>
       <a href="index.html#models" class="nav-link">Models</a>
-      <a href="index.html#faq" class="nav-link">FAQ</a>
-      <a href="index.html#install" class="nav-link">Install</a>
-      <a href="privacy.html" class="nav-link" style="color: light-dark(oklch(22% 0.008 90), #e7eaee);">Privacy</a>
+      <a href="android.html" class="nav-link">Android</a>
+      <a href="index.html#faq" class="nav-link">FAQ &amp; Install</a>
+      <a href="privacy.html" class="nav-link active">Privacy</a>
+      <a href="https://github.com/srikark283/patter" class="nav-link" style="display: inline-flex; align-items: center; gap: 6px;">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        GitHub
+      </a>
+      <button id="themeToggle" type="button" title="Toggle dark mode" aria-pressed="false" style="flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid light-dark(oklch(22% 0.008 90 / 0.1), rgba(255,255,255,0.1)); background: transparent; color: light-dark(oklch(45% 0.012 90), #828b99); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .4s var(--ease-soft), background .4s var(--ease-soft), color .4s var(--ease-soft), border-color .4s var(--ease-soft);">
+        <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+        <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+      </button>
+      <a href="https://github.com/srikark283/patter/releases/latest" class="nav-cta">Download</a>
     </div>
   </div>
 </nav>
@@ -81,5 +92,34 @@
   </div>
 </div>
 
+<script>
+  const themeToggle = document.getElementById('themeToggle');
+  const themeIconSun = document.getElementById('themeIconSun');
+  const themeIconMoon = document.getElementById('themeIconMoon');
+  function currentTheme() {
+    const override = document.documentElement.style.colorScheme;
+    if (override === 'light' || override === 'dark') return override;
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyThemeIcon() {
+    if (!themeToggle) return;
+    const dark = currentTheme() === 'dark';
+    themeIconSun.style.display = dark ? 'none' : 'block';
+    themeIconMoon.style.display = dark ? 'block' : 'none';
+    themeToggle.setAttribute('aria-pressed', String(dark));
+  }
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const next = currentTheme() === 'dark' ? 'light' : 'dark';
+      document.documentElement.style.colorScheme = next;
+      localStorage.setItem('patter-theme', next);
+      applyThemeIcon();
+    });
+    applyThemeIcon();
+  }
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!localStorage.getItem('patter-theme')) applyThemeIcon();
+  });
+</script>
 </body>
 </html>
