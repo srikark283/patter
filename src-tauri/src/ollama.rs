@@ -217,11 +217,17 @@ pub fn warm(model: &str) -> Result<(), String> {
 /// `extra` is an optional app-profile instruction appended to the base prompt.
 /// `on_partial` receives the cleaned text so far on every streamed token, so
 /// the HUD can show progress instead of a blank wait.
+/// Returned when `cancelled` fires mid-stream, so the caller can tell a
+/// user-initiated abort apart from a real failure and skip the raw-transcript
+/// fallback.
+pub const CLEANUP_CANCELLED: &str = "cleanup cancelled";
+
 pub fn cleanup(
     model: &str,
     text: &str,
     extra: Option<&str>,
     mut on_partial: impl FnMut(&str),
+    cancelled: impl Fn() -> bool,
 ) -> Result<String, String> {
     let extra_instruction = extra
         .map(|e| format!("\n\nAdditional instruction for this context: {}", e))
@@ -268,6 +274,13 @@ pub fn cleanup(
     // instant — the total time is unchanged, the wait just stops being blank.
     let mut raw_response = String::new();
     for line in BufReader::new(resp).lines() {
+        // Checked per line rather than only at the end: a cancel during cleanup
+        // used to let the model generate the whole reply and then throw it away.
+        // Returning here drops the response, which closes the connection and
+        // stops Ollama mid-generation.
+        if cancelled() {
+            return Err(CLEANUP_CANCELLED.to_string());
+        }
         let line = line.map_err(|e| format!("Ollama stream broke: {}", e))?;
         if line.trim().is_empty() {
             continue;

@@ -35,6 +35,84 @@ tauri_panel! {
     })
 }
 
+/// Event payloads arrive JSON-encoded, so `"Idle"` reaches a listener as
+/// `"\"Idle\""`. Anything that fails to parse counts as busy: a state string
+/// nobody anticipated should leave the pill clickable, never permanently dead.
+fn payload_is_idle(payload: &str, idle: &str) -> bool {
+    serde_json::from_str::<String>(payload)
+        .map(|state| state == idle)
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::payload_is_idle;
+
+    #[test]
+    fn idle_payloads_release_the_hud() {
+        assert!(payload_is_idle("\"Idle\"", "Idle"));
+        assert!(payload_is_idle("\"idle\"", "idle"));
+    }
+
+    #[test]
+    fn active_payloads_keep_the_hud_clickable() {
+        for busy in [
+            "\"Listening...\"",
+            "\"Transcribing...\"",
+            "\"Cleaning up…\"",
+            "\"Meeting recording active\"",
+            "\"summarizing\"",
+            "\"error: audio too short\"",
+            "\"✓ Pasted · 12 words\"",
+        ] {
+            assert!(!payload_is_idle(busy, "Idle"), "{busy} should read as busy");
+            assert!(!payload_is_idle(busy, "idle"), "{busy} should read as busy");
+        }
+    }
+
+    #[test]
+    fn case_and_garbage_never_strand_the_button() {
+        // "idle" must not satisfy the dictation channel's "Idle", or a meeting
+        // going idle would release the HUD mid-dictation.
+        assert!(!payload_is_idle("\"idle\"", "Idle"));
+        assert!(!payload_is_idle("not json", "Idle"));
+        assert!(!payload_is_idle("", "Idle"));
+    }
+}
+
+/// The HUD is a borderless always-on-top window pinned near the bottom of the
+/// screen. It stays click-through so it never swallows a click meant for the
+/// desktop — but that also made the cancel buttons in Hud.tsx unclickable, so
+/// clicks have to be accepted for as long as the pill is actually showing.
+///
+/// Both channels are tracked because they drive the same window independently:
+/// a meeting can be summarising while dictation reports Idle, and letting the
+/// dictation channel alone decide would kill the meeting's stop button.
+/// Hooked to the events rather than the ~35 emit sites, so a new state string
+/// can't forget to keep this in sync.
+fn sync_hud_clickthrough(app: &tauri::AppHandle) {
+    use tauri::Listener;
+    static DICTATION_BUSY: AtomicBool = AtomicBool::new(false);
+    static MEETING_BUSY: AtomicBool = AtomicBool::new(false);
+
+    fn apply(app: &tauri::AppHandle) {
+        let busy = DICTATION_BUSY.load(Ordering::SeqCst) || MEETING_BUSY.load(Ordering::SeqCst);
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.set_ignore_cursor_events(!busy);
+        }
+    }
+    let handle = app.clone();
+    app.listen_any("patter://state", move |event| {
+        DICTATION_BUSY.store(!payload_is_idle(event.payload(), "Idle"), Ordering::SeqCst);
+        apply(&handle);
+    });
+    let handle = app.clone();
+    app.listen_any("patter://meeting_state", move |event| {
+        MEETING_BUSY.store(!payload_is_idle(event.payload(), "idle"), Ordering::SeqCst);
+        apply(&handle);
+    });
+}
+
 fn main() {
     let (tx, shared_config) = audio::capture::init_audio();
 
@@ -362,7 +440,10 @@ fn main() {
                 .build()?;
 
             let window = app.get_webview_window("main").unwrap();
+            // Click-through while idle; see sync_hud_clickthrough for why it
+            // can't stay that way.
             let _ = window.set_ignore_cursor_events(true);
+            sync_hud_clickthrough(app.handle());
             if let Some(monitor) = window.primary_monitor()? {
                 let size = monitor.size();
                 let window_size = window.outer_size()?;

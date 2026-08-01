@@ -208,8 +208,10 @@ pub fn start_recording(app: &tauri::AppHandle) {
     });
 }
 
-/// Checks the cancellation flag; if set, resets it, emits idle, and returns
-/// true so the caller can bail out of the pipeline without saving.
+/// True once the session this pipeline belongs to has been superseded — either
+/// cancelled or replaced by a newer dictation. Pure check: `cancel` owns
+/// bumping the id and emitting idle. Called at the stage boundaries and, during
+/// cleanup, once per streamed line.
 fn bail_if_cancelled(app: &tauri::AppHandle, session_id: u64) -> bool {
     let state = app.state::<AppState>();
     state.dictation_session_id.load(Ordering::SeqCst) != session_id
@@ -489,10 +491,19 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                     }
                 };
 
-                match crate::ollama::cleanup(model, &text, final_extra, on_partial) {
+                let cancel_handle = app_handle.clone();
+                let is_cancelled =
+                    move || bail_if_cancelled(&cancel_handle, dictation_session_id);
+
+                match crate::ollama::cleanup(model, &text, final_extra, on_partial, is_cancelled) {
                     Ok(cleaned) => {
                         println!("Cleaned: {}", cleaned);
                         cleaned
+                    }
+                    Err(e) if e == crate::ollama::CLEANUP_CANCELLED => {
+                        // User pressed cancel; nothing should be pasted or saved.
+                        println!("Cleanup cancelled");
+                        return;
                     }
                     Err(e) => {
                         // Fall back to the raw transcript rather than dropping it.

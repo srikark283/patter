@@ -77,12 +77,27 @@ pub fn copy_text(text: &str) {
     }
 }
 
+/// How long to leave the transcript on the clipboard before putting the user's
+/// own contents back. The paste is synthetic, so the target app reads the
+/// pasteboard a moment after the keystroke lands; restore too early and it
+/// pastes the wrong thing. 150ms clears every app tried without leaving a
+/// window wide enough to notice.
+const CLIPBOARD_RESTORE_DELAY_MS: u64 = 150;
+
 pub fn paste_text(mode: &str, text: &str) {
     if mode == "type" {
         if let Ok(mut enigo) = Enigo::new(&Settings::default()) {
             let _ = enigo.text(text);
         }
     } else {
+        // Whatever the user had copied, so dictating doesn't cost them their
+        // clipboard. `get_text` fails when the clipboard holds an image or
+        // files; there is nothing to restore in that case, so the transcript
+        // stays put rather than the clipboard being wiped.
+        // ponytail: text only. Preserving arbitrary pasteboard types needs
+        // per-platform APIs arboard doesn't expose.
+        let previous = Clipboard::new().ok().and_then(|mut c| c.get_text().ok());
+
         if let Ok(mut clipboard) = Clipboard::new() {
             let _ = clipboard.set_text(text);
 
@@ -96,6 +111,24 @@ pub fn paste_text(mode: &str, text: &str) {
                 let _ = enigo.key(Key::Unicode('v'), Direction::Click);
                 let _ = enigo.key(modifier, Direction::Release);
             }
+        }
+
+        if let Some(previous) = previous {
+            // This runs on the main thread (see recording.rs), so the wait goes
+            // to a worker — sleeping here would freeze the UI mid-dictation.
+            let pasted = text.to_string();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(
+                    CLIPBOARD_RESTORE_DELAY_MS,
+                ));
+                if let Ok(mut clipboard) = Clipboard::new() {
+                    // Only reclaim the clipboard if it is still ours. A user who
+                    // copied something during the delay keeps what they copied.
+                    if clipboard.get_text().ok().as_deref() == Some(pasted.as_str()) {
+                        let _ = clipboard.set_text(previous);
+                    }
+                }
+            });
         }
     }
 }
