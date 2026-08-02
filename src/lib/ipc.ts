@@ -19,6 +19,7 @@ export interface Settings {
   llm_cleanup_enabled: boolean;
   ollama_model: string | null;
   meeting_ollama_model: string | null;
+  ollama_keep_alive_minutes: number;
   trim_silence: boolean;
   whisper_mode: boolean;
   hud_position: string;

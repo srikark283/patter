@@ -6,10 +6,21 @@ use std::time::Duration;
 
 const OLLAMA_URL: &str = "http://localhost:11434";
 
-/// Keep the cleanup model resident between dictations. Ollama's 5-minute
-/// default unloads it, and reloading an 8B costs seconds on the next hotkey —
-/// which is exactly the cold-start the user feels.
-const KEEP_ALIVE: &str = "30m";
+/// Encodes the configured keep-alive for Ollama's API. Ollama's own default is
+/// 5 minutes, which unloads the model between dictations and makes the next
+/// hotkey pay a multi-second reload — hence a longer default, and a setting for
+/// people who would rather have the RAM back.
+///
+/// The API takes either a duration string or a number of seconds, where a
+/// negative value means "never unload" and 0 means "unload immediately". Those
+/// two are passed as numbers so there is no duration string to misparse.
+fn keep_alive_value(minutes: i32) -> serde_json::Value {
+    match minutes {
+        n if n < 0 => serde_json::json!(-1),
+        0 => serde_json::json!(0),
+        n => serde_json::json!(format!("{}m", n)),
+    }
+}
 
 const MEETING_KEYS_CORE: &str = "\
 - \"minutes\": array of strings, key discussion points in order. DO NOT include decisions or action items here. Each entry is one self-contained sentence. Empty array if none.\n\
@@ -186,14 +197,14 @@ pub fn list_models() -> Result<Vec<String>, String> {
 /// model is already resident: Ollama returns immediately and the round trip
 /// also refreshes `keep_alive`. The flag stops rapid hotkey toggling from
 /// piling up threads on a load that is already in flight.
-pub fn warm_background(model: String) {
+pub fn warm_background(model: String, keep_alive_minutes: i32) {
     static WARMING: AtomicBool = AtomicBool::new(false);
     if WARMING.swap(true, Ordering::SeqCst) {
         return;
     }
     std::thread::spawn(move || {
         let started = std::time::Instant::now();
-        match warm(&model) {
+        match warm(&model, keep_alive_minutes) {
             Ok(()) => println!("[warm] {} ready in {}ms", model, started.elapsed().as_millis()),
             Err(e) => eprintln!("[warm] Ollama warm-up skipped: {}", e),
         }
@@ -203,11 +214,11 @@ pub fn warm_background(model: String) {
 
 /// Load `model` into Ollama's memory without generating anything, so the first
 /// dictation of a session doesn't pay the weight-load cost.
-pub fn warm(model: &str) -> Result<(), String> {
+pub fn warm(model: &str, keep_alive_minutes: i32) -> Result<(), String> {
     reqwest::blocking::Client::new()
         .post(format!("{}/api/generate", OLLAMA_URL))
         .timeout(Duration::from_secs(180))
-        .json(&serde_json::json!({ "model": model, "keep_alive": KEEP_ALIVE }))
+        .json(&serde_json::json!({ "model": model, "keep_alive": keep_alive_value(keep_alive_minutes) }))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?;
     Ok(())
@@ -226,6 +237,7 @@ pub fn cleanup(
     model: &str,
     text: &str,
     extra: Option<&str>,
+    keep_alive_minutes: i32,
     mut on_partial: impl FnMut(&str),
     cancelled: impl Fn() -> bool,
 ) -> Result<String, String> {
@@ -264,7 +276,7 @@ pub fn cleanup(
             "messages": messages,
             "stream": true,
             "think": false,
-            "keep_alive": KEEP_ALIVE,
+            "keep_alive": keep_alive_value(keep_alive_minutes),
         }))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?;
@@ -483,6 +495,21 @@ fn run_json_generate<T: serde::de::DeserializeOwned>(model: &str, prompt: &str) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The two special cases go over the wire as numbers and everything else as
+    /// a duration string. Getting this wrong doesn't fail loudly — the model
+    /// just quietly unloads at the wrong time.
+    #[test]
+    fn keep_alive_encodes_minutes_and_the_two_special_cases() {
+        assert_eq!(keep_alive_value(30), serde_json::json!("30m"));
+        assert_eq!(keep_alive_value(5), serde_json::json!("5m"));
+        assert_eq!(keep_alive_value(240), serde_json::json!("240m"));
+        // Never unload / unload at once: numbers, not "-1m" or "0m".
+        assert_eq!(keep_alive_value(-1), serde_json::json!(-1));
+        assert_eq!(keep_alive_value(0), serde_json::json!(0));
+        // Any negative means forever, not a negative duration.
+        assert_eq!(keep_alive_value(-99), serde_json::json!(-1));
+    }
 
     /// Pins the two assumptions the streaming reader makes: Ollama's NDJSON
     /// line shape, and that a reasoning block never leaks into the HUD.

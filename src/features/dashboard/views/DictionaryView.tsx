@@ -2,9 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
-import { Search, Plus, ArrowUpDown, Settings as SettingsIcon, Trash2, Pencil, Check } from "lucide-react";
+import { Search, Plus, ArrowUpDown, Settings as SettingsIcon, Trash2, Pencil, Check, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/// Whisper trims its initial prompt to n_text_ctx/2 - 1 tokens; see
+/// MAX_PROMPT_TOKENS in src-tauri/src/asr/whisper.rs, which does the real,
+/// tokenizer-accurate cut. This only warns before that happens, so a rough
+/// ~4-chars-per-token estimate is enough.
+const PROMPT_TOKEN_BUDGET = 223;
+const CHARS_PER_TOKEN = 4;
 
 export function DictionaryView() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -17,6 +25,7 @@ export function DictionaryView() {
   const [editValue, setEditValue] = useState("");
 
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "alpha">("newest");
+  const budgetUsed = terms.join(", ").length / CHARS_PER_TOKEN / PROMPT_TOKEN_BUDGET;
   const [isSortOpen, setIsSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +131,27 @@ export function DictionaryView() {
         action={headerAction}
       />
 
+      {budgetUsed >= 0.8 && (
+        <div className={`flex items-start gap-2.5 rounded-lg p-3 text-[12px] leading-relaxed ring-1 ${
+          budgetUsed >= 1
+            ? "bg-amber-500/10 ring-amber-500/20 text-amber-200/90"
+            : "bg-white/5 ring-white/10 text-muted-foreground"
+        }`}>
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>
+            {budgetUsed >= 1 ? (
+              <>
+                This list is past the roughly {PROMPT_TOKEN_BUDGET} tokens Whisper accepts as a
+                hint. Terms are dropped from the <strong>top</strong> of the list — reorder or
+                remove entries so the ones you care about survive.
+              </>
+            ) : (
+              <>Using about {Math.round(budgetUsed * 100)}% of Whisper's hint budget.</>
+            )}
+          </span>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between text-muted-foreground text-sm font-medium px-1">
         <span>{terms.length} terms</span>
@@ -192,7 +222,15 @@ export function DictionaryView() {
           </form>
         )}
 
-        {terms.length === 0 && !isAdding ? (
+        {settings === null ? (
+          // Loading, not empty. Without this branch the zero-state onboarding
+          // copy flashed on every visit, even for a user with hundreds of rows.
+          <div className="space-y-2 mt-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-[52px] w-full rounded-xl" />
+            ))}
+          </div>
+        ) : terms.length === 0 && !isAdding ? (
           <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-white/[0.015] border border-border/50 rounded-2xl mt-2">
             <h2 className="text-xl font-semibold tracking-tight">Add a term to the Dictionary!</h2>
             <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">

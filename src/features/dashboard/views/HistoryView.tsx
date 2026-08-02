@@ -364,6 +364,12 @@ export function HistoryView({ history, setHistory }: Props) {
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-[10px]">
                                 <p>Transcription: {(record.transcribe_ms / 1000).toFixed(1)}s</p>
+                                {record.cleanup_ms > 0 && (
+                                  <p>Cleanup: {(record.cleanup_ms / 1000).toFixed(1)}s</p>
+                                )}
+                                {record.total_ms > 0 && (
+                                  <p className="opacity-70">Total: {(record.total_ms / 1000).toFixed(1)}s</p>
+                                )}
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>

@@ -132,7 +132,7 @@ pub fn start_recording(app: &tauri::AppHandle) {
     // transcription instead of after them.
     if settings.llm_cleanup_enabled {
         if let Some(model) = settings.ollama_model.clone() {
-            crate::ollama::warm_background(model);
+            crate::ollama::warm_background(model, settings.ollama_keep_alive_minutes);
         }
     }
 
@@ -269,6 +269,9 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     let whisper_mode = state.settings.lock().unwrap().whisper_mode;
 
     thread::spawn(move || {
+        // Everything after the hotkey release, so the stage timings can be read
+        // against the number the user actually waits through.
+        let pipeline_started = std::time::Instant::now();
         let mono: Vec<f32> = if channels > 1 {
             raw.chunks(channels)
                 .map(|frame| {
@@ -422,6 +425,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                 })
         });
 
+        // Stays 0 when cleanup is disabled, which is what the record should say.
+        let mut cleanup_ms = 0u32;
         let text = if settings.llm_cleanup_enabled {
             if let Some(model) = settings.ollama_model.as_deref() {
                 let _ = app_handle.emit("patter://state", "Cleaning up…");
@@ -491,12 +496,21 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                     }
                 };
 
+                let cleanup_started = std::time::Instant::now();
                 let cancel_handle = app_handle.clone();
                 let is_cancelled =
                     move || bail_if_cancelled(&cancel_handle, dictation_session_id);
 
-                match crate::ollama::cleanup(model, &text, final_extra, on_partial, is_cancelled) {
+                match crate::ollama::cleanup(
+                    model,
+                    &text,
+                    final_extra,
+                    settings.ollama_keep_alive_minutes,
+                    on_partial,
+                    is_cancelled,
+                ) {
                     Ok(cleaned) => {
+                        cleanup_ms = cleanup_started.elapsed().as_millis() as u32;
                         println!("Cleaned: {}", cleaned);
                         cleaned
                     }
@@ -507,6 +521,9 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                     }
                     Err(e) => {
                         // Fall back to the raw transcript rather than dropping it.
+                        // Still timed: a cleanup that burns seconds before
+                        // failing is exactly what this measurement is for.
+                        cleanup_ms = cleanup_started.elapsed().as_millis() as u32;
                         eprintln!("LLM cleanup failed: {}", e);
                         text
                     }
@@ -550,6 +567,12 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             }
         };
 
+        let total_ms = pipeline_started.elapsed().as_millis() as u32;
+        println!(
+            "[timing] transcribe={}ms cleanup={}ms total={}ms",
+            transcribe_ms, cleanup_ms, total_ms
+        );
+
         let word_count = text.split_whitespace().count();
         let duration_seconds = audio.len() as f32 / WHISPER_SAMPLE_RATE as f32;
 
@@ -564,6 +587,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             duration_seconds,
             words: word_count as u32,
             transcribe_ms,
+            cleanup_ms,
+            total_ms,
             app_name: frontmost,
             
         });

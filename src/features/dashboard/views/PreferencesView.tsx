@@ -24,6 +24,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { formatHotkey } from "@/lib/hotkey";
 
 const MODES = [
   {
@@ -41,32 +42,6 @@ const MODES = [
     detail: "Injects keystrokes sequentially — best for remote desktop",
   },
 ];
-
-const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
-
-// rdev's stored key names are platform-neutral identifiers ("AltGr", "Super",
-// "ControlLeft"...) — display them using the labels each OS actually uses.
-const KEY_LABELS: Record<string, [mac: string, other: string]> = {
-  Alt: ["Option", "Alt"],
-  AltGr: ["Right Option", "Right Alt"],
-  Super: ["Command", "Win"],
-  Control: ["Control", "Ctrl"],
-  Shift: ["Shift", "Shift"],
-  ControlLeft: ["Left Control", "Left Ctrl"],
-  ControlRight: ["Right Control", "Right Ctrl"],
-  ShiftLeft: ["Left Shift", "Left Shift"],
-  ShiftRight: ["Right Shift", "Right Shift"],
-  MetaLeft: ["Left Command", "Left Win"],
-  MetaRight: ["Right Command", "Right Win"],
-  Space: ["Space", "Space"],
-};
-
-function formatHotkey(combo: string): string {
-  return combo
-    .split("+")
-    .map((part) => KEY_LABELS[part]?.[IS_MAC ? 0 : 1] ?? part)
-    .join(" + ");
-}
 
 interface PermissionRowProps {
   icon: typeof Mic;

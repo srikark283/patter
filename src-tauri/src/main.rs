@@ -121,6 +121,14 @@ fn main() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        // Remembers the dashboard's size and position across launches. The HUD
+        // is denied: it is placed programmatically on whichever display the
+        // cursor is on, so a restored position would fight reposition_hud_to_cursor.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_denylist(&["main"])
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init());
 
     #[cfg(target_os = "macos")]
@@ -284,13 +292,13 @@ fn main() {
                     println!("[warm] ASR ready in {}ms", started.elapsed().as_millis());
                 }
 
-                let (cleanup_enabled, model) = {
+                let (cleanup_enabled, model, keep_alive_minutes) = {
                     let s = state.settings.lock().unwrap();
-                    (s.llm_cleanup_enabled, s.ollama_model.clone())
+                    (s.llm_cleanup_enabled, s.ollama_model.clone(), s.ollama_keep_alive_minutes)
                 };
                 if let (true, Some(model)) = (cleanup_enabled, model) {
                     let started = std::time::Instant::now();
-                    match ollama::warm(&model) {
+                    match ollama::warm(&model, keep_alive_minutes) {
                         Ok(()) => println!(
                             "[warm] {} ready in {}ms",
                             model,
@@ -376,6 +384,53 @@ fn main() {
                     eprintln!("rdev listen error: {:?}", error);
                 }
             });
+
+            // An accessory app shows no menu bar, but NSApplication still routes
+            // key equivalents through the main menu — so without one, ⌘W, ⌘M and
+            // ⌘C/⌘V simply do nothing in the dashboard. The Edit submenu matters
+            // most: WKWebView text fields get copy/paste from these items, not
+            // from the webview itself.
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+
+                let settings = MenuItemBuilder::with_id("menu:preferences", "Settings…")
+                    .accelerator("CmdOrCtrl+,")
+                    .build(app)?;
+                let app_menu = SubmenuBuilder::new(app, "Patter")
+                    .about(None)
+                    .separator()
+                    .item(&settings)
+                    .separator()
+                    .hide()
+                    .hide_others()
+                    .show_all()
+                    .separator()
+                    .quit()
+                    .build()?;
+                let edit_menu = SubmenuBuilder::new(app, "Edit")
+                    .undo()
+                    .redo()
+                    .separator()
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
+                    .build()?;
+                let window_menu = SubmenuBuilder::new(app, "Window")
+                    .minimize()
+                    .close_window()
+                    .build()?;
+                let menu = MenuBuilder::new(app)
+                    .items(&[&app_menu, &edit_menu, &window_menu])
+                    .build()?;
+                app.set_menu(menu)?;
+                app.on_menu_event(|app, event| {
+                    if event.id() == "menu:preferences" {
+                        tray::open_dashboard_tab(app, "preferences");
+                    }
+                });
+            }
 
             // Tray needs AppState (history, model list, pause flag) to build its menu.
             let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png")).unwrap();

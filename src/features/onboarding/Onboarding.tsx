@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import icon from "@/assets/logohq.png";
+import { formatHotkey } from "@/lib/hotkey";
 
 const RECOMMENDED_MODEL = "whisper-base";
 const RECOMMENDED_MODEL_NAME = "Whisper Base";
@@ -297,7 +298,7 @@ export function Onboarding({
           <p>
             Press{" "}
             <kbd className="px-2 py-1 rounded-md bg-white/8 ring-1 ring-border font-sans text-[12px] text-foreground/90">
-              {hotkey}
+              {formatHotkey(hotkey)}
             </kbd>{" "}
             in any app, speak, and Patter types what you said right where your cursor is.
           </p>

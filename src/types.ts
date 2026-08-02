@@ -11,6 +11,10 @@ export interface TranscriptionRecord {
   duration_seconds: number;
   words: number;
   transcribe_ms: number;
+  /** 0 when LLM cleanup is off. */
+  cleanup_ms: number;
+  /** Hotkey release to text-in-app. 0 on records predating the field. */
+  total_ms: number;
   app_name?: string | null;
 }
 

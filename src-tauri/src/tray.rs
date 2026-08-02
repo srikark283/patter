@@ -248,7 +248,7 @@ pub fn refresh(app: &AppHandle) {
 
 /// Open the dashboard and switch it to `tab` (fire-and-forget; the delay
 /// gives a freshly created window time to mount its event listener).
-fn open_dashboard_tab(app: &AppHandle, tab: &str) {
+pub(crate) fn open_dashboard_tab(app: &AppHandle, tab: &str) {
     let existed = app.get_webview_window("dashboard").is_some();
     if commands::open_dashboard(app.clone()).is_err() {
         return;

@@ -400,6 +400,8 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
         let mut builder = tauri::WebviewWindowBuilder::new(&app, "dashboard", WebviewUrl::App("dashboard.html".into()))
             .title("Patter Dashboard")
             .inner_size(800.0, 600.0)
+            // Below this the sidebar and the two-column content stop coexisting.
+            .min_inner_size(720.0, 520.0)
             .transparent(true);
 
         #[cfg(target_os = "macos")]

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Trash2, SparkleIcon } from "lucide-react";
+import { RefreshCw, Trash2, SparkleIcon, Clock } from "lucide-react";
 import { NativeAppIcon } from "../components/NativeAppIcon";
 import { MagicWandIcon, LightningAIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, listOllamaModels, Settings } from "../../../lib/ipc";
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const APP_PROFILE_TEMPLATES = [
   {
@@ -78,7 +79,21 @@ export function AIView() {
     }
   };
 
-  if (!settings) return null;
+  // Returning null left the whole pane blank until settings resolved, which
+  // read as the app hanging rather than loading.
+  if (!settings) {
+    return (
+      <div className="space-y-6 pb-10">
+        <PageHeader
+          title="Intelligence"
+          description="Local LLM features powered by Ollama — cleanup, meeting notes, per-app tone."
+        />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-[104px] w-full rounded-xl" />
+        ))}
+      </div>
+    );
+  }
 
   const ollamaUp = ollamaModels !== null;
 
@@ -173,6 +188,40 @@ export function AIView() {
                   {(ollamaModels ?? []).map((m) => (
                     <SelectItem key={m} value={m}>{m}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {settings.llm_cleanup_enabled && (
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <Clock size={14} className="text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-medium text-foreground/90">Keep Model Loaded</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    How long Ollama holds the model in memory after a dictation. Longer
+                    avoids a multi-second reload; shorter gives the RAM back sooner.
+                  </p>
+                </div>
+              </div>
+              <Select
+                value={String(settings.ollama_keep_alive_minutes)}
+                onValueChange={(val) => update({ ollama_keep_alive_minutes: Number(val) })}
+              >
+                <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Unload immediately</SelectItem>
+                  <SelectItem value="5">5 minutes</SelectItem>
+                  <SelectItem value="15">15 minutes</SelectItem>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="240">4 hours</SelectItem>
+                  <SelectItem value="-1">Until Ollama restarts</SelectItem>
                 </SelectContent>
               </Select>
             </div>

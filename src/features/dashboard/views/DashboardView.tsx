@@ -7,9 +7,10 @@ import { getSettings, onHudState, isRecording, isMeetingRecording } from "../../
 // import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { AreaChart, Area, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, Tooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts";
 import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
+import { formatKey } from "@/lib/hotkey";
 
 interface Props {
   stats: AppStats | null;
@@ -126,6 +127,15 @@ function calculateStreak(history: TranscriptionRecord[]) {
   return maxStreak;
 }
 
+/// The decorative glyph bleeding out of each stat card's corner. It is clipped
+/// by the card's overflow-hidden, which is fine for organic shapes but sliced
+/// LayoutGrid squares and WholeWord letterforms into what looked like render
+/// artifacts. The mask fades the glyph out before it reaches the cut edge, so
+/// there is no hard boundary regardless of the icon's internal structure.
+const WATERMARK =
+  "absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none " +
+  "[mask-image:linear-gradient(to_bottom_right,black_25%,transparent_85%)]";
+
 export function DashboardView({ stats, history, onViewAll }: Props) {
   const [hotkey, setHotkey] = useState<string>("");
   const [timeframe, setTimeframe] = useState<string>("all");
@@ -231,7 +241,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                 {hotkey.split('+').map((key, i, arr) => (
                   <span key={i} className="flex items-center gap-1">
                     <kbd className="rounded-[4px] border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-sans font-medium text-muted-foreground">
-                      {key}
+                      {formatKey(key)}
                     </kbd>
                     {i < arr.length - 1 && <span className="text-muted-foreground/40 text-[10px] font-medium">+</span>}
                   </span>
@@ -250,7 +260,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
           {weekWords === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.total_words : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Total Words</div>
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none"><WholeWord size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><WholeWord size={100} strokeWidth={1} /></div>
         </div>
         
         {/* Dictations */}
@@ -259,7 +269,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
           {weekDictations === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.transcriptions_count : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Dictations</div>
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none"><AudioLines size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><AudioLines size={100} strokeWidth={1} /></div>
         </div>
 
         {/* Time Saved */}
@@ -267,7 +277,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? formatTime(stats.time_saved_seconds) : <Skeleton className="h-8 w-24" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Time Saved</div>
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none"><Timer size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><Timer size={100} strokeWidth={1} /></div>
         </div>
 
         {/* Streak */}
@@ -275,7 +285,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? `${longestStreak} day${longestStreak === 1 ? '' : 's'}` : <Skeleton className="h-8 w-20" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Longest Streak</div>
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none"><Flame size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><Flame size={100} strokeWidth={1} /></div>
         </div>
 
         {/* Apps */}
@@ -283,7 +293,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? uniqueAppsCount : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Apps Used</div>
-          <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none"><LayoutGrid size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><LayoutGrid size={100} strokeWidth={1} /></div>
         </div>
       </div>
 
@@ -319,15 +329,42 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             {series === null ? (
               <Skeleton className="h-[180px] w-full mt-auto" />
             ) : (
-              <div className="h-[180px] w-full mt-auto -ml-4">
+              <div className="h-[180px] w-full mt-auto">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={series} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                  <AreaChart data={series} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorWords" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
                         <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
+                    {/* Recessive by design: horizontal rules only, no vertical
+                        lines competing with the curve, no axis spines. Without
+                        any axes the panel showed a shape with no magnitude and
+                        no dates — pretty, but unreadable. */}
+                    <CartesianGrid vertical={false} stroke="#ffffff" strokeOpacity={0.05} />
+                    <XAxis
+                      dataKey="dateStr"
+                      tick={{ fill: "#ffffff", fillOpacity: 0.35, fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={8}
+                      minTickGap={28}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      width={44}
+                      tick={{ fill: "#ffffff", fillOpacity: 0.35, fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickCount={4}
+                      allowDecimals={false}
+                      // 1200 -> "1.2k": four digits of axis label crowd a panel
+                      // this size, and the exact figure lives in the tooltip.
+                      tickFormatter={(v: number) =>
+                        v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `${v}`
+                      }
+                    />
                     <Tooltip
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {

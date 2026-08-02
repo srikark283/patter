@@ -4,6 +4,7 @@ import { updateSettings, getSettings, Settings, MemoryFact, getEmbedding } from 
 import { PageHeader } from "../components/PageHeader";
 import { Search, Plus, Trash2, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function MemoryView() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -108,7 +109,15 @@ export function MemoryView() {
           </form>
         )}
 
-        {memories.length === 0 && !isAdding ? (
+        {settings === null ? (
+          // Loading, not empty. Without this branch the zero-state onboarding
+          // copy flashed on every visit, even for a user with hundreds of rows.
+          <div className="space-y-2 mt-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-[52px] w-full rounded-xl" />
+            ))}
+          </div>
+        ) : memories.length === 0 && !isAdding ? (
           <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-white/[0.015] border border-border/50 rounded-2xl mt-2">
             <h2 className="text-xl font-semibold tracking-tight">Teach Patter about you!</h2>
             <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">

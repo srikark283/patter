@@ -20,6 +20,13 @@ fn default_trim_silence() -> bool {
     true
 }
 
+/// Minutes Ollama holds the cleanup model in memory after a request. Ollama's
+/// own default is 5 minutes, which unloads the model between dictations and
+/// makes the next hotkey pay a multi-second reload.
+fn default_ollama_keep_alive_minutes() -> i32 {
+    30
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Settings {
     pub hotkey: String,
@@ -39,6 +46,10 @@ pub struct Settings {
     pub ollama_model: Option<String>,
     #[serde(default)]
     pub meeting_ollama_model: Option<String>,
+    /// How long Ollama keeps the model resident. -1 holds it indefinitely,
+    /// 0 unloads it as soon as the request finishes.
+    #[serde(default = "default_ollama_keep_alive_minutes")]
+    pub ollama_keep_alive_minutes: i32,
     #[serde(default = "default_hud_position")]
     pub hud_position: String,
     #[serde(default = "default_play_sounds")]
@@ -117,6 +128,7 @@ impl Default for Settings {
             llm_cleanup_enabled: false,
             ollama_model: None,
             meeting_ollama_model: None,
+            ollama_keep_alive_minutes: default_ollama_keep_alive_minutes(),
             hud_position: default_hud_position(),
             play_sounds: default_play_sounds(),
             sound_theme: default_sound_theme(),
@@ -166,6 +178,13 @@ pub struct TranscriptionRecord {
     /// Engine inference time; 0 for records predating this field.
     #[serde(default)]
     pub transcribe_ms: u32,
+    /// LLM cleanup time. 0 when cleanup is off, or for records predating this.
+    #[serde(default)]
+    pub cleanup_ms: u32,
+    /// Hotkey release to text-in-app, so the stages can be read against the
+    /// number the user actually feels. 0 for records predating this field.
+    #[serde(default)]
+    pub total_ms: u32,
     #[serde(default)]
     pub app_name: Option<String>,
     }
