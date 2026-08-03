@@ -8,7 +8,7 @@ import { PageHeader } from "../components/PageHeader";
 import { cn } from "@/lib/utils";
 
 import openaiLogo from "@/assets/openai-logo.png";
-import nvidiaLogo from "@/assets/nvidia-logo.png";
+import nvidiaLogo from "@/assets/nvidia-logo-mono.png";
 
 interface ModelSpec {
   id: string;
@@ -44,7 +44,7 @@ function RatingDots({ value, label }: { value: number; label: string }) {
             key={i}
             className={cn(
               "w-[3.5px] h-[3.5px] rounded-full",
-              i <= value ? "bg-steelIce/80" : "bg-white/15"
+              i <= value ? "bg-steelIce/80" : "bg-foreground/15"
             )}
           />
         ))}
@@ -153,14 +153,20 @@ export function ModelsView({
           isActive
             ? "bg-steel/[0.06] ring-steel/40 shadow-[0_0_20px_rgba(91,155,209,0.08)]"
             : "bg-card ring-border",
-          clickable && "cursor-pointer hover:bg-white/[0.04] hover:ring-white/20"
+          clickable && "cursor-pointer hover:bg-foreground/[0.04] hover:ring-foreground/20"
         )}
       >
-        <div className="w-9 h-9 shrink-0 rounded-lg bg-white/[0.04] ring-1 ring-white/5 flex items-center justify-center overflow-hidden">
+        <div className="w-9 h-9 shrink-0 rounded-lg bg-foreground/[0.04] ring-1 ring-foreground/5 flex items-center justify-center overflow-hidden">
+          {/* Both marks are white-on-transparent, which is invisible on a light
+              surface. They are monochrome, so inverting flips them to near-black
+              for light mode rather than needing a second set of assets. */}
           <img
             src={VENDOR_LOGOS[model.vendor]}
             alt={model.vendor}
-            className={model.vendor === "nvidia" ? "w-7" : "w-5"}
+            className={cn(
+              "invert dark:invert-0 opacity-80",
+              model.vendor === "nvidia" ? "w-7" : "w-5"
+            )}
           />
         </div>
 
@@ -170,7 +176,7 @@ export function ModelsView({
           </p>
           {isDownloading ? (
             <div className="mt-1.5 flex items-center gap-2">
-              <Progress value={downloadProgress} className="h-1 flex-1 bg-white/10" />
+              <Progress value={downloadProgress} className="h-1 flex-1 bg-foreground/10" />
               <span className="font-sans text-[10px] text-steelIce tabular-nums shrink-0">
                 {downloadProgress.toFixed(0)}%
               </span>
@@ -238,7 +244,7 @@ export function ModelsView({
       {modelStatusLoading ? (
         <div className="grid grid-cols-2 gap-3">
           {MODELS.map((m) => (
-            <Skeleton key={m.id} className="h-16 w-full rounded-xl bg-white/5" />
+            <Skeleton key={m.id} className="h-16 w-full rounded-xl bg-foreground/5" />
           ))}
         </div>
       ) : (

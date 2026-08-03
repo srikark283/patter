@@ -2,15 +2,46 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
-import { Search, Plus, ArrowUpDown, Settings as SettingsIcon, Trash2, Pencil, Check, AlertTriangle } from "lucide-react";
+import { Search, Plus, ArrowUpDown, Trash2, Pencil, Check, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 /// Whisper trims its initial prompt to n_text_ctx/2 - 1 tokens; see
 /// MAX_PROMPT_TOKENS in src-tauri/src/asr/whisper.rs, which does the real,
 /// tokenizer-accurate cut. This only warns before that happens, so a rough
 /// ~4-chars-per-token estimate is enough.
+/** Splits a typed or pasted blob into terms — commas or newlines, either way. */
+function parseTerms(input: string): string[] {
+  return input.split(/[,\n]/).map((t) => t.trim()).filter(Boolean);
+}
+
+/**
+ * Merges `incoming` into `existing`, case-insensitively. The old check was
+ * `terms.includes(clean)`, an exact match, so "Patter" and "patter" could both
+ * live in the list and both burn prompt budget without adding anything.
+ * Existing casing wins; the first spelling of a new term wins.
+ */
+function mergeTerms(existing: string[], incoming: string[]) {
+  const seen = new Map(existing.map((t) => [t.toLowerCase(), t]));
+  let added = 0;
+  for (const term of incoming) {
+    const key = term.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.set(key, term);
+    added++;
+  }
+  return { merged: [...seen.values()], added, skipped: incoming.length - added };
+}
+
 const PROMPT_TOKEN_BUDGET = 223;
 const CHARS_PER_TOKEN = 4;
 
@@ -25,6 +56,7 @@ export function DictionaryView() {
   const [editValue, setEditValue] = useState("");
 
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "alpha">("newest");
+  const [confirmClear, setConfirmClear] = useState(false);
   const budgetUsed = terms.join(", ").length / CHARS_PER_TOKEN / PROMPT_TOKEN_BUDGET;
   const [isSortOpen, setIsSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -67,12 +99,26 @@ export function DictionaryView() {
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = newTerm.trim();
-    if (clean && !terms.includes(clean)) {
-      save([...terms, clean]);
+    // One field for both cases: a single word, or a whole list pasted in.
+    const incoming = parseTerms(newTerm);
+    if (incoming.length) {
+      const { merged, added, skipped } = mergeTerms(terms, incoming);
+      if (added) save(merged);
+      if (incoming.length > 1 || skipped) {
+        toast.success(
+          `Added ${added} term${added === 1 ? "" : "s"}` +
+            (skipped ? ` · skipped ${skipped} already in the list` : "")
+        );
+      }
     }
     setNewTerm("");
     setIsAdding(false);
+  };
+
+  const handleClearAll = async () => {
+    await save([]);
+    setConfirmClear(false);
+    toast.success("Dictionary cleared");
   };
 
   const removeTerm = (term: string) => {
@@ -107,7 +153,7 @@ export function DictionaryView() {
 
   const headerAction = (
     <div className="flex items-center gap-3">
-      <div className="relative flex items-center bg-white/[0.03] border border-border rounded-full px-3 transition-colors focus-within:border-steelIce focus-within:bg-white/[0.05]">
+      <div className="relative flex items-center bg-foreground/[0.03] border border-border rounded-full px-3 transition-colors focus-within:border-steelIce focus-within:bg-foreground/[0.05]">
         <Search size={14} className="text-muted-foreground" />
         <input 
           type="text" 
@@ -117,6 +163,15 @@ export function DictionaryView() {
           className="bg-transparent border-none text-foreground outline-none py-1.5 pl-2.5 w-32 md:w-40 text-sm placeholder:text-muted-foreground"
         />
       </div>
+      <Button
+        variant="destructive"
+        size="sm"
+        className="rounded-full"
+        onClick={() => setConfirmClear(true)}
+        disabled={!terms.length}
+      >
+        <Trash2 size={15} /> Clear all
+      </Button>
       <Button onClick={() => setIsAdding(true)} className="rounded-full shadow-sm">
         <Plus size={16} /> Add new
       </Button>
@@ -135,7 +190,7 @@ export function DictionaryView() {
         <div className={`flex items-start gap-2.5 rounded-lg p-3 text-[12px] leading-relaxed ring-1 ${
           budgetUsed >= 1
             ? "bg-amber-500/10 ring-amber-500/20 text-amber-200/90"
-            : "bg-white/5 ring-white/10 text-muted-foreground"
+            : "bg-foreground/5 ring-foreground/10 text-muted-foreground"
         }`}>
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span>
@@ -179,7 +234,7 @@ export function DictionaryView() {
                   onClick={() => { setSortOrder(val as any); setIsSortOpen(false); }}
                   className={cn(
                     "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left",
-                    sortOrder === val ? "bg-accent text-accent-foreground font-medium" : "hover:bg-white/5 text-muted-foreground hover:text-foreground"
+                    sortOrder === val ? "bg-accent text-accent-foreground font-medium" : "hover:bg-foreground/5 text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <span className="w-4 flex justify-center">
@@ -191,20 +246,17 @@ export function DictionaryView() {
             </div>
           )}
 
-          <Button variant="ghost" size="icon-sm">
-            <SettingsIcon size={16} />
-          </Button>
         </div>
       </div>
 
       {/* Main Content Area */}
       <div className="flex flex-col gap-2">
         {isAdding && (
-          <form onSubmit={handleAdd} className="flex items-center gap-3 bg-white/[0.03] px-4 py-3 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
-            <input 
+          <form onSubmit={handleAdd} className="flex items-start gap-3 bg-foreground/[0.03] px-4 py-3 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+            <textarea
               autoFocus
-              type="text" 
-              placeholder="Enter a new term..."
+              rows={1}
+              placeholder="Enter a term, or paste a list separated by commas or new lines..."
               value={newTerm}
               onChange={e => setNewTerm(e.target.value)}
               onKeyDown={e => {
@@ -212,8 +264,13 @@ export function DictionaryView() {
                   setIsAdding(false);
                   setNewTerm("");
                 }
+                // Enter commits; Shift+Enter is how you build a list by hand.
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAdd(e);
+                }
               }}
-              className="flex-1 bg-transparent border-none text-foreground outline-none text-[15px] font-medium"
+              className="flex-1 bg-transparent border-none text-foreground outline-none text-[15px] font-medium resize-none max-h-40 leading-relaxed placeholder:text-muted-foreground"
             />
             <div className="flex gap-2 items-center">
               <Button type="button" variant="ghost" size="sm" onClick={() => { setIsAdding(false); setNewTerm(""); }}>Cancel</Button>
@@ -231,7 +288,7 @@ export function DictionaryView() {
             ))}
           </div>
         ) : terms.length === 0 && !isAdding ? (
-          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-white/[0.015] border border-border/50 rounded-2xl mt-2">
+          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-foreground/[0.015] border border-border/50 rounded-2xl mt-2">
             <h2 className="text-xl font-semibold tracking-tight">Add a term to the Dictionary!</h2>
             <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">
               Add words you want Patter to recognize. It can be particular spellings, names, and slang that you often use.
@@ -243,7 +300,7 @@ export function DictionaryView() {
         ) : (
           filteredTerms.map(term => (
             editingTerm === term ? (
-              <form key={term} onSubmit={(e) => handleEditSubmit(e, term)} className="flex items-center gap-3 bg-white/[0.03] px-4 py-3 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+              <form key={term} onSubmit={(e) => handleEditSubmit(e, term)} className="flex items-center gap-3 bg-foreground/[0.03] px-4 py-3 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
                 <input 
                   autoFocus
                   type="text" 
@@ -260,7 +317,7 @@ export function DictionaryView() {
                 </div>
               </form>
             ) : (
-              <div key={term} className="group flex items-center justify-between bg-white/[0.015] hover:bg-white/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">
+              <div key={term} className="group flex items-center justify-between bg-foreground/[0.015] hover:bg-foreground/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">
                 <span className="font-medium text-[15px] text-foreground/90">{term}</span>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => startEditing(term)}>
@@ -279,6 +336,22 @@ export function DictionaryView() {
           <div className="text-center text-muted-foreground py-10 text-sm">No terms match your search.</div>
         )}
       </div>
+
+      <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear the dictionary?</DialogTitle>
+            <DialogDescription>
+              All {terms.length} term{terms.length === 1 ? "" : "s"} will be removed. Patter will
+              stop biasing transcription toward them. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleClearAll}>Clear all</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

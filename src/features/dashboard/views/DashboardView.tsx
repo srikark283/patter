@@ -133,8 +133,15 @@ function calculateStreak(history: TranscriptionRecord[]) {
 /// artifacts. The mask fades the glyph out before it reaches the cut edge, so
 /// there is no hard boundary regardless of the icon's internal structure.
 const WATERMARK =
-  "absolute -right-4 -bottom-4 opacity-[0.03] text-foreground pointer-events-none " +
-  "[mask-image:linear-gradient(to_bottom_right,black_25%,transparent_85%)]";
+  // Opacity is per-theme: the same alpha does not read the same both ways.
+  // Near-black ink on a white card needs more to register than pale ink on a
+  // dark one, and 0.03 left both looking like a smudge rather than a mark.
+  "absolute -right-4 -bottom-4 opacity-[0.09] dark:opacity-[0.06] text-foreground pointer-events-none " +
+  // Radial, anchored at the glyph's own bottom-right — the point that sits past
+  // the card's clip edge. A linear diagonal fade only softened one direction, so
+  // at this opacity the right and bottom cuts came back. This dissolves the mark
+  // in every direction as it approaches the corner it bleeds through.
+  "[mask-image:radial-gradient(130%_130%_at_100%_100%,transparent_20%,black_72%)]";
 
 export function DashboardView({ stats, history, onViewAll }: Props) {
   const [hotkey, setHotkey] = useState<string>("");
@@ -236,11 +243,11 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                   isRecordingActive ? "text-foreground" : "text-foreground/80"
                 )}>{statusText}</span>
               </div>
-              <div className="h-4 w-px bg-white/10" />
+              <div className="h-4 w-px bg-foreground/10" />
               <div className="flex items-center gap-1">
                 {hotkey.split('+').map((key, i, arr) => (
                   <span key={i} className="flex items-center gap-1">
-                    <kbd className="rounded-[4px] border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-sans font-medium text-muted-foreground">
+                    <kbd className="rounded-[4px] border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 text-[10px] font-sans font-medium text-muted-foreground">
                       {formatKey(key)}
                     </kbd>
                     {i < arr.length - 1 && <span className="text-muted-foreground/40 text-[10px] font-medium">+</span>}
@@ -255,45 +262,45 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-5 gap-4">
         {/* Total Words */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
           {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3">+{weekWords} this week</div>}
           {weekWords === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.total_words : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Total Words</div>
-          <div className={WATERMARK}><WholeWord size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><WholeWord size={100} strokeWidth={1.4} /></div>
         </div>
         
         {/* Dictations */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
           {weekDictations > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3">+{weekDictations} this week</div>}
           {weekDictations === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.transcriptions_count : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Dictations</div>
-          <div className={WATERMARK}><AudioLines size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><AudioLines size={100} strokeWidth={1.4} /></div>
         </div>
 
         {/* Time Saved */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? formatTime(stats.time_saved_seconds) : <Skeleton className="h-8 w-24" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Time Saved</div>
-          <div className={WATERMARK}><Timer size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><Timer size={100} strokeWidth={1.4} /></div>
         </div>
 
         {/* Streak */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? `${longestStreak} day${longestStreak === 1 ? '' : 's'}` : <Skeleton className="h-8 w-20" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Longest Streak</div>
-          <div className={WATERMARK}><Flame size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><Flame size={100} strokeWidth={1.4} /></div>
         </div>
 
         {/* Apps */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-white/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? uniqueAppsCount : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Apps Used</div>
-          <div className={WATERMARK}><LayoutGrid size={100} strokeWidth={1} /></div>
+          <div className={WATERMARK}><LayoutGrid size={100} strokeWidth={1.4} /></div>
         </div>
       </div>
 
@@ -303,10 +310,10 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         
         <div className="grid grid-cols-3 gap-4">
           {/* Activity Chart */}
-          <div className="col-span-2 rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
+          <div className="col-span-2 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
-              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
                 {[
                   { label: "All", value: "all" },
                   { label: "30d", value: "30" },
@@ -317,7 +324,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                     onClick={() => setTimeframe(t.value)}
                     className={`px-3 py-1 text-[11px] font-medium rounded-md transition-colors ${
                       timeframe === t.value
-                        ? "bg-white/15 text-foreground shadow-sm"
+                        ? "bg-foreground/15 text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -399,7 +406,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
 
           <div className="col-span-1 flex flex-col gap-4">
             {/* Top Words */}
-            <div className="flex-1 rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
+            <div className="flex-1 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Words</h3>
               {!history ? (
                 <Skeleton className="h-full w-full" />
@@ -408,7 +415,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
               ) : (
                 <div className="flex flex-wrap gap-2 mt-auto">
                   {topWords.slice(0, 4).map((w) => (
-                    <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/4 border border-white/5">
+                    <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/4 border border-foreground/5">
                       <span className="text-[12px] text-foreground/90 font-medium">{w.word}</span>
                       <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{w.count}</span>
                     </div>
@@ -418,7 +425,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             </div>
 
             {/* Top Apps */}
-            <div className="flex-1 rounded-xl border border-border/60 bg-white/1.5 p-5 flex flex-col">
+            <div className="flex-1 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Apps</h3>
               {!history ? (
                 <Skeleton className="h-full w-full" />
@@ -427,7 +434,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
               ) : (
                 <div className="flex flex-wrap gap-2 mt-auto">
                   {topApps.slice(0, 4).map((a) => (
-                    <div key={a.app} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/4 border border-white/5">
+                    <div key={a.app} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/4 border border-foreground/5">
                       <span className="text-[12px] text-foreground/90 font-medium">{a.app}</span>
                       <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{a.count}</span>
                     </div>
@@ -461,7 +468,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             {history.slice(0, 5).map((record) => (
               <div 
                 key={record.id} 
-                className="group relative flex flex-col gap-4 px-5 py-4 rounded-xl border border-border/60 bg-white/1.5 hover:bg-white/3 transition-colors"
+                className="group relative flex flex-col gap-4 px-5 py-4 rounded-xl border border-border/60 bg-foreground/1.5 hover:bg-foreground/3 transition-colors"
               >
                 <p className="text-[15px] leading-relaxed text-foreground/90 wrap-break-word line-clamp-2 pr-8">
                   {record.text}

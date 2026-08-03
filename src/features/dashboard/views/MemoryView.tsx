@@ -63,7 +63,7 @@ export function MemoryView() {
 
   const headerAction = (
     <div className="flex items-center gap-3">
-      <div className="relative flex items-center bg-white/[0.03] border border-border rounded-full px-3 transition-colors focus-within:border-steelIce focus-within:bg-white/[0.05]">
+      <div className="relative flex items-center bg-foreground/[0.03] border border-border rounded-full px-3 transition-colors focus-within:border-steelIce focus-within:bg-foreground/[0.05]">
         <Search size={14} className="text-muted-foreground" />
         <input 
           type="text" 
@@ -93,14 +93,14 @@ export function MemoryView() {
 
       <div className="flex flex-col gap-2">
         {isAdding && (
-          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-white/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-foreground/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
             <textarea 
               autoFocus
               placeholder="E.g., 'My manager's name is John Doe' or 'Project Phoenix is a secret design system rewrite'"
               value={newContent}
               onChange={e => setNewContent(e.target.value)}
               rows={3}
-              className="bg-background/50 border border-white/10 rounded-md text-foreground outline-none text-[14px] px-3 py-2 focus:border-steel resize-none"
+              className="bg-background/50 border border-foreground/10 rounded-md text-foreground outline-none text-[14px] px-3 py-2 focus:border-steel resize-none"
             />
             <div className="flex gap-2 items-center justify-end">
               <Button type="button" variant="ghost" size="sm" onClick={() => { setIsAdding(false); setNewContent(""); }}>Cancel</Button>
@@ -118,7 +118,7 @@ export function MemoryView() {
             ))}
           </div>
         ) : memories.length === 0 && !isAdding ? (
-          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-white/[0.015] border border-border/50 rounded-2xl mt-2">
+          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-foreground/[0.015] border border-border/50 rounded-2xl mt-2">
             <h2 className="text-xl font-semibold tracking-tight">Teach Patter about you!</h2>
             <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">
               Add specific details, names, or context that you want Patter to remember. It will use this knowledge to intelligently clean up your transcriptions.
@@ -129,7 +129,7 @@ export function MemoryView() {
           </div>
         ) : (
           filteredMemories.map(memory => (
-            <div key={memory.id} className="group flex items-center justify-between bg-white/[0.015] hover:bg-white/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">
+            <div key={memory.id} className="group flex items-center justify-between bg-foreground/[0.015] hover:bg-foreground/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">
               <div className="flex items-center gap-3">
                 <Brain size={16} className="text-steelIce/60" />
                 <span className="font-medium text-[15px] text-foreground/90">{memory.content}</span>

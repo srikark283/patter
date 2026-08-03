@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent, createContext, useContext, ReactNode, ComponentType } from "react";
 import { toast } from "sonner";
-import { Search, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type } from "lucide-react";
+import { Search, SunMoon, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, requestAccessibilityPermission, openInputMonitoringSettings, requestInputMonitoringPermission, openMicrophoneSettings, requestMicrophonePermission, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
@@ -25,6 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { formatHotkey } from "@/lib/hotkey";
+import { getTheme, setTheme, type Theme } from "@/lib/theme";
 
 const MODES = [
   {
@@ -91,6 +92,9 @@ const ROWS = {
   microphone: { icon: Mic, tint: "text-rose-400", bg: "bg-rose-500/10",
     title: "Microphone", description: "Select audio input device",
     keywords: "input device audio mic" },
+  appearance: { icon: SunMoon, tint: "text-yellow-400", bg: "bg-yellow-500/10",
+    title: "Appearance", description: "Light or dark, or follow the system",
+    keywords: "theme dark light mode colour color" },
   hudPosition: { icon: Monitor, tint: "text-cyan-400", bg: "bg-cyan-500/10",
     title: "HUD Position", description: "Where the recording pill appears",
     keywords: "overlay pill top bottom" },
@@ -100,7 +104,7 @@ const ROWS = {
   autostart: { icon: Power, tint: "text-green-400", bg: "bg-green-500/10",
     title: "Launch at Login", description: "Start Patter automatically on boot",
     keywords: "startup autostart boot login" },
-  outputMode: { icon: Zap, tint: "text-steelIce", bg: "bg-steel/10",
+  outputMode: { icon: Zap, tint: "text-accent-foreground", bg: "bg-steel/10",
     title: "Text Output", description: "How finished text reaches your cursor",
     keywords: "paste type insert clipboard keystroke" },
   updates: { icon: PackageIcon, tint: "text-fuchsia-400", bg: "bg-fuchsia-500/10",
@@ -138,7 +142,7 @@ function SettingsSection({ label, rows, children }: {
   return (
     <section className="space-y-4">
       <span className="t-label block px-1 pb-1">{label}</span>
-      <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-white/5">{children}</div>
+      <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-border">{children}</div>
     </section>
   );
 }
@@ -182,7 +186,7 @@ function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onRe
         {granted !== true && onRequestAccess && (
           <button
             onClick={() => onRequestAccess().catch(console.error)}
-            className="text-[11px] px-2 py-1 rounded bg-steel/15 text-steelIce hover:bg-steel/25 transition-colors font-medium"
+            className="text-[11px] px-2 py-1 rounded bg-steel/15 text-accent-foreground hover:bg-steel/25 transition-colors font-medium"
           >
             Request Access
           </button>
@@ -190,7 +194,7 @@ function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onRe
         {granted !== true && (
           <button
             onClick={() => onOpenSettings().catch(console.error)}
-            className="text-[11px] text-steelIce/80 hover:text-steelIce transition-colors"
+            className="text-[11px] text-primary/80 hover:text-primary transition-colors"
           >
             Open Settings
           </button>
@@ -205,6 +209,7 @@ export function PreferencesView() {
   const [mics, setMics] = useState<string[]>([]);
   const [recordingField, setRecordingField] = useState<"hotkey" | "meeting_hotkey" | null>(null);
   const [query, setQuery] = useState("");
+  const [theme, setThemeState] = useState<Theme>(getTheme);
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [permissions, setPermissions] = useState<PermissionStatus | null>(null);
@@ -365,8 +370,8 @@ export function PreferencesView() {
               onBlur={() => setRecordingField(null)}
               onKeyDown={handleHotkeyRecord("hotkey")}
               className={cn(
-                "w-32 bg-background border border-white/10 rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
-                recordingField === "hotkey" ? "border-steel/50 bg-steel/10 text-steelIce" : "hover:border-white/20 text-muted-foreground"
+                "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                recordingField === "hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
               )}
             />
           </Setting>
@@ -380,8 +385,8 @@ export function PreferencesView() {
                 onBlur={() => setRecordingField(null)}
                 onKeyDown={handleHotkeyRecord("meeting_hotkey")}
                 className={cn(
-                  "w-32 bg-background border border-white/10 rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
-                  recordingField === "meeting_hotkey" ? "border-steel/50 bg-steel/10 text-steelIce" : "hover:border-white/20 text-muted-foreground"
+                  "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                  recordingField === "meeting_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
                 )}
               />
               {settings.meeting_hotkey && (
@@ -417,7 +422,7 @@ export function PreferencesView() {
             tint={activeMode.tint}
             description={activeMode.detail}
           >
-            <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
               {MODES.map(({ id, label }) => (
                 <button
                   key={id}
@@ -425,7 +430,7 @@ export function PreferencesView() {
                   className={cn(
                     "px-3 py-1 text-[11px] font-medium rounded-md transition-colors whitespace-nowrap",
                     settings.output_mode === id
-                      ? "bg-white/15 text-foreground shadow-sm"
+                      ? "bg-foreground/10 text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -437,7 +442,7 @@ export function PreferencesView() {
 
           <Setting {...ROWS.language}>
             <Select value={settings.language} onValueChange={(val) => update({ language: val })}>
-              <SelectTrigger className="w-32 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -456,7 +461,7 @@ export function PreferencesView() {
               value={settings.silence_timeout_ms.toString()}
               onValueChange={(val) => update({ silence_timeout_ms: parseInt(val, 10) })}
             >
-              <SelectTrigger className="w-32 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -489,7 +494,7 @@ export function PreferencesView() {
               value={settings.microphone ?? "none"}
               onValueChange={(val) => update({ microphone: val === "none" ? null : val })}
             >
-              <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-48 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
                 <SelectValue placeholder="System Default" />
               </SelectTrigger>
               <SelectContent>
@@ -502,13 +507,32 @@ export function PreferencesView() {
           </Setting>
         </SettingsSection>
 
-        <SettingsSection label="Feedback" rows={[ROWS.hudPosition, ROWS.sounds]}>
+        <SettingsSection label="Feedback" rows={[ROWS.appearance, ROWS.hudPosition, ROWS.sounds]}>
+          <Setting {...ROWS.appearance}>
+            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
+              {(["system", "light", "dark"] as Theme[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setTheme(t); setThemeState(t); }}
+                  className={cn(
+                    "px-3 py-1 text-[11px] font-medium rounded-md capitalize transition-colors",
+                    theme === t
+                      ? "bg-foreground/10 text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </Setting>
+
           <Setting {...ROWS.hudPosition}>
             <Select
               value={settings.hud_position ?? "bottom"}
               onValueChange={(val) => update({ hud_position: val })}
             >
-              <SelectTrigger className="w-32 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -525,7 +549,7 @@ export function PreferencesView() {
                   value={settings.sound_theme ?? "pop"}
                   onValueChange={(val) => update({ sound_theme: val })}
                 >
-                  <SelectTrigger className="w-28 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                  <SelectTrigger className="w-28 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -560,7 +584,7 @@ export function PreferencesView() {
               <button
                 onClick={handleCheckUpdates}
                 disabled={checkingUpdate}
-                className="text-[12px] text-steelIce/80 hover:text-steelIce disabled:opacity-50 transition-colors"
+                className="text-[12px] text-primary/80 hover:text-primary disabled:opacity-50 transition-colors"
               >
                 {checkingUpdate ? "Checking…" : "Check for Updates"}
               </button>
@@ -576,7 +600,7 @@ export function PreferencesView() {
         <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Permissions</span>
 
-        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-white/5">
+        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-border">
           <PermissionRow
             icon={Accessibility}
             tint="text-violet-400"

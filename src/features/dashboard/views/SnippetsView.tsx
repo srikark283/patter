@@ -91,7 +91,7 @@ export function SnippetsView() {
 
   const headerAction = (
     <div className="flex items-center gap-3">
-      <div className="relative flex items-center bg-white/[0.03] border border-border rounded-full px-3 transition-colors focus-within:border-steelIce focus-within:bg-white/[0.05]">
+      <div className="relative flex items-center bg-foreground/[0.03] border border-border rounded-full px-3 transition-colors focus-within:border-steelIce focus-within:bg-foreground/[0.05]">
         <Search size={14} className="text-muted-foreground" />
         <input 
           type="text" 
@@ -121,21 +121,21 @@ export function SnippetsView() {
 
       <div className="flex flex-col gap-2">
         {isAdding && (
-          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-white/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-foreground/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
             <input 
               autoFocus
               type="text" 
               placeholder="Trigger phrase (e.g., 'insert standup template')"
               value={newTrigger}
               onChange={e => setNewTrigger(e.target.value)}
-              className="bg-background/50 border border-white/10 rounded-md text-foreground outline-none text-[14px] font-medium px-3 py-2 focus:border-steel"
+              className="bg-background/50 border border-foreground/10 rounded-md text-foreground outline-none text-[14px] font-medium px-3 py-2 focus:border-steel"
             />
             <textarea 
               placeholder="Expanded content..."
               value={newContent}
               onChange={e => setNewContent(e.target.value)}
               rows={4}
-              className="bg-background/50 border border-white/10 rounded-md text-foreground outline-none text-[14px] px-3 py-2 focus:border-steel resize-none"
+              className="bg-background/50 border border-foreground/10 rounded-md text-foreground outline-none text-[14px] px-3 py-2 focus:border-steel resize-none"
             />
             <div className="flex gap-2 items-center justify-end">
               <Button type="button" variant="ghost" size="sm" onClick={() => { setIsAdding(false); setNewTrigger(""); setNewContent(""); }}>Cancel</Button>
@@ -153,7 +153,7 @@ export function SnippetsView() {
             ))}
           </div>
         ) : snippets.length === 0 && !isAdding ? (
-          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-white/[0.015] border border-border/50 rounded-2xl mt-2">
+          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-foreground/[0.015] border border-border/50 rounded-2xl mt-2">
             <h2 className="text-xl font-semibold tracking-tight">Create your first macro!</h2>
             <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">
               Macros let you say a short phrase and have Patter expand it into a pre-defined text block. Perfect for templates, signatures, and repetitive text.
@@ -165,19 +165,19 @@ export function SnippetsView() {
         ) : (
           filteredSnippets.map(snippet => (
             editingTrigger === snippet.trigger ? (
-              <form key={snippet.trigger} onSubmit={(e) => handleEditSubmit(e, snippet.trigger)} className="flex flex-col gap-3 bg-white/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+              <form key={snippet.trigger} onSubmit={(e) => handleEditSubmit(e, snippet.trigger)} className="flex flex-col gap-3 bg-foreground/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
                 <input 
                   autoFocus
                   type="text" 
                   value={editTriggerValue}
                   onChange={e => setEditTriggerValue(e.target.value)}
-                  className="bg-background/50 border border-white/10 rounded-md text-foreground outline-none text-[14px] font-medium px-3 py-2 focus:border-steel"
+                  className="bg-background/50 border border-foreground/10 rounded-md text-foreground outline-none text-[14px] font-medium px-3 py-2 focus:border-steel"
                 />
                 <textarea 
                   value={editContentValue}
                   onChange={e => setEditContentValue(e.target.value)}
                   rows={4}
-                  className="bg-background/50 border border-white/10 rounded-md text-foreground outline-none text-[14px] px-3 py-2 focus:border-steel resize-none font-mono text-sm"
+                  className="bg-background/50 border border-foreground/10 rounded-md text-foreground outline-none text-[14px] px-3 py-2 focus:border-steel resize-none font-mono text-sm"
                 />
                 <div className="flex gap-2 items-center justify-end">
                   <Button type="button" variant="ghost" size="sm" onClick={() => setEditingTrigger(null)}>Cancel</Button>
@@ -185,7 +185,7 @@ export function SnippetsView() {
                 </div>
               </form>
             ) : (
-              <div key={snippet.trigger} className="group flex flex-col gap-2 bg-white/[0.015] hover:bg-white/[0.03] px-5 py-4 rounded-xl border border-border transition-colors">
+              <div key={snippet.trigger} className="group flex flex-col gap-2 bg-foreground/[0.015] hover:bg-foreground/[0.03] px-5 py-4 rounded-xl border border-border transition-colors">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-[14px] text-steelIce/90">"{snippet.trigger}"</span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -197,7 +197,7 @@ export function SnippetsView() {
                     </Button>
                   </div>
                 </div>
-                <div className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-black/20 p-3 rounded-lg border border-white/5">
+                <div className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-background p-3 rounded-lg border border-foreground/5">
                   {snippet.content}
                 </div>
               </div>

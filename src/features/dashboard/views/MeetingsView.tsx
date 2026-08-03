@@ -124,13 +124,13 @@ function TranscriptView({ text }: { text: string }) {
   const order = speakerLabels(text);
   if (!parsed.some(Boolean)) {
     return (
-      <p className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-[12.5px] leading-relaxed text-foreground/70">
+      <p className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg bg-background p-3 text-[12.5px] leading-relaxed text-foreground/70">
         {text}
       </p>
     );
   }
   return (
-    <div className="max-h-64 overflow-y-auto rounded-lg bg-black/20 p-3 space-y-2">
+    <div className="max-h-64 overflow-y-auto rounded-lg bg-background p-3 space-y-2">
       {lines.map((line, i) => {
         const m = parsed[i];
         if (!m) {
@@ -450,7 +450,7 @@ export function MeetingsView() {
             placeholder="Search meetings..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-9 bg-white/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
+            className="pl-9 pr-9 bg-foreground/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
           />
           
         </div>
@@ -476,8 +476,8 @@ export function MeetingsView() {
       </div>
 
       {meetings !== null && meetings.length === 0 && state === "idle" && !processing && (
-        <Card className="flex flex-col items-center justify-center py-20 px-4 text-center border-dashed bg-white/[0.01]">
-          <div className="w-12 h-12 rounded-xl bg-white/[0.04] ring-1 ring-border flex items-center justify-center mb-4">
+        <Card className="flex flex-col items-center justify-center py-20 px-4 text-center border-dashed bg-foreground/[0.01]">
+          <div className="w-12 h-12 rounded-xl bg-foreground/[0.04] ring-1 ring-border flex items-center justify-center mb-4">
             <UsersIcon className="w-7 h-7 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-medium text-foreground">No meetings yet</h3>
@@ -489,13 +489,13 @@ export function MeetingsView() {
 
       <div className="flex flex-col gap-3">
         {processing && !regeneratingId && (
-          <div className="group rounded-xl border border-border bg-white/[0.015] px-5 py-4">
+          <div className="group rounded-xl border border-border bg-foreground/[0.015] px-5 py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0 flex-1 space-y-2">
-                <div className="h-4 w-1/3 rounded bg-white/[0.04] animate-pulse" />
-                <div className="h-3 w-1/4 rounded bg-white/[0.02] animate-pulse" />
+                <div className="h-4 w-1/3 rounded bg-foreground/[0.04] animate-pulse" />
+                <div className="h-3 w-1/4 rounded bg-foreground/[0.02] animate-pulse" />
               </div>
-              <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-white/[0.02] px-3 py-1.5 rounded-full border border-border">
+              <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-foreground/[0.02] px-3 py-1.5 rounded-full border border-border">
                 <Loader2 size={13} className="animate-spin text-steelIce" />
                 {progress || (state === "transcribing" ? "Transcribing…" : "Generating notes…")}
               </div>
@@ -508,7 +508,7 @@ export function MeetingsView() {
           return (
             <div
               key={m.id}
-              className="group rounded-xl border border-border bg-white/[0.015] transition-colors hover:bg-white/[0.03]"
+              className="group rounded-xl border border-border bg-foreground/[0.015] transition-colors hover:bg-foreground/[0.03]"
             >
               <button
                 onClick={() => setExpandedId(expanded ? null : m.id)}
@@ -531,25 +531,25 @@ export function MeetingsView() {
                 <div className="space-y-6 border-t border-border/60 px-5 py-5">
                   {regeneratingId === m.id ? (
                     <div className="space-y-6">
-                      <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-white/[0.02] px-3 py-1.5 rounded-full border border-border w-fit">
+                      <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-foreground/[0.02] px-3 py-1.5 rounded-full border border-border w-fit">
                         <Loader2 size={13} className="animate-spin text-steelIce" />
                         {progress || "Generating notes…"}
                       </div>
                       <div className="space-y-3">
                         <div className="h-3 w-20 rounded bg-sky-400/20 animate-pulse" />
-                        <div className="h-14 w-full rounded bg-white/[0.03] animate-pulse" />
+                        <div className="h-14 w-full rounded bg-foreground/[0.03] animate-pulse" />
                       </div>
                       <div className="space-y-3">
                         <div className="h-3 w-24 rounded bg-violet-400/20 animate-pulse" />
                         <div className="space-y-2">
-                          <div className="h-4 w-3/4 rounded bg-white/[0.03] animate-pulse" />
-                          <div className="h-4 w-1/2 rounded bg-white/[0.03] animate-pulse" />
+                          <div className="h-4 w-3/4 rounded bg-foreground/[0.03] animate-pulse" />
+                          <div className="h-4 w-1/2 rounded bg-foreground/[0.03] animate-pulse" />
                         </div>
                       </div>
                       <div className="space-y-3">
                         <div className="h-3 w-24 rounded bg-emerald-400/20 animate-pulse" />
                         <div className="space-y-2">
-                          <div className="h-4 w-2/3 rounded bg-white/[0.03] animate-pulse" />
+                          <div className="h-4 w-2/3 rounded bg-foreground/[0.03] animate-pulse" />
                         </div>
                       </div>
                     </div>
@@ -590,7 +590,7 @@ export function MeetingsView() {
                                   "mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
                                   isChecked
                                     ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-500"
-                                    : "border-steel/30 bg-white/5"
+                                    : "border-steel/30 bg-foreground/5"
                                 )}
                               >
                                 {isChecked && <Check size={10} strokeWidth={3} />}
@@ -609,7 +609,7 @@ export function MeetingsView() {
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
                           placeholder="Meeting title"
-                          className="w-full bg-background border border-white/10 rounded-md text-[13px] font-medium px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
+                          className="w-full bg-background border border-foreground/10 rounded-md text-[13px] font-medium px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
                         />
                         {speakerLabels(editTranscript).length > 0 && (
                           <div className="space-y-1.5">
@@ -626,7 +626,7 @@ export function MeetingsView() {
                                   }}
                                   onBlur={(e) => renameSpeaker(label, e.target.value)}
                                   className={cn(
-                                    "w-32 bg-background border border-white/10 rounded-md text-[12px] font-medium px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel",
+                                    "w-32 bg-background border border-foreground/10 rounded-md text-[12px] font-medium px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel",
                                     SPEAKER_COLORS[i % SPEAKER_COLORS.length]
                                   )}
                                 />
@@ -638,7 +638,7 @@ export function MeetingsView() {
                           value={editTranscript}
                           onChange={(e) => setEditTranscript(e.target.value)}
                           spellCheck={false}
-                          className="w-full h-64 bg-background border border-white/10 rounded-md text-[12.5px] leading-relaxed font-sans px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80 resize-y"
+                          className="w-full h-64 bg-background border border-foreground/10 rounded-md text-[12.5px] leading-relaxed font-sans px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80 resize-y"
                         />
                         <div className="flex justify-end gap-2">
                           <Button
@@ -734,7 +734,7 @@ export function MeetingsView() {
             onChange={(e) => setSpeakerCountInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && confirmSpeakerCount()}
             placeholder="Auto-detect"
-            className="w-full bg-background border border-white/10 rounded-md text-[13px] px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
+            className="w-full bg-background border border-foreground/10 rounded-md text-[13px] px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
           />
           <DialogFooter>
             <Button variant="outline" onClick={confirmSpeakerCount}>

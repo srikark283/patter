@@ -139,7 +139,7 @@ export function AIView() {
       {/* Dictation cleanup */}
       <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Dictation</span>
-        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-white/5">
+        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-foreground/5">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-fuchsia-500/10 flex items-center justify-center">
@@ -180,7 +180,7 @@ export function AIView() {
                 disabled={!ollamaModels?.length}
                 onValueChange={(val) => update({ ollama_model: val === "none" ? null : val })}
               >
-                <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+                <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
                   <SelectValue placeholder="Select a model" />
                 </SelectTrigger>
                 <SelectContent>
@@ -211,7 +211,7 @@ export function AIView() {
                 value={String(settings.ollama_keep_alive_minutes)}
                 onValueChange={(val) => update({ ollama_keep_alive_minutes: Number(val) })}
               >
-                <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate">
+                <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,7 +250,7 @@ export function AIView() {
               disabled={!ollamaModels?.length}
               onValueChange={(val) => update({ meeting_ollama_model: val === "same" ? null : val })}
             >
-              <SelectTrigger className="w-48 bg-background border-white/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+              <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
                 <SelectValue placeholder="Same as cleanup model" />
               </SelectTrigger>
               <SelectContent>
@@ -276,7 +276,7 @@ export function AIView() {
           </p>
           {settings.app_profiles.map((profile, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="min-w-7 h-7 px-1.5 rounded-md bg-white/5 border border-white/5 flex items-center justify-center flex-none text-muted-foreground" title="Category icon">
+              <div className="min-w-7 h-7 px-1.5 rounded-md bg-foreground/5 border border-foreground/5 flex items-center justify-center flex-none text-muted-foreground" title="Category icon">
                 <NativeAppIcon appName={profile.app} />
               </div>
               <input
@@ -288,7 +288,7 @@ export function AIView() {
                   );
                   update({ app_profiles: next });
                 }}
-                className="w-32 bg-background border border-white/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
+                className="w-32 bg-background border border-foreground/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
               />
               <input
                 value={profile.prompt}
@@ -299,7 +299,7 @@ export function AIView() {
                   );
                   update({ app_profiles: next });
                 }}
-                className="flex-1 bg-background border border-white/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
+                className="flex-1 bg-background border border-foreground/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
               />
               <button
                 onClick={() =>
@@ -321,7 +321,7 @@ export function AIView() {
             >
               + Add blank
             </button>
-            <div className="w-px h-3 bg-white/10" />
+            <div className="w-px h-3 bg-foreground/10" />
             <span className="text-[11px] text-muted-foreground">Add template:</span>
             <div className="flex flex-wrap gap-2 mt-2">
               {APP_PROFILE_TEMPLATES.map((t) => (
@@ -330,7 +330,7 @@ export function AIView() {
                   onClick={() =>
                     update({ app_profiles: [...settings.app_profiles, { app: t.app, prompt: t.prompt }] })
                   }
-                  className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md border border-white/5 [&>svg]:opacity-70"
+                  className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors bg-foreground/5 hover:bg-foreground/10 px-2 py-1 rounded-md border border-foreground/5 [&>svg]:opacity-70"
                 >
                   <NativeAppIcon appName={t.app} />
                   {t.name}

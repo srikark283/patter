@@ -19,7 +19,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -185,7 +185,7 @@ export function HistoryView({ history, setHistory }: Props) {
               placeholder="Search history..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9 bg-white/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
+              className="pl-9 pr-9 bg-foreground/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
             />
             
           </div>
@@ -195,7 +195,7 @@ export function HistoryView({ history, setHistory }: Props) {
               <Filter size={14} className="text-muted-foreground mr-1" />
               <Badge 
                 variant={appFilter === null ? "default" : "secondary"} 
-                className={cn("cursor-pointer transition-colors px-2", appFilter === null ? "bg-primary text-primary-foreground" : "bg-white/[0.05] hover:bg-white/[0.1]")}
+                className={cn("cursor-pointer transition-colors px-2", appFilter === null ? "bg-primary text-primary-foreground" : "bg-foreground/[0.05] hover:bg-foreground/[0.1]")}
                 onClick={() => setAppFilter(null)}
               >
                 All
@@ -204,7 +204,7 @@ export function HistoryView({ history, setHistory }: Props) {
                 <Badge 
                   key={app}
                   variant={appFilter === app ? "default" : "secondary"}
-                  className={cn("cursor-pointer transition-colors flex items-center gap-1.5 px-2", appFilter === app ? "bg-primary text-primary-foreground" : "bg-white/[0.05] hover:bg-white/[0.1]")}
+                  className={cn("cursor-pointer transition-colors flex items-center gap-1.5 px-2", appFilter === app ? "bg-primary text-primary-foreground" : "bg-foreground/[0.05] hover:bg-foreground/[0.1]")}
                   onClick={() => setAppFilter(app)}
                 >
                   <NativeAppIcon appName={app} />
@@ -225,7 +225,7 @@ export function HistoryView({ history, setHistory }: Props) {
       ) : history.length === 0 ? (
         <Card className="py-14">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.04] ring-1 ring-border">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-foreground/[0.04] ring-1 ring-border">
               <MicOff size={16} className="text-muted-foreground" strokeWidth={1.8} />
             </div>
             <div>
@@ -257,7 +257,11 @@ export function HistoryView({ history, setHistory }: Props) {
                       layout
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="group relative flex gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors"
+                      // framer's default layout spring overshoots, and entering
+                      // edit mode is a ~60px height jump — every sibling row
+                      // bounced with it. A short ease keeps the resize crisp.
+                      transition={{ layout: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } }}
+                      className="group relative flex gap-4 px-5 py-4 hover:bg-foreground/[0.02] transition-colors"
                     >
                       {/* Left: Timestamp & App */}
                       <div className="w-24 shrink-0 flex flex-col items-start gap-1.5 mt-0.5">
@@ -265,7 +269,7 @@ export function HistoryView({ history, setHistory }: Props) {
                           {formatTime(record.timestamp_ms)}
                         </span>
                         {record.app_name && (
-                          <Badge variant="secondary" className="px-1.5 py-0 h-4.5 text-[9px] bg-white/[0.04] border-transparent text-muted-foreground/70 flex items-center gap-1" title={`Pasted in ${record.app_name}`}>
+                          <Badge variant="secondary" className="px-1.5 py-0 h-4.5 text-[9px] bg-foreground/[0.04] border-transparent text-muted-foreground/70 flex items-center gap-1" title={`Pasted in ${record.app_name}`}>
                             <NativeAppIcon appName={record.app_name} />
                             <span className="truncate max-w-[80px]">{record.app_name}</span>
                           </Badge>
@@ -274,12 +278,20 @@ export function HistoryView({ history, setHistory }: Props) {
 
                       {/* Main: Text Content */}
                       <div className="flex-1 min-w-0 pr-2">
+                        <AnimatePresence mode="wait" initial={false}>
                         {editingId === record.id ? (
-                          <div className="flex flex-col gap-2 relative">
+                          <motion.div
+                            key="edit"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.12 }}
+                            className="flex flex-col gap-2 relative"
+                          >
                             <textarea
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
-                              className="w-full bg-black/20 border border-border/50 rounded-lg p-3 text-[13px] text-foreground/90 leading-relaxed min-h-[80px] focus:outline-none focus:ring-1 focus:ring-steelIce/50 resize-y shadow-inner backdrop-blur-md"
+                              className="w-full bg-background border border-border/50 rounded-lg p-3 text-[13px] text-foreground/90 leading-relaxed min-h-[80px] focus:outline-none focus:ring-1 focus:ring-steelIce/50 resize-y shadow-inner backdrop-blur-md"
                               disabled={isSaving}
                               autoFocus
                             />
@@ -294,9 +306,8 @@ export function HistoryView({ history, setHistory }: Props) {
                                 <X size={12} className="mr-1" /> Cancel
                               </Button>
                               <Button
-                                variant="secondary"
                                 size="sm"
-                                className="h-7 text-xs px-3 rounded-full bg-white/[0.1] hover:bg-white/[0.15]"
+                                className="h-7 text-xs px-3 rounded-full"
                                 onClick={handleSaveEdit}
                                 disabled={isSaving || editValue === record.text}
                               >
@@ -304,22 +315,35 @@ export function HistoryView({ history, setHistory }: Props) {
                                 Save
                               </Button>
                             </div>
-                          </div>
+                          </motion.div>
                         ) : (
-                          <div 
+                          <motion.div
+                            key="read"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.12 }}
                             className="text-[13px] leading-relaxed text-foreground/90 break-words group-hover:text-foreground transition-colors cursor-text selection:bg-steelIce/30"
                             onDoubleClick={() => startEdit(record)}
                             title="Double-click to edit"
                           >
                             {record.text}
-                          </div>
+                          </motion.div>
                         )}
+                        </AnimatePresence>
                       </div>
 
                       {/* Right: Stats & Hover Actions */}
                       <div className="shrink-0 flex items-center gap-3 relative">
                         {/* Floating Actions (visible on hover) */}
-                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 gap-0.5 bg-card/80 backdrop-blur-md px-1 py-0.5 rounded-md shadow-sm border border-border/30 -translate-x-2 group-hover:translate-x-0">
+                        {/* Hidden while this row is being edited: it kept
+                            reacting to hover and slid in over Cancel/Save. */}
+                        <div className={cn(
+                          "flex items-center gap-0.5 bg-card/80 backdrop-blur-md px-1 py-0.5 rounded-md shadow-sm border border-border/30 transition-all duration-200",
+                          editingId === record.id
+                            ? "opacity-0 pointer-events-none"
+                            : "opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0"
+                        )}>
                           <Button
                             variant="ghost"
                             size="icon-xs"
@@ -358,7 +382,7 @@ export function HistoryView({ history, setHistory }: Props) {
                           <TooltipProvider delayDuration={200}>
                             <Tooltip>
                               <TooltipTrigger className="cursor-default">
-                                <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-sans tabular-nums border-border/40 text-muted-foreground/80 bg-transparent hover:bg-white/[0.05] transition-colors">
+                                <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-sans tabular-nums border-border/40 text-muted-foreground/80 bg-transparent hover:bg-foreground/[0.05] transition-colors">
                                   {record.duration_seconds.toFixed(1)}s
                                 </Badge>
                               </TooltipTrigger>

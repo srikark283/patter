@@ -54,7 +54,7 @@ function OnboardingPermissionRow({
   onOpen: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-white/4 border border-white/8">
+    <div className="flex items-center justify-between p-3 rounded-lg bg-foreground/4 border border-foreground/8">
       <div className="flex items-center gap-3">
         <div className="w-7 h-7 rounded-full bg-steel/10 flex items-center justify-center shrink-0">
           <Icon size={14} className="text-steelIce" />
@@ -297,7 +297,7 @@ export function Onboarding({
         <>
           <p>
             Press{" "}
-            <kbd className="px-2 py-1 rounded-md bg-white/8 ring-1 ring-border font-sans text-[12px] text-foreground/90">
+            <kbd className="px-2 py-1 rounded-md bg-foreground/8 ring-1 ring-border font-sans text-[12px] text-foreground/90">
               {formatHotkey(hotkey)}
             </kbd>{" "}
             in any app, speak, and Patter types what you said right where your cursor is.
@@ -360,7 +360,7 @@ export function Onboarding({
                   key={i}
                   className={cn(
                     "w-1.5 h-1.5 rounded-full transition-colors",
-                    i === step ? "bg-steelIce" : "bg-white/15"
+                    i === step ? "bg-steelIce" : "bg-foreground/15"
                   )}
                 />
               ))}

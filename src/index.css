@@ -134,10 +134,50 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Patter is dark-only (no theme toggle) — both blocks carry the same
-   palette so shadcn's `dark:` utility variants also resolve correctly
-   once `.dark` is set on <html> (see dashboard.html/hud.html). */
-:root,
+/* Light is the default palette; `.dark` on <html> swaps it. The HUD keeps
+   `class="dark"` unconditionally (hud.html) — it is a floating overlay pill,
+   and those stay dark on macOS regardless of system appearance.
+
+   Surfaces are stepped away from the background in the same direction in both
+   themes: dark mode lifts (card is lighter than background), light mode is
+   near-white with the card a touch cooler, so the raised/hover tints built from
+   `foreground/N` land the right way round without per-theme overrides. */
+:root {
+  --background: #f6f7f9;
+  --foreground: #14171c;
+  --card: #ffffff;
+  --card-foreground: #14171c;
+  --popover: #ffffff;
+  --popover-foreground: #14171c;
+  /* The deep step, not the mid one: white on #5b9bd1 is ~2.9:1, which fails as
+     a button label. #2f5d85 takes it to ~8.5:1, and `text-primary` links land
+     readable on white too. Dark keeps the mid step, which reads on near-black. */
+  --primary: var(--color-steelDeep);
+  --primary-foreground: #ffffff;
+  --secondary: #eceef2;
+  --secondary-foreground: #14171c;
+  --muted: #eceef2;
+  --muted-foreground: #66707e;
+  --accent: rgba(91, 155, 209, 0.12);
+  --accent-foreground: var(--color-steelDeep);
+  --destructive: #d24b4b;
+  --border: rgba(20, 23, 28, 0.10);
+  --input: rgba(20, 23, 28, 0.14);
+  --ring: var(--color-steel);
+  --radius: 0.625rem;
+  --waveform-rgb: 47, 93, 133;
+  /* steelIce is the "accent ink" step of the ramp — the tone used for text,
+     icons and meter fills that sit on an accent tint. It is deliberately pale
+     so it reads on dark; on white that same pale blue is barely visible, so the
+     light theme takes the deep step instead. Overriding here rather than at ~20
+     call sites keeps every current and future usage correct.
+     The HUD is unaffected: hud.html is always `.dark`. */
+  --color-steelIce: #2f5d85;
+  /* One step darker than the dark theme's equivalent: #828b99 on white is only
+     just past the contrast floor and reads washed out next to solid ink. */
+  --muted-foreground: #5c6675;
+}
+
 .dark {
   --background: #0a0b0d;
   --foreground: #e7eaee;
@@ -159,6 +199,7 @@
   --ring: var(--color-steel);
   --radius: 0.625rem;
   --waveform-rgb: 174, 205, 232;
+  --color-steelIce: #aecde8;
 }
 
 /* Instrument-panel micro label: uppercase mono, wide tracking. */
@@ -197,10 +238,10 @@
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    0 2px 8px rgba(0, 0, 0, 0.35),
-    0 12px 32px rgba(0, 0, 0, 0.5);
+  /* Inset highlight only. The two outer drop shadows this used to carry read as
+     a dark smudge around the pill rather than depth — the window itself is
+     transparent, so there is no surface for a shadow to fall on. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
 }
 /* Icon-only states (no waveform/timer to fill the pill) — shrink to fit. */
 .hud-pill.processing,

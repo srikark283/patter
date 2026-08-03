@@ -93,7 +93,7 @@ export function NativeAppIcon({ appName }: { appName: string }) {
   }, [appName]);
 
   if (isFetching) {
-    return <div className="w-[14px] h-[14px] rounded-[3.5px] bg-white/5 animate-pulse" />;
+    return <div className="w-[14px] h-[14px] rounded-[3.5px] bg-foreground/5 animate-pulse" />;
   }
 
   if (validIcons.length === 0) {

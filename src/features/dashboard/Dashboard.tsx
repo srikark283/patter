@@ -163,7 +163,7 @@ export default function Dashboard() {
         </div>
 
         {/* Sidebar — instrument rail */}
-        <Sidebar className="border-r border-border bg-white/1.5 text-foreground">
+        <Sidebar className="border-r border-border bg-foreground/[0.015] text-foreground">
           {/* Traffic Lights spacing */}
           <div className="w-full h-10 shrink-0" />
 
@@ -194,8 +194,11 @@ export default function Dashboard() {
                       className={cn(
                         "group w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-all duration-150 cursor-pointer h-auto",
                         isActive
-                          ? "bg-accent text-white shadow-[0_1px_0_rgba(255,255,255,0.05)_inset] hover:bg-accent hover:text-white"
-                          : "text-muted-foreground hover:bg-white/4 hover:text-foreground"
+                          // accent-foreground, not white: --accent is a pale blue
+                          // tint, so white ink on it disappears in light mode.
+                          // The token is steelIce on dark, steelDeep on light.
+                          ? "bg-accent text-accent-foreground shadow-[0_1px_0_rgba(255,255,255,0.05)_inset] hover:bg-accent hover:text-accent-foreground"
+                          : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                       )}
                     >
                       <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
