@@ -6,6 +6,7 @@ use crate::state::AppState;
 use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager, WebviewUrl};
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 #[tauri::command]
 pub async fn download_model(app: tauri::AppHandle, id: String) -> Result<(), String> {
@@ -412,6 +413,20 @@ pub fn open_dashboard(app: tauri::AppHandle) -> Result<(), String> {
         }
 
         let window = builder.build().map_err(|e| e.to_string())?;
+
+        // Restore and save explicitly rather than relying on the plugin's own
+        // hooks. The dashboard is created on demand and closed with Cmd+W while
+        // the app keeps running in the tray, so the process may never emit the
+        // exit event the automatic save waits for — nothing was ever written,
+        // and every open fell back to the 800x600 default.
+        let _ = window.restore_state(StateFlags::all());
+
+        let save_handle = app.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                let _ = save_handle.save_window_state(StateFlags::all());
+            }
+        });
 
         #[cfg(target_os = "macos")]
         let _ = apply_vibrancy(&window, NSVisualEffectMaterial::UnderWindowBackground, None, None);

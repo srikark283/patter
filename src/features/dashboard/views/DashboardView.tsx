@@ -260,10 +260,10 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
       />
       
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Total Words */}
         <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
-          {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3">+{weekWords} this week</div>}
+          {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekWords} this week</div>}
           {weekWords === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.total_words : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Total Words</div>
@@ -272,7 +272,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         
         {/* Dictations */}
         <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
-          {weekDictations > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3">+{weekDictations} this week</div>}
+          {weekDictations > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekDictations} this week</div>}
           {weekDictations === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.transcriptions_count : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Dictations</div>
@@ -308,9 +308,9 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
       <div className="space-y-4">
         <h2 className="text-[12px] font-bold text-muted-foreground uppercase tracking-widest px-1">Insights</h2>
         
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Activity Chart */}
-          <div className="col-span-2 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
+          <div className="lg:col-span-2 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
               <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
@@ -404,7 +404,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             )}
           </div>
 
-          <div className="col-span-1 flex flex-col gap-4">
+          <div className="lg:col-span-1 flex flex-col gap-4">
             {/* Top Words */}
             <div className="flex-1 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Words</h3>
