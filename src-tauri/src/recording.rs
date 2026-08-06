@@ -37,7 +37,7 @@ const HUD_WHISPER_GAIN: f32 = 8.0;
 /// A whole-clip average is dominated by the pauses and the silence before the
 /// first word, which drags the gain up and amplifies room noise instead of the
 /// voice. The 90th-percentile frame is the speech.
-fn speech_rms(audio: &[f32], frame: usize) -> f32 {
+pub fn speech_rms(audio: &[f32], frame: usize) -> f32 {
     let frame = frame.max(1);
     let mut frames: Vec<f32> = audio
         .chunks(frame)
@@ -52,7 +52,7 @@ fn speech_rms(audio: &[f32], frame: usize) -> f32 {
 
 /// Gain to bring `rms` up to `TARGET_RMS` without pushing `peak` into clipping.
 /// Returns 1.0 when the buffer is too quiet to be anything but noise.
-fn boost_gain(rms: f32, peak: f32) -> f32 {
+pub fn boost_gain(rms: f32, peak: f32) -> f32 {
     if rms < MIN_BOOSTABLE_RMS || peak <= 0.0 {
         return 1.0;
     }

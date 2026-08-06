@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings, Snippet } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
-import { Search, Plus, Trash2, Pencil } from "lucide-react";
+import { EmptyState } from "../components/EmptyState";
+import { Search, Plus, Trash2, Pencil, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 // import { cn } from "@/lib/utils";
@@ -153,15 +154,17 @@ export function SnippetsView() {
             ))}
           </div>
         ) : snippets.length === 0 && !isAdding ? (
-          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-foreground/[0.015] border border-border/50 rounded-2xl mt-2">
-            <h2 className="text-xl font-semibold tracking-tight">Create your first macro!</h2>
-            <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">
-              Macros let you say a short phrase and have Patter expand it into a pre-defined text block. Perfect for templates, signatures, and repetitive text.
-            </p>
-            <Button onClick={() => setIsAdding(true)} className="rounded-full mt-2">
-              <Plus size={16} /> Create macro
-            </Button>
-          </div>
+          <EmptyState
+            className="mt-2"
+            icon={Zap}
+            title="Create your first macro"
+            description="Macros let you say a short phrase and have Patter expand it into a pre-defined text block. Perfect for templates, signatures, and repetitive text."
+            action={
+              <Button onClick={() => setIsAdding(true)} className="rounded-full">
+                <Plus size={16} /> Create macro
+              </Button>
+            }
+          />
         ) : (
           filteredSnippets.map(snippet => (
             editingTrigger === snippet.trigger ? (
@@ -206,7 +209,11 @@ export function SnippetsView() {
         )}
         
         {snippets.length > 0 && filteredSnippets.length === 0 && !isAdding && (
-          <div className="text-center text-muted-foreground py-10 text-sm">No macros match your search.</div>
+          <EmptyState
+            icon={Search}
+            title="No results found"
+            description="No macros match your search. Try a different trigger or phrase."
+          />
         )}
       </div>
     </div>

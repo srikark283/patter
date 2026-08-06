@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
-import { Search, Plus, ArrowUpDown, Trash2, Pencil, Check, AlertTriangle } from "lucide-react";
+import { EmptyState } from "../components/EmptyState";
+import { Search, Plus, ArrowUpDown, Trash2, Pencil, Check, AlertTriangle, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -288,15 +289,17 @@ export function DictionaryView() {
             ))}
           </div>
         ) : terms.length === 0 && !isAdding ? (
-          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-foreground/[0.015] border border-border/50 rounded-2xl mt-2">
-            <h2 className="text-xl font-semibold tracking-tight">Add a term to the Dictionary!</h2>
-            <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">
-              Add words you want Patter to recognize. It can be particular spellings, names, and slang that you often use.
-            </p>
-            <Button onClick={() => setIsAdding(true)} className="rounded-full mt-2">
-              <Plus size={16} /> Add new
-            </Button>
-          </div>
+          <EmptyState
+            className="mt-2"
+            icon={BookOpen}
+            title="Add a term to the Dictionary"
+            description="Add words you want Patter to recognize. It can be particular spellings, names, and slang that you often use."
+            action={
+              <Button onClick={() => setIsAdding(true)} className="rounded-full">
+                <Plus size={16} /> Add new
+              </Button>
+            }
+          />
         ) : (
           filteredTerms.map(term => (
             editingTerm === term ? (
@@ -333,7 +336,11 @@ export function DictionaryView() {
         )}
         
         {terms.length > 0 && filteredTerms.length === 0 && !isAdding && (
-          <div className="text-center text-muted-foreground py-10 text-sm">No terms match your search.</div>
+          <EmptyState
+            icon={Search}
+            title="No results found"
+            description="No terms match your search. Try a different spelling."
+          />
         )}
       </div>
 

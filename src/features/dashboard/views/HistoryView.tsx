@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PageHeader } from "../components/PageHeader";
+import { EmptyState } from "../components/EmptyState";
 import { NativeAppIcon } from "../components/NativeAppIcon";
 import {
   Dialog,
@@ -223,25 +224,17 @@ export function HistoryView({ history, setHistory }: Props) {
           <Skeleton className="h-24 w-full" />
         </div>
       ) : history.length === 0 ? (
-        <Card className="py-14">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-foreground/[0.04] ring-1 ring-border">
-              <MicOff size={16} className="text-muted-foreground" strokeWidth={1.8} />
-            </div>
-            <div>
-              <p className="text-sm font-medium">No dictation yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">Hold your shortcut and speak — transcripts land here.</p>
-            </div>
-          </div>
-        </Card>
+        <EmptyState
+          icon={MicOff}
+          title="No dictation yet"
+          description="Hold your shortcut and speak — transcripts land here."
+        />
       ) : filteredHistory?.length === 0 ? (
-        <Card className="py-14">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <Search size={24} className="text-muted-foreground mb-2" />
-            <p className="text-sm font-medium">No results found</p>
-            <p className="text-xs text-muted-foreground">Try adjusting your search or filters.</p>
-          </div>
-        </Card>
+        <EmptyState
+          icon={Search}
+          title="No results found"
+          description="Try adjusting your search or filters."
+        />
       ) : (
         <div className="space-y-6 pb-6">
           {groups.map((group) => (

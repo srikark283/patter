@@ -55,6 +55,37 @@ fn drain_captured(app: &tauri::AppHandle) {
     }
 }
 
+/// Meeting audio skips the dictation preprocessing in `recording.rs` — it comes
+/// straight off the drain loop. Two things still have to happen: some cpal
+/// drivers hand back unnormalized integers as f32, and room audio across a
+/// table sits an order of magnitude below dictation into a close mic, deep in
+/// the log-mel floor. Both wreck ASR *and* the speaker embeddings diarization
+/// clusters on.
+fn normalize_for_asr(audio: Vec<f32>) -> Vec<f32> {
+    let mut audio: Vec<f32> = audio
+        .into_iter()
+        .map(|s| if s.is_finite() { s } else { 0.0 })
+        .collect();
+    let peak = audio.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+    if peak > 1.0 {
+        println!("[meeting] normalizing, peak was {}", peak);
+        for s in audio.iter_mut() {
+            *s /= peak;
+        }
+        return audio;
+    }
+    // 20ms frames, same as dictation.
+    let rms = crate::recording::speech_rms(&audio, WHISPER_SAMPLE_RATE as usize / 50);
+    let gain = crate::recording::boost_gain(rms, peak);
+    if gain > 1.0 {
+        println!("[meeting] boosting {:.1}x (rms {:.5})", gain, rms);
+        for s in audio.iter_mut() {
+            *s *= gain;
+        }
+    }
+    audio
+}
+
 pub fn start_meeting(app: &tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
 
@@ -186,24 +217,11 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
             return;
         }
 
-        // Strip silence/noise before ASR — see recording.rs; failure = use raw audio.
-        let audio = if settings.trim_silence {
-            match crate::vad::ensure_model(&app_handle)
-                .and_then(|p| crate::vad::trim_silence(&p, &audio, crate::vad::DEFAULT_THRESHOLD))
-            {
-                Ok(trimmed) if trimmed.is_empty() => {
-                    let _ = app_handle.emit("patter://meeting_state", "error: no speech detected");
-                    return;
-                }
-                Ok(trimmed) => trimmed,
-                Err(e) => {
-                    eprintln!("VAD failed, using raw audio: {}", e);
-                    audio
-                }
-            }
-        } else {
-            audio
-        };
+        // No VAD here, unlike dictation. `trim_silence` deletes silence rather
+        // than muting it and splices the speech back together, which destroys
+        // the timeline the diarizer's timestamps are reported against and takes
+        // the turn-taking gaps pyannote segments on with it.
+        let audio = normalize_for_asr(audio);
 
         if bail_if_cancelled(&app_handle, meeting_session_id) {
             return;
@@ -329,4 +347,53 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
     });
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One second of a 200 Hz tone at `amp`, at the meeting sample rate.
+    fn tone(amp: f32) -> Vec<f32> {
+        (0..WHISPER_SAMPLE_RATE as usize)
+            .map(|i| {
+                amp * (i as f32 * 2.0 * std::f32::consts::PI * 200.0
+                    / WHISPER_SAMPLE_RATE as f32)
+                    .sin()
+            })
+            .collect()
+    }
+
+    fn peak_of(a: &[f32]) -> f32 {
+        a.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
+    }
+
+    #[test]
+    fn normalize_scales_down_unnormalized_driver_output() {
+        // cpal handing back raw integers as f32.
+        let out = normalize_for_asr(tone(8000.0));
+        assert!((peak_of(&out) - 1.0).abs() < 1e-3, "peak {}", peak_of(&out));
+    }
+
+    #[test]
+    fn normalize_lifts_quiet_room_audio() {
+        // Far-field speech across a conference table: boost targets RMS 0.1,
+        // which for a sine is a 0.141 peak — well clear of clipping.
+        let out = normalize_for_asr(tone(0.02));
+        let rms = (out.iter().map(|s| s * s).sum::<f32>() / out.len() as f32).sqrt();
+        assert!((rms - 0.1).abs() < 0.01, "rms {rms}");
+        assert!(peak_of(&out) <= 0.95, "peak {}", peak_of(&out));
+    }
+
+    #[test]
+    fn normalize_leaves_healthy_audio_and_nans_alone() {
+        // Already at a good level — no attenuation.
+        let out = normalize_for_asr(tone(0.4));
+        assert!((peak_of(&out) - 0.4).abs() < 1e-3, "peak {}", peak_of(&out));
+
+        // A NaN from a flaky driver must not poison the whole buffer.
+        let mut audio = tone(0.4);
+        audio[100] = f32::NAN;
+        assert!(normalize_for_asr(audio).iter().all(|s| s.is_finite()));
+    }
 }

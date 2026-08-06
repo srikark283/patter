@@ -417,7 +417,9 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                   {topWords.slice(0, 4).map((w) => (
                     <div key={w.word} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/4 border border-foreground/5">
                       <span className="text-[12px] text-foreground/90 font-medium">{w.word}</span>
-                      <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{w.count}</span>
+                      {/* accent pair, not a fixed blue-300: the pale step reads on
+                          the dark theme and disappears on the light one. */}
+                      <span className="text-[10px] text-accent-foreground bg-accent px-1.5 py-0.5 rounded-full font-sans">{w.count}</span>
                     </div>
                   ))}
                 </div>
@@ -436,7 +438,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                   {topApps.slice(0, 4).map((a) => (
                     <div key={a.app} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/4 border border-foreground/5">
                       <span className="text-[12px] text-foreground/90 font-medium">{a.app}</span>
-                      <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-full font-sans">{a.count}</span>
+                      <span className="text-[10px] text-accent-foreground bg-accent px-1.5 py-0.5 rounded-full font-sans">{a.count}</span>
                     </div>
                   ))}
                 </div>

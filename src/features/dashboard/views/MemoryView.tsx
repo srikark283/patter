@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings, MemoryFact, getEmbedding } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { EmptyState } from "../components/EmptyState";
 import { Search, Plus, Trash2, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -118,15 +119,17 @@ export function MemoryView() {
             ))}
           </div>
         ) : memories.length === 0 && !isAdding ? (
-          <div className="flex flex-col items-center gap-4 py-14 px-8 text-center bg-foreground/[0.015] border border-border/50 rounded-2xl mt-2">
-            <h2 className="text-xl font-semibold tracking-tight">Teach Patter about you!</h2>
-            <p className="text-muted-foreground text-[14px] max-w-[500px] leading-relaxed">
-              Add specific details, names, or context that you want Patter to remember. It will use this knowledge to intelligently clean up your transcriptions.
-            </p>
-            <Button onClick={() => setIsAdding(true)} className="rounded-full mt-2">
-              <Plus size={16} /> Add a memory
-            </Button>
-          </div>
+          <EmptyState
+            className="mt-2"
+            icon={Brain}
+            title="Teach Patter about you"
+            description="Add specific details, names, or context that you want Patter to remember. It will use this knowledge to intelligently clean up your transcriptions."
+            action={
+              <Button onClick={() => setIsAdding(true)} className="rounded-full">
+                <Plus size={16} /> Add a memory
+              </Button>
+            }
+          />
         ) : (
           filteredMemories.map(memory => (
             <div key={memory.id} className="group flex items-center justify-between bg-foreground/[0.015] hover:bg-foreground/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">

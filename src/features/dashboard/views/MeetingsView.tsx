@@ -39,7 +39,7 @@ import {
   regenerateMeetingSummary,
 } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
-import { Card } from "@/components/ui/card";
+import { EmptyState } from "../components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -476,15 +476,11 @@ export function MeetingsView() {
       </div>
 
       {meetings !== null && meetings.length === 0 && state === "idle" && !processing && (
-        <Card className="flex flex-col items-center justify-center py-20 px-4 text-center border-dashed bg-foreground/[0.01]">
-          <div className="w-12 h-12 rounded-xl bg-foreground/[0.04] ring-1 ring-border flex items-center justify-center mb-4">
-            <UsersIcon className="w-7 h-7 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground">No meetings yet</h3>
-          <p className="text-sm text-muted-foreground mt-2 max-w-[320px]">
-            Hit Record Meeting when your meeting starts. When you stop, Patter transcribes it and generates notes with your local Ollama model.
-          </p>
-        </Card>
+        <EmptyState
+          icon={UsersIcon}
+          title="No meetings yet"
+          description="Hit Record Meeting when your meeting starts. When you stop, Patter transcribes it and generates notes with your local Ollama model."
+        />
       )}
 
       <div className="flex flex-col gap-3">
