@@ -332,25 +332,38 @@ pub fn cancel_dictation(app: tauri::AppHandle) {
     recording::cancel(&app);
 }
 
+/// Build an ASR engine from a catalog id.
+///
+/// Shared by `set_engine`, which installs the result as the active engine, and
+/// by the meeting pipeline, which may load a second one alongside it.
+pub fn build_engine(
+    mm: &models::registry::ModelManager,
+    id: &str,
+) -> Result<Box<dyn asr::ASREngine>, String> {
+    match mm.get_engine_kind(id) {
+        Some(models::registry::EngineKind::Whisper) => {
+            let path = mm.variant_file_path(id).ok_or("Unknown engine")?;
+            Ok(Box::new(
+                asr::whisper::WhisperEngine::new(&path.to_string_lossy())
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Some(models::registry::EngineKind::Parakeet) => {
+            let dir = mm.variant_dir(id).ok_or("Unknown engine")?;
+            Ok(Box::new(
+                asr::parakeet::ParakeetEngine::new(&dir.to_string_lossy())
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Some(models::registry::EngineKind::Diarization) => Err("Not an ASR engine".into()),
+        None => Err("Unknown engine".into()),
+    }
+}
+
 #[tauri::command]
 pub fn set_engine(app: tauri::AppHandle, id: String) -> Result<(), String> {
     let state = app.state::<AppState>();
-    let mm = &state.model_manager;
-
-    let engine: Box<dyn asr::ASREngine> = match mm.get_engine_kind(&id) {
-        Some(models::registry::EngineKind::Whisper) => {
-            let path = mm.variant_file_path(&id).ok_or("Unknown engine")?;
-            Box::new(asr::whisper::WhisperEngine::new(&path.to_string_lossy()).map_err(|e| e.to_string())?)
-        },
-        Some(models::registry::EngineKind::Parakeet) => {
-            let dir = mm.variant_dir(&id).ok_or("Unknown engine")?;
-            Box::new(asr::parakeet::ParakeetEngine::new(&dir.to_string_lossy()).map_err(|e| e.to_string())?)
-        },
-        Some(models::registry::EngineKind::Diarization) => {
-            return Err("Not an ASR engine".into())
-        },
-        None => return Err("Unknown engine".into())
-    };
+    let engine = build_engine(&state.model_manager, &id)?;
 
     *state.engine.lock().unwrap() = Some(engine);
     *state.active_engine_id.lock().unwrap() = Some(id.clone());

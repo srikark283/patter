@@ -280,6 +280,42 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
         let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
         let language = settings.language;
 
+        // A meeting can transcribe with a different engine from dictation.
+        //
+        // Loaded as its own instance rather than swapped into `state.engine`:
+        // swapping would hand dictation the meeting's model for the length of
+        // the job, which is exactly what the per-turn lock in
+        // `diarize_and_transcribe` exists to avoid. Loaded on demand and
+        // dropped when the pipeline ends, so a second set of weights is only
+        // resident while it is being used — a meeting already waits minutes at
+        // stop, so one model load is noise against that.
+        //
+        // Falling back to the active engine on failure keeps a bad setting from
+        // costing the user their recording.
+        let active_id = app_handle
+            .state::<AppState>()
+            .active_engine_id
+            .lock()
+            .unwrap()
+            .clone();
+        let engine_arc = match settings.meeting_engine_id.as_deref() {
+            Some(id) if Some(id) != active_id.as_deref() => {
+                let _ = app_handle.emit("patter://meeting_progress", format!("Loading {}…", id));
+                let mm = &app_handle.state::<AppState>().model_manager;
+                match crate::commands::build_engine(mm, id) {
+                    Ok(engine) => {
+                        println!("[meeting] transcribing with {} (dictation keeps {:?})", id, active_id);
+                        std::sync::Arc::new(std::sync::Mutex::new(Some(engine)))
+                    }
+                    Err(e) => {
+                        eprintln!("[meeting] engine '{}' failed to load, using active: {}", id, e);
+                        engine_arc
+                    }
+                }
+            }
+            _ => engine_arc,
+        };
+
         if bail_if_cancelled(&app_handle, meeting_session_id) {
             return;
         }

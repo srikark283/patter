@@ -72,6 +72,11 @@ pub struct Settings {
     /// Label speakers in meeting transcripts (needs diarization models).
     #[serde(default)]
     pub diarize_meetings: bool,
+    /// ASR engine for meetings. None = whatever dictation is using. Room audio
+    /// and close-mic dictation reward different models, and a meeting is a
+    /// batch job that can afford a slower, more accurate one.
+    #[serde(default)]
+    pub meeting_engine_id: Option<String>,
     /// Per-app cleanup instructions, matched against the frontmost app name.
     #[serde(default)]
     pub app_profiles: Vec<AppProfile>,
@@ -133,6 +138,7 @@ impl Default for Settings {
             play_sounds: default_play_sounds(),
             sound_theme: default_sound_theme(),
             trim_silence: default_trim_silence(),
+            meeting_engine_id: None,
             whisper_mode: false,
             onboarding_done: false,
             push_to_talk: false,

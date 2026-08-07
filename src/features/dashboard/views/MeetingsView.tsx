@@ -19,6 +19,7 @@ import {
   Check,
   RefreshCcw,
   X,
+  AudioLines,
 } from "lucide-react";
 import { UsersIcon } from '@heroicons/react/24/outline'
 import { MeetingRecord } from "../../../types";
@@ -43,6 +44,14 @@ import { EmptyState } from "../components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ALL_MODEL_IDS, MODEL_NAMES } from "./ModelsView";
 import {
   Dialog,
   DialogContent,
@@ -166,7 +175,13 @@ function BulletList({ items }: { items: string[] }) {
   );
 }
 
-export function MeetingsView() {
+interface Props {
+  /// Download status per model id, hoisted in Dashboard and shared with
+  /// ModelsView — a meeting can only use an engine that is actually on disk.
+  modelStatus: Record<string, boolean>;
+}
+
+export function MeetingsView({ modelStatus }: Props) {
   const [meetings, setMeetings] = useState<MeetingRecord[] | null>(null);
   const [state, setState] = useState<MeetingState>("idle");
   const [elapsed, setElapsed] = useState(0);
@@ -178,6 +193,22 @@ export function MeetingsView() {
   const meetingStartRef = useRef(0);
 
   const [diarize, setDiarize] = useState(false);
+  const [meetingEngine, setMeetingEngine] = useState<string | null>(null);
+  const downloadedEngines = ALL_MODEL_IDS.filter((id) => modelStatus[id]);
+
+  // Re-reads settings before writing for the same reason toggleDiarize does:
+  // this view holds one field, not the whole object.
+  const saveMeetingEngine = async (id: string | null) => {
+    setMeetingEngine(id);
+    try {
+      const latest = await getSettings();
+      await updateSettings({ ...latest, meeting_engine_id: id });
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not save meeting model");
+    }
+  };
+
   const [downloadingDiar, setDownloadingDiar] = useState(false);
   const [progress, setProgress] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
@@ -300,7 +331,12 @@ export function MeetingsView() {
         setState("recording");
       }
     }).catch(console.error);
-    getSettings().then((s) => setDiarize(s.diarize_meetings)).catch(console.error);
+    getSettings()
+      .then((s) => {
+        setDiarize(s.diarize_meetings);
+        setMeetingEngine(s.meeting_engine_id);
+      })
+      .catch(console.error);
 
     const unlistenState = listen<string>("patter://meeting_state", (e) => {
       const s = e.payload;
@@ -473,6 +509,35 @@ export function MeetingsView() {
         ) : (
           <Switch checked={diarize} onCheckedChange={toggleDiarize} />
         )}
+      </div>
+
+      <div className="flex items-center justify-between bg-card ring-1 ring-border rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-sky-500/10 flex items-center justify-center">
+            <AudioLines size={14} className="text-sky-400" />
+          </div>
+          <div>
+            <p className="text-[13px] font-medium text-foreground/90">Meeting speech model</p>
+            <p className="text-[11px] text-muted-foreground">
+              Transcribes the recording — a meeting is a batch job, so a slower, more accurate model costs you nothing live
+            </p>
+          </div>
+        </div>
+        <Select
+          value={meetingEngine ?? "same"}
+          disabled={!downloadedEngines.length}
+          onValueChange={(val) => saveMeetingEngine(val === "same" ? null : val)}
+        >
+          <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+            <SelectValue placeholder="Same as dictation" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="same">Same as dictation</SelectItem>
+            {downloadedEngines.map((id) => (
+              <SelectItem key={id} value={id}>{MODEL_NAMES[id] ?? id}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {meetings !== null && meetings.length === 0 && state === "idle" && !processing && (
