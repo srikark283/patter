@@ -46,12 +46,27 @@ pub struct WhisperEngine {
     /// first. Safe to reuse because `set_no_context(true)` clears the carried
     /// prompt each call, so nothing leaks between transcriptions.
     state: Option<WhisperState>,
+    /// `ggml-*.en.bin` weights are trained on English alone. Asking one for
+    /// another language doesn't error — it returns confident nonsense — so the
+    /// language argument has to be dropped rather than passed through. Derived
+    /// from the filename instead of a catalog flag so it can't drift out of
+    /// sync with the file actually loaded.
+    english_only: bool,
+}
+
+/// whisper.cpp names English-only weights `ggml-<size>.en.bin`; every
+/// multilingual build drops the `.en`. Reading it off the filename keeps this
+/// tied to the file actually loaded rather than to a catalog flag that can
+/// drift.
+fn is_english_only(model_path: &str) -> bool {
+    model_path.ends_with(".en.bin")
 }
 
 impl WhisperEngine {
     pub fn new(model_path: &str) -> Result<Self> {
         let ctx = WhisperContext::new_with_params(model_path, WhisperContextParameters::default())?;
-        Ok(Self { ctx, whisper_mode: false, state: None })
+        let english_only = is_english_only(model_path);
+        Ok(Self { ctx, whisper_mode: false, state: None, english_only })
     }
 }
 
@@ -90,8 +105,12 @@ impl ASREngine for WhisperEngine {
         params.set_no_speech_thold(if self.whisper_mode { 0.9 } else { 0.6 });
         params.set_single_segment(false);
 
+        // "auto" leaves whisper to detect from the first 30s. An `.en` model has
+        // no other language to detect or be told about, so leave it alone: a
+        // stale language setting from a previous multilingual model must not
+        // follow the user onto English-only weights.
         if let Some(l) = language {
-            if l != "auto" {
+            if l != "auto" && !self.english_only {
                 params.set_language(Some(l));
             }
         }
@@ -160,7 +179,28 @@ impl ASREngine for WhisperEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::{cap_prompt, MAX_PROMPT_TOKENS};
+    use super::{cap_prompt, is_english_only, MAX_PROMPT_TOKENS};
+
+    /// Every filename in the catalog, both families. Getting this backwards
+    /// either silently ignores the user's language on a multilingual model, or
+    /// feeds a language to `.en` weights that answer with confident nonsense.
+    #[test]
+    fn english_only_weights_are_recognised_by_filename() {
+        for p in ["ggml-tiny.en.bin", "ggml-base.en.bin", "ggml-small.en.bin"] {
+            assert!(is_english_only(p), "{p} should be English-only");
+            assert!(is_english_only(&format!("/Users/x/models/whisper/{p}")));
+        }
+        for p in [
+            "ggml-tiny.bin",
+            "ggml-base.bin",
+            "ggml-small.bin",
+            "ggml-medium.bin",
+            "ggml-large-v3-turbo.bin",
+        ] {
+            assert!(!is_english_only(p), "{p} should be multilingual");
+            assert!(!is_english_only(&format!("/Users/x/models/whisper/{p}")));
+        }
+    }
 
     /// Stands in for Whisper's BPE: close enough to exercise the boundary logic
     /// without loading a model.

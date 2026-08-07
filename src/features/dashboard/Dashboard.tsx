@@ -26,7 +26,7 @@ import {
 
 
 import { AppStats, TranscriptionRecord } from "../../types";
-import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, isModelDownloaded, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate } from "../../lib/ipc";
+import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, getModelStates, ModelState, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate } from "../../lib/ipc";
 import { promptUpdateInstall } from "../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -39,7 +39,7 @@ import { HistoryView } from "./views/HistoryView";
 import { DictionaryView } from "./views/DictionaryView";
 import { SnippetsView } from "./views/SnippetsView";
 import { MemoryView } from "./views/MemoryView";
-import { ModelsView, ALL_MODEL_IDS, MODEL_NAMES } from "./views/ModelsView";
+import { ModelsView, MODEL_NAMES } from "./views/ModelsView";
 import { AIView } from "./views/AIView";
 import { PreferencesView } from "./views/PreferencesView";
 import icon from "@/assets/logohq.png";
@@ -67,13 +67,17 @@ export default function Dashboard() {
   // Download State
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [modelStatus, setModelStatus] = useState<Record<string, boolean>>({});
+  const [modelStatus, setModelStatus] = useState<Record<string, ModelState>>({});
+  const [modelStray, setModelStray] = useState<Record<string, number>>({});
   const [modelStatusLoading, setModelStatusLoading] = useState(true);
 
+  // One call for the whole catalog, and a three-state answer: a boolean could
+  // not distinguish "not downloaded" from "half a model sitting on your disk".
   const refreshModelStatus = () => {
-    Promise.all(ALL_MODEL_IDS.map((id) => isModelDownloaded(id).then((downloaded) => [id, downloaded] as const)))
-      .then((entries) => {
-        setModelStatus(Object.fromEntries(entries));
+    getModelStates()
+      .then((rows) => {
+        setModelStatus(Object.fromEntries(rows.map(([id, state]) => [id, state])));
+        setModelStray(Object.fromEntries(rows.map(([id, , stray]) => [id, stray])));
         setModelStatusLoading(false);
       })
       .catch(console.error);
@@ -248,6 +252,7 @@ export default function Dashboard() {
               activeEngine={activeEngine}
               setActiveEngine={setActiveEngine}
               modelStatus={modelStatus}
+              modelStray={modelStray}
               modelStatusLoading={modelStatusLoading}
               downloadingId={downloadingId}
               setDownloadingId={setDownloadingId}
@@ -256,7 +261,7 @@ export default function Dashboard() {
             />
           )}
           {activeTab === "ai" && <AIView />}
-          {activeTab === "preferences" && <PreferencesView />}
+          {activeTab === "preferences" && <PreferencesView activeEngine={activeEngine} />}
         </div>
       </main>
 

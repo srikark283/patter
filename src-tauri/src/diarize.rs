@@ -40,6 +40,7 @@ pub fn diarize_and_transcribe(
     engine: &Arc<Mutex<Option<Box<dyn ASREngine>>>>,
     audio: &[f32],
     language: &str,
+    prompt: Option<&str>,
     num_speakers: Option<i32>,
 ) -> Result<String, String> {
     const SAMPLE_RATE: usize = 16_000;
@@ -131,12 +132,23 @@ pub fn diarize_and_transcribe(
             let eng = lock.as_mut().ok_or("no model loaded")?;
             // Engine is shared with dictation — room audio is not whispered.
             eng.set_whisper_mode(false);
-            eng.transcribe(&turn, None, Some(language))
+            eng.transcribe(&turn, prompt, Some(language))
         };
         match text {
             Ok(t) if !t.trim().is_empty() => {
                 let n = speaker_order.iter().position(|x| x == spk).unwrap() + 1;
-                lines.push(format!("[{}] Speaker {}: {}", fmt_ts(*start), n, t.trim()));
+                let line = format!("[{}] Speaker {}: {}", fmt_ts(*start), n, t.trim());
+                // Stream each finished turn so the transcript builds visibly
+                // instead of the user staring at a spinner for the length of a
+                // whole meeting. One line per event, not the accumulated text:
+                // re-sending the whole transcript every turn is quadratic.
+                //
+                // Carries its turn index so the receiver can write by position.
+                // An append would double the transcript if the event ever gets
+                // delivered twice, and React StrictMode plus async `listen()`
+                // makes a duplicate subscription genuinely reachable.
+                let _ = app.emit("patter://meeting_partial", (i, &line));
+                lines.push(line);
             }
             Ok(_) => {}
             Err(e) => eprintln!("[diarize] turn transcription failed: {}", e),

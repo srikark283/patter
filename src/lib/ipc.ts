@@ -158,6 +158,15 @@ export function isModelDownloaded(id: string) {
   return invoke<boolean>("is_model_downloaded", { id });
 }
 
+export type ModelState = "missing" | "partial" | "complete";
+
+/// [id, state, strayBytes] per catalog model. `partial` means bytes are on disk
+/// that don't add up — an interrupted download, occupying space while reading
+/// as "not downloaded" everywhere else.
+export function getModelStates() {
+  return invoke<[string, ModelState, number][]>("get_model_states");
+}
+
 export function onDbUpdated(callback: () => void) {
   return listen("patter://db_updated", () => callback());
 }

@@ -38,6 +38,7 @@ import {
   downloadModel,
   updateMeetingActionItems,
   regenerateMeetingSummary,
+  ModelState,
 } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyState } from "../components/EmptyState";
@@ -127,7 +128,12 @@ const SPEAKER_COLORS = [
   "text-cyan-400",
 ];
 
-function TranscriptView({ text }: { text: string }) {
+function TranscriptView({ text, autoScroll = false }: { text: string; autoScroll?: boolean }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  // While turns stream in during processing, keep the newest one in view.
+  useEffect(() => {
+    if (autoScroll && boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
+  }, [text, autoScroll]);
   const lines = text.split("\n");
   const parsed = lines.map((l) => SPEAKER_LINE.exec(l));
   const order = speakerLabels(text);
@@ -139,7 +145,7 @@ function TranscriptView({ text }: { text: string }) {
     );
   }
   return (
-    <div className="max-h-64 overflow-y-auto rounded-lg bg-background p-3 space-y-2">
+    <div ref={boxRef} className="max-h-64 overflow-y-auto rounded-lg bg-background p-3 space-y-2">
       {lines.map((line, i) => {
         const m = parsed[i];
         if (!m) {
@@ -178,7 +184,7 @@ function BulletList({ items }: { items: string[] }) {
 interface Props {
   /// Download status per model id, hoisted in Dashboard and shared with
   /// ModelsView — a meeting can only use an engine that is actually on disk.
-  modelStatus: Record<string, boolean>;
+  modelStatus: Record<string, ModelState>;
 }
 
 export function MeetingsView({ modelStatus }: Props) {
@@ -194,7 +200,7 @@ export function MeetingsView({ modelStatus }: Props) {
 
   const [diarize, setDiarize] = useState(false);
   const [meetingEngine, setMeetingEngine] = useState<string | null>(null);
-  const downloadedEngines = ALL_MODEL_IDS.filter((id) => modelStatus[id]);
+  const downloadedEngines = ALL_MODEL_IDS.filter((id) => modelStatus[id] === "complete");
 
   // Re-reads settings before writing for the same reason toggleDiarize does:
   // this view holds one field, not the whole object.
@@ -211,6 +217,9 @@ export function MeetingsView({ modelStatus }: Props) {
 
   const [downloadingDiar, setDownloadingDiar] = useState(false);
   const [progress, setProgress] = useState("");
+  // Turns streamed from the diarized pass, shown while the meeting processes.
+  // Cleared once the finished record arrives.
+  const [partial, setPartial] = useState<string[]>([]);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [speakerCountDialogOpen, setSpeakerCountDialogOpen] = useState(false);
   const [speakerCountInput, setSpeakerCountInput] = useState("");
@@ -351,17 +360,29 @@ export function MeetingsView({ modelStatus }: Props) {
     const unlistenUpdated = listen("patter://meetings_updated", () => {
       loadMeetings();
       setProgress("");
+      setPartial([]);
       setRegeneratingId(null);
       toast.success("Meeting notes ready");
     });
     const unlistenProgress = listen<string>("patter://meeting_progress", (e) => {
       setProgress(e.payload);
     });
+    // [turnIndex, line] per event. Written by index, not appended: a duplicate
+    // delivery then overwrites its own slot instead of doubling the transcript.
+    const unlistenPartial = listen<[number, string]>("patter://meeting_partial", (e) => {
+      const [index, line] = e.payload;
+      setPartial((prev) => {
+        const next = prev.slice();
+        next[index] = line;
+        return next;
+      });
+    });
 
     return () => {
       unlistenState.then((fn) => fn());
       unlistenUpdated.then((fn) => fn());
       unlistenProgress.then((fn) => fn());
+      unlistenPartial.then((fn) => fn());
     };
   }, []);
 
@@ -556,11 +577,17 @@ export function MeetingsView({ modelStatus }: Props) {
                 <div className="h-4 w-1/3 rounded bg-foreground/[0.04] animate-pulse" />
                 <div className="h-3 w-1/4 rounded bg-foreground/[0.02] animate-pulse" />
               </div>
-              <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-foreground/[0.02] px-3 py-1.5 rounded-full border border-border">
+              <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-foreground/[0.02] px-3 py-1.5 rounded-full border border-border shrink-0">
                 <Loader2 size={13} className="animate-spin text-steelIce" />
                 {progress || (state === "transcribing" ? "Transcribing…" : "Generating notes…")}
               </div>
             </div>
+            {partial.length > 0 && (
+              <div className="mt-4">
+                {/* Turns that transcribed to nothing leave holes in the index. */}
+                <TranscriptView text={partial.filter(Boolean).join("\n")} autoScroll />
+              </div>
+            )}
           </div>
         )}
         {sortedMeetings?.map((m) => {

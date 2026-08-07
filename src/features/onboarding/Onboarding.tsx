@@ -16,6 +16,7 @@ import {
   requestInputMonitoringPermission,
   openMicrophoneSettings,
   requestMicrophonePermission,
+  ModelState,
 } from "../../lib/ipc";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -28,7 +29,7 @@ const RECOMMENDED_MODEL_NAME = "Whisper Base";
 const RECOMMENDED_MODEL_SIZE = "148 MB";
 
 interface Props {
-  modelStatus: Record<string, boolean>;
+  modelStatus: Record<string, ModelState>;
   downloadingId: string | null;
   setDownloadingId: (id: string | null) => void;
   downloadProgress: number;
@@ -111,7 +112,9 @@ export function Onboarding({
   const [triedIt, setTriedIt] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
-  const hasAnyModel = Object.values(modelStatus).some(Boolean);
+  // Explicitly "complete": every state string is truthy, so a plain `some(Boolean)`
+  // would count a missing or half-downloaded model as usable.
+  const hasAnyModel = Object.values(modelStatus).some((s) => s === "complete");
   const downloading = downloadingId === RECOMMENDED_MODEL;
 
   const refreshPermissions = () => {

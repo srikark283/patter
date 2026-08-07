@@ -279,6 +279,12 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
 
         let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
         let language = settings.language;
+        // The dictionary, same as dictation uses (recording.rs:334). Meetings are
+        // where jargon and proper nouns actually concentrate, so withholding it
+        // here was backwards. Whisper takes it as an initial prompt; Parakeet
+        // ignores the argument.
+        let prompt = settings.custom_prompt;
+        let prompt = if prompt.trim().is_empty() { None } else { Some(prompt) };
 
         // A meeting can transcribe with a different engine from dictation.
         //
@@ -341,6 +347,7 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
                 &engine_arc,
                 &audio,
                 &language,
+                prompt.as_deref(),
                 num_speakers,
             ) {
                 Ok(t) => Some(t),
@@ -360,7 +367,7 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
                     // Engine is shared with dictation — room audio is not whispered.
                     Some(engine) => match {
                         engine.set_whisper_mode(false);
-                        engine.transcribe(&audio, None, Some(&language))
+                        engine.transcribe(&audio, prompt.as_deref(), Some(&language))
                     } {
                         Ok(t) => t,
                         Err(e) => {

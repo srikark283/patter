@@ -13,9 +13,12 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LANGUAGES, LANGUAGE_NAMES, COMMON_LANGUAGE_CODES } from "@/lib/languages";
+import { MODEL_MULTILINGUAL } from "./ModelsView";
 import {
   Dialog,
   DialogContent,
@@ -204,7 +207,17 @@ function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onRe
   );
 }
 
-export function PreferencesView() {
+interface PreferencesProps {
+  /// Active ASR engine id, hoisted in Dashboard. Only needed to tell the user
+  /// when the language picker can't take effect.
+  activeEngine: string | null;
+}
+
+export function PreferencesView({ activeEngine }: PreferencesProps) {
+  // Unknown engine (nothing selected yet) is not "English-only" — don't warn
+  // about a model the user hasn't picked.
+  const englishOnlyModel = !!activeEngine && MODEL_MULTILINGUAL[activeEngine] === false;
+
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mics, setMics] = useState<string[]>([]);
   const [recordingField, setRecordingField] = useState<"hotkey" | "meeting_hotkey" | null>(null);
@@ -441,19 +454,32 @@ export function PreferencesView() {
           </Setting>
 
           <Setting {...ROWS.language}>
-            <Select value={settings.language} onValueChange={(val) => update({ language: val })}>
-              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Auto-detect</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Spanish</SelectItem>
-                <SelectItem value="fr">French</SelectItem>
-                <SelectItem value="de">German</SelectItem>
-                <SelectItem value="ja">Japanese</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              {englishOnlyModel && (
+                <span
+                  className="text-[11px] text-amber-600 dark:text-amber-400"
+                  title="English-only weights ignore this setting. Install a multilingual model from Speech Models to use another language."
+                >
+                  English-only model
+                </span>
+              )}
+              <Select value={settings.language} onValueChange={(val) => update({ language: val })}>
+                <SelectTrigger className="w-40 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="auto">Auto-detect</SelectItem>
+                  {/* Common picks first so a 100-item scroll isn't the only route. */}
+                  {COMMON_LANGUAGE_CODES.map((c) => (
+                    <SelectItem key={`common-${c}`} value={c}>{LANGUAGE_NAMES[c]}</SelectItem>
+                  ))}
+                  <SelectSeparator />
+                  {LANGUAGES.filter((l) => !COMMON_LANGUAGE_CODES.includes(l.code)).map((l) => (
+                    <SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </Setting>
 
           <Setting {...ROWS.silence}>

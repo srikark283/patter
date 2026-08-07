@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Check, Download, Loader2, Trash2, Globe, Type } from "lucide-react";
-import { downloadModel, setEngine, deleteModel } from "../../../lib/ipc";
+import { downloadModel, setEngine, deleteModel, ModelState } from "../../../lib/ipc";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "../components/PageHeader";
@@ -30,6 +30,10 @@ const MODELS: ModelSpec[] = [
   { id: "whisper-base", name: "Base", fullName: "Whisper Base", size: "148 MB", vendor: "openai", multilingual: false, description: "Balanced speed and accuracy", speed: 4, accuracy: 3 },
   { id: "whisper-small", name: "Small", fullName: "Whisper Small", size: "488 MB", vendor: "openai", multilingual: false, description: "More accurate, slower", speed: 3, accuracy: 4 },
   { id: "parakeet-v2", name: "Parakeet V2", fullName: "Parakeet TDT 0.6B v2", size: "660 MB", vendor: "nvidia", multilingual: false, description: "English only — fastest streaming", speed: 4, accuracy: 5 },
+  { id: "whisper-tiny-multi", name: "Tiny", fullName: "Whisper Tiny (99 languages)", size: "78 MB", vendor: "openai", multilingual: true, description: "Fastest multilingual — quick notes", speed: 4, accuracy: 2 },
+  { id: "whisper-base-multi", name: "Base", fullName: "Whisper Base (99 languages)", size: "148 MB", vendor: "openai", multilingual: true, description: "Balanced multilingual pick", speed: 4, accuracy: 3 },
+  { id: "whisper-small-multi", name: "Small", fullName: "Whisper Small (99 languages)", size: "488 MB", vendor: "openai", multilingual: true, description: "More accurate across languages", speed: 3, accuracy: 4 },
+  { id: "whisper-medium-multi", name: "Medium", fullName: "Whisper Medium (99 languages)", size: "1.5 GB", vendor: "openai", multilingual: true, description: "Strong non-English accuracy", speed: 2, accuracy: 4 },
   { id: "whisper-large-v3-turbo", name: "Large v3 Turbo", fullName: "Whisper Large v3 Turbo", size: "1.6 GB", vendor: "openai", multilingual: true, description: "Best quality, needs Metal GPU", speed: 2, accuracy: 5 },
   { id: "parakeet-v3", name: "Parakeet V3", fullName: "Parakeet TDT 0.6B v3", size: "670 MB", vendor: "nvidia", multilingual: true, description: "25 languages", speed: 4, accuracy: 4 },
 ];
@@ -64,10 +68,17 @@ export const MODEL_NAMES: Record<string, string> = Object.fromEntries(
   MODELS.map((m) => [m.id, m.fullName])
 );
 
+/// Whether each model can transcribe anything other than English — drives the
+/// language picker, which is inert on `.en` weights.
+export const MODEL_MULTILINGUAL: Record<string, boolean> = Object.fromEntries(
+  MODELS.map((m) => [m.id, m.multilingual])
+);
+
 interface Props {
   activeEngine: string | null;
   setActiveEngine: (engine: string) => void;
-  modelStatus: Record<string, boolean>;
+  modelStatus: Record<string, ModelState>;
+  modelStray: Record<string, number>;
   modelStatusLoading: boolean;
   downloadingId: string | null;
   setDownloadingId: (id: string | null) => void;
@@ -79,6 +90,7 @@ export function ModelsView({
   activeEngine,
   setActiveEngine,
   modelStatus,
+  modelStray,
   modelStatusLoading,
   downloadingId,
   setDownloadingId,
@@ -131,7 +143,12 @@ export function ModelsView({
   };
 
   const renderCard = (model: ModelSpec) => {
-    const isDownloaded = modelStatus[model.id] ?? false;
+    const isDownloaded = modelStatus[model.id] === "complete";
+    // Bytes on disk that don't add up — an interrupted download. Without this
+    // the row is indistinguishable from "never downloaded" while still holding
+    // the space, which is how a 338MB fragment of a 1.6GB model goes unnoticed.
+    const isPartial = modelStatus[model.id] === "partial";
+    const strayMb = Math.round((modelStray[model.id] ?? 0) / 1_048_576);
     const isActive = activeEngine === model.id;
     const isDownloading = downloadingId === model.id;
     const isSettingActive = settingEngineId === model.id;
@@ -191,7 +208,15 @@ export function ModelsView({
         </div>
 
         <div className="shrink-0 flex items-center gap-1.5">
-          {isDownloaded && !isActive && !isDeleting && (
+          {isPartial && !isDownloading && !isDeleting && (
+            <span
+              className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20"
+              title={`An interrupted download left ${strayMb} MB on disk. Click the model to download it again, or delete to reclaim the space.`}
+            >
+              Incomplete · {strayMb} MB
+            </span>
+          )}
+          {(isDownloaded || isPartial) && !isActive && !isDeleting && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
