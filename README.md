@@ -10,6 +10,7 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 - **App-aware profiles** — Patter knows which app is frontmost and applies per-app cleanup rules (casual for Slack, verbatim for code editors, formal for Mail, and so on).
 - **Push-to-talk or toggle** — hold the hotkey to record and release to transcribe, or press once to start/stop. Works with modifier-only keys (e.g. right Option) or full combos.
 - **Two output modes** — instant paste (clipboard + simulated paste) or simulated typing (keystroke-by-keystroke, for remote desktops).
+- **Command mode** — select text anywhere, press a separate hotkey, and say what to do with it ("make this formal", "turn this into bullet points", "make this idiomatic"). The local model rewrites the selection in place. With nothing selected, it writes what you asked for instead.
 
 ### Meetings
 - Record a meeting from your mic; stop to get a transcript, minutes, decisions, and action items — generated locally by Ollama.
@@ -20,7 +21,8 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 
 ### Personalization
 - **Personal memory** — teach Patter facts about you, your projects, and your jargon; it uses them (via local embeddings) to get names and terms right.
-- **Dictionary** — a custom vocabulary list for words the model should recognize (names, acronyms, slang).
+- **Dictionary** — a custom vocabulary list for words the model should recognize (names, acronyms, slang). Applied three ways so it works on every engine: as the speech model's prompt, as a phonetic correction pass over the transcript, and as context for the cleanup model.
+- **Learns from your edits** — correct a transcript in History twice and Patter offers the term for your dictionary, with the misheard spellings it saw. It proposes, never adds on its own.
 - **Voice macros** — say a short trigger phrase, get a whole block of text expanded automatically (addresses, sign-offs, boilerplate).
 
 ### Interface

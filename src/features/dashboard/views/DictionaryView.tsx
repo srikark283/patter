@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { updateSettings, getSettings, Settings } from "../../../lib/ipc";
+import { updateSettings, getSettings, Settings, dictionarySuggestions, dismissDictionarySuggestion, DictionarySuggestion } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyState } from "../components/EmptyState";
-import { Search, Plus, ArrowUpDown, Trash2, Pencil, Check, AlertTriangle, BookOpen } from "lucide-react";
+import { Search, Plus, ArrowUpDown, Trash2, Pencil, Check, AlertTriangle, BookOpen, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +51,7 @@ export function DictionaryView() {
   const [terms, setTerms] = useState<string[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newTerm, setNewTerm] = useState("");
+  const [suggestions, setSuggestions] = useState<DictionarySuggestion[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [editingTerm, setEditingTerm] = useState<string | null>(null);
@@ -96,6 +97,42 @@ export function DictionaryView() {
       toast.error("Failed to save term: " + e);
       setSettings(settings); // revert
     }
+  };
+
+  const refreshSuggestions = () => {
+    dictionarySuggestions().then(setSuggestions).catch(console.error);
+  };
+
+  // Recomputed on mount rather than cached: both history and the dictionary
+  // move underneath it, and a stale list keeps offering terms already added.
+  useEffect(refreshSuggestions, []);
+
+  /// Mirror the dismissal into local state. `save` sends the whole settings
+  /// object, built from the copy loaded at mount — without this, editing a term
+  /// after dismissing anything writes back the old list and the dismissals come
+  /// straight back.
+  const rememberDismissal = (key: string) => {
+    setSettings((current) =>
+      current
+        ? { ...current, dismissed_suggestions: [...current.dismissed_suggestions, key] }
+        : current
+    );
+    setSuggestions((current) => current.filter((s) => s.key !== key));
+  };
+
+  const acceptSuggestion = async (suggestion: DictionarySuggestion) => {
+    const { merged, added } = mergeTerms(terms, [suggestion.term]);
+    if (added) await save(merged);
+    // Dismissed as well as added, so an accepted term can't be re-proposed by
+    // a spelling of it that is still sitting in history.
+    await dismissDictionarySuggestion(suggestion.key);
+    rememberDismissal(suggestion.key);
+    toast.success(`Added "${suggestion.term}"`);
+  };
+
+  const rejectSuggestion = async (suggestion: DictionarySuggestion) => {
+    await dismissDictionarySuggestion(suggestion.key);
+    rememberDismissal(suggestion.key);
   };
 
   const handleAdd = (e: React.FormEvent) => {
@@ -186,6 +223,51 @@ export function DictionaryView() {
         description="Add words you want the model to recognize (names, jargon, slang)."
         action={headerAction}
       />
+
+      {suggestions.length > 0 && (
+        <div className="rounded-lg ring-1 ring-steelIce/20 bg-steelIce/[0.04] p-4 space-y-3">
+          <div className="flex items-center gap-2 text-[13px] font-medium text-foreground/90">
+            <Sparkles size={14} className="text-steelIce" />
+            Learned from your edits
+          </div>
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
+            You corrected these in History more than once. Adding a term lets Patter fix it
+            automatically next time — on any speech model, with or without cleanup.
+          </p>
+          <div className="space-y-2">
+            {suggestions.map((suggestion) => (
+              <div
+                key={suggestion.key}
+                className="flex items-center justify-between gap-3 rounded-md bg-background/60 ring-1 ring-border px-3 py-2"
+              >
+                <div className="min-w-0 text-[13px]">
+                  <span className="text-muted-foreground line-through">
+                    {suggestion.replaces.join(", ")}
+                  </span>
+                  <span className="text-muted-foreground mx-2">→</span>
+                  <span className="text-foreground font-medium">{suggestion.term}</span>
+                  <span className="text-muted-foreground ml-2 text-[11px]">
+                    corrected {suggestion.count}×
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button size="sm" className="rounded-full h-7" onClick={() => acceptSuggestion(suggestion)}>
+                    <Check size={14} /> Add
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title="Never suggest this"
+                    onClick={() => rejectSuggestion(suggestion)}
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {budgetUsed >= 0.8 && (
         <div className={`flex items-start gap-2.5 rounded-lg p-3 text-[12px] leading-relaxed ring-1 ${

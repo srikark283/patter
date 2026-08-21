@@ -16,6 +16,11 @@ pub struct AppState {
     pub is_paused: Arc<AtomicBool>,
     /// App the user was in when recording started — the paste target.
     pub frontmost_app: Arc<Mutex<Option<String>>>,
+    /// Text selected in the target app when a command-mode recording started.
+    /// `Some` marks this dictation as an instruction to rewrite that text
+    /// rather than as text to paste; cleared at the start of every recording so
+    /// a plain dictation can never inherit a stale selection.
+    pub command_selection: Arc<Mutex<Option<String>>>,
     pub meeting_captured: Arc<Mutex<Vec<f32>>>,
     /// Open handle to the on-disk meeting buffer (16 kHz mono f32-le), so long
     /// meetings hold at most a couple seconds of raw audio in RAM. The mutex

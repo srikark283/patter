@@ -10,6 +10,7 @@ export interface AppProfile {
 export interface Settings {
   hotkey: string;
   meeting_hotkey: string;
+  command_hotkey: string;
   microphone: string | null;
   output_mode: string;
   custom_prompt: string;
@@ -33,6 +34,7 @@ export interface Settings {
   auto_update: boolean;
   snippets: Snippet[];
   memories: MemoryFact[];
+  dismissed_suggestions: string[];
   embedding_model?: string;
 }
 
@@ -261,4 +263,20 @@ export function exportData() {
 /** Opens a native file-picker dialog; resolves false if the user cancels. */
 export function importData() {
   return invoke<boolean>("import_data");
+}
+
+/** A dictionary term mined from History edits, awaiting the user's approval. */
+export interface DictionarySuggestion {
+  term: string;
+  replaces: string[];
+  count: number;
+  key: string;
+}
+
+export function dictionarySuggestions() {
+  return invoke<DictionarySuggestion[]>("dictionary_suggestions");
+}
+
+export function dismissDictionarySuggestion(key: string) {
+  return invoke<void>("dismiss_dictionary_suggestion", { key });
 }

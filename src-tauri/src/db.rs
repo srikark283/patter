@@ -33,6 +33,10 @@ pub struct Settings {
     /// Toggles meeting recording start/stop. Empty = unset (no hotkey registered).
     #[serde(default)]
     pub meeting_hotkey: String,
+    /// Command mode: grabs the frontmost app's selection, then records a spoken
+    /// instruction to rewrite it with. Empty = unset (no hotkey registered).
+    #[serde(default)]
+    pub command_hotkey: String,
     pub microphone: Option<String>,
     pub output_mode: String,
     pub custom_prompt: String,
@@ -89,6 +93,10 @@ pub struct Settings {
     /// Facts for RAG
     #[serde(default)]
     pub memories: Vec<MemoryFact>,
+    /// Correction suggestions the user rejected, as "wrong→right" keys, so a
+    /// dismissed one never comes back.
+    #[serde(default)]
+    pub dismissed_suggestions: Vec<String>,
     
     }
 
@@ -123,6 +131,7 @@ impl Default for Settings {
         Self {
             hotkey: "Alt+Space".to_string(),
             meeting_hotkey: "".to_string(),
+            command_hotkey: "".to_string(),
             microphone: None,
             output_mode: "type".to_string(),
             custom_prompt: "".to_string(),
@@ -147,6 +156,7 @@ impl Default for Settings {
             auto_update: true,
             snippets: Vec::new(),
             memories: Vec::new(),
+            dismissed_suggestions: Vec::new(),
         }
     }
 }
@@ -193,6 +203,12 @@ pub struct TranscriptionRecord {
     pub total_ms: u32,
     #[serde(default)]
     pub app_name: Option<String>,
+    /// The transcript as the pipeline produced it, kept only once the user
+    /// edits the record. Without it an edit destroys the very thing that makes
+    /// it a correction — what the engine actually heard. `None` means never
+    /// edited (or edited before this field existed).
+    #[serde(default)]
+    pub original_text: Option<String>,
     }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -392,6 +408,12 @@ impl Db {
     pub fn update_record_text(&self, id: &str, new_text: &str) -> bool {
         let mut history = self.get_history();
         if let Some(record) = history.iter_mut().find(|r| r.id == id) {
+            // Set once, on the first edit only. A second edit must not overwrite
+            // it with the first edit's text — the pipeline's own output is what
+            // makes the pair a correction, and it exists exactly once.
+            if record.original_text.is_none() && record.text != new_text {
+                record.original_text = Some(record.text.clone());
+            }
             record.text = new_text.to_string();
             // Optional: Re-calculate words if we want, but keeping it simple for now
             // record.words = new_text.split_whitespace().count() as u32;

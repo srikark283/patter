@@ -5,6 +5,8 @@ mod audio;
 mod commands;
 mod db;
 mod diarize;
+mod dictionary;
+mod learn;
 mod meeting;
 mod models;
 mod ollama;
@@ -252,6 +254,7 @@ fn main() {
 
             let hotkey_str = settings.hotkey.clone();
             let meeting_hotkey_str = settings.meeting_hotkey.clone();
+            let command_hotkey_str = settings.command_hotkey.clone();
             let hud_position_str = settings.hud_position.clone();
             let auto_update = settings.auto_update;
 
@@ -262,6 +265,7 @@ fn main() {
                 is_recording: Arc::new(AtomicBool::new(false)),
                 is_paused: Arc::new(AtomicBool::new(false)),
                 frontmost_app: Arc::new(Mutex::new(None)),
+                command_selection: Arc::new(Mutex::new(None)),
                 meeting_captured: Arc::new(Mutex::new(Vec::new())),
                 meeting_file: Arc::new(Mutex::new(None)),
                 is_meeting_recording: Arc::new(AtomicBool::new(false)),
@@ -314,9 +318,9 @@ fn main() {
             std::thread::spawn(move || {
                 let callback = move |event: Event| {
                     let state = app_handle_for_rdev.state::<AppState>();
-                    let (hotkey, push_to_talk, meeting_hotkey) = {
+                    let (hotkey, push_to_talk, meeting_hotkey, command_hotkey) = {
                         let s = state.settings.lock().unwrap();
-                        (s.hotkey.clone(), s.push_to_talk, s.meeting_hotkey.clone())
+                        (s.hotkey.clone(), s.push_to_talk, s.meeting_hotkey.clone(), s.command_hotkey.clone())
                     };
 
                     let is_match = |key_str: &str, target_hotkey: &str| -> bool {
@@ -374,6 +378,22 @@ fn main() {
                                     let _ = meeting::stop_meeting(&app_handle_for_rdev, None);
                                 } else if !state.is_recording.load(Ordering::SeqCst) {
                                     let _ = meeting::start_meeting(&app_handle_for_rdev);
+                                }
+                            }
+                        }
+                    }
+
+                    // Command hotkey toggles like the dictation hotkey does, but
+                    // opens with a selection grab. Push-to-talk doesn't apply:
+                    // the ⌘C it synthesizes fights a held modifier.
+                    if !command_hotkey.is_empty() && !command_hotkey.contains('+') {
+                        if let EventType::KeyPress(key) = event.event_type {
+                            let key_str = format!("{:?}", key);
+                            if is_match(&key_str, &command_hotkey) {
+                                if state.is_recording.load(Ordering::SeqCst) {
+                                    recording::stop_and_transcribe(&app_handle_for_rdev);
+                                } else if !state.is_paused.load(Ordering::SeqCst) {
+                                    recording::start_command(&app_handle_for_rdev);
                                 }
                             }
                         }
@@ -464,6 +484,11 @@ fn main() {
                     let _ = app.global_shortcut().register(shortcut);
                 }
             }
+            if !command_hotkey_str.is_empty() && command_hotkey_str.contains('+') {
+                if let Ok(shortcut) = command_hotkey_str.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                    let _ = app.global_shortcut().register(shortcut);
+                }
+            }
 
             #[cfg(target_os = "macos")]
             let panel = PanelBuilder::<_, HUDPanel>::new(app.handle(), "main")
@@ -541,10 +566,28 @@ fn main() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
                     let state = app.state::<AppState>();
-                    let (push_to_talk, meeting_hotkey) = {
+                    let (push_to_talk, meeting_hotkey, command_hotkey) = {
                         let s = state.settings.lock().unwrap();
-                        (s.push_to_talk, s.meeting_hotkey.clone())
+                        (s.push_to_talk, s.meeting_hotkey.clone(), s.command_hotkey.clone())
                     };
+
+                    // Same shape as the meeting branch: a separate registration,
+                    // so it has to claim its own events before the dictation
+                    // fall-through below sees them.
+                    if !command_hotkey.is_empty() {
+                        if let Ok(command_shortcut) = command_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                            if *shortcut == command_shortcut {
+                                if event.state == ShortcutState::Pressed {
+                                    if state.is_recording.load(Ordering::SeqCst) {
+                                        recording::stop_and_transcribe(app);
+                                    } else if !state.is_paused.load(Ordering::SeqCst) {
+                                        recording::start_command(app);
+                                    }
+                                }
+                                return;
+                            }
+                        }
+                    }
 
                     // Meeting hotkey is a separate registration — only handle it
                     // (press-to-toggle) if this event is actually for it.
@@ -599,6 +642,8 @@ fn main() {
             commands::get_history,
             commands::clear_history,
             commands::delete_history_record,
+            commands::dictionary_suggestions,
+            commands::dismiss_dictionary_suggestion,
             commands::update_history_record,
             commands::export_data,
             commands::import_data,

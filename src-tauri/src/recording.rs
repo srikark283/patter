@@ -99,6 +99,51 @@ pub fn reposition_hud_to_cursor(app: &tauri::AppHandle) {
     let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
+/// Command mode: grab whatever the user has selected in the app they're in,
+/// then record the instruction to rewrite it with. The selection is read before
+/// recording starts because the copy is a synthetic ⌘C into the target app —
+/// doing it later would race the user's own typing.
+pub fn start_command(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    if state.is_recording.load(Ordering::SeqCst)
+        || state.is_meeting_recording.load(Ordering::SeqCst)
+    {
+        return;
+    }
+    if !paste::accessibility_trusted() {
+        let _ = app.emit("patter://accessibility_missing", ());
+        let _ = app.emit("patter://state", "⚠ Command needs Accessibility");
+        return;
+    }
+    drop(state);
+
+    // Off the caller's thread before anything blocks. Hotkeys arrive on rdev's
+    // macOS event tap, and a callback that stalls there gets the tap disabled
+    // by the OS — reading the selection sleeps for up to 400ms.
+    let app = app.clone();
+    thread::spawn(move || {
+        // ponytail: a modifier the user is still physically holding turns this
+        // synthetic ⌘C into ⌘⌥C and the selection comes back empty. Nothing
+        // enigo exposes can clear a held physical key, so command mode wants a
+        // plain key; the UI refuses bare-modifier bindings for this reason.
+        let selection = paste::read_selection(&app);
+        let has_selection = selection.is_some();
+
+        start_recording(&app);
+
+        let state = app.state::<AppState>();
+        if !state.is_recording.load(Ordering::SeqCst) {
+            return;
+        }
+        // Set after `start_recording`, which clears it.
+        *state.command_selection.lock().unwrap() = Some(selection.unwrap_or_default());
+        let _ = app.emit(
+            "patter://state",
+            if has_selection { "Command…" } else { "Command (no selection)…" },
+        );
+    });
+}
+
 pub fn start_recording(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     // Meeting owns the single audio stream; dictation would hijack its buffer.
@@ -112,6 +157,9 @@ pub fn start_recording(app: &tauri::AppHandle) {
     // The app in focus now is where the text will land — remember it for
     // per-app cleanup profiles.
     *state.frontmost_app.lock().unwrap() = paste::frontmost_app_name();
+    // A plain dictation must never inherit a selection left behind by a command
+    // that was cancelled or never transcribed. `start_command` re-sets it after.
+    *state.command_selection.lock().unwrap() = None;
 
     let settings = state.settings.lock().unwrap().clone();
     state.dictation_session_id.fetch_add(1, Ordering::SeqCst);
@@ -331,8 +379,11 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         }
 
         let settings = app_handle.state::<AppState>().settings.lock().unwrap().clone();
-        let prompt = settings.custom_prompt;
-        let language = settings.language;
+        // Cloned, not moved: the dictionary is used twice — here as the ASR
+        // initial prompt, and again in the cleanup context for the engines that
+        // ignore that prompt.
+        let prompt = settings.custom_prompt.clone();
+        let language = settings.language.clone();
 
         // Silero VAD: strip silence/noise so Whisper never hallucinates on it.
         // Any VAD failure falls back to untrimmed audio — never lose a recording.
@@ -397,12 +448,39 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         };
         let transcribe_ms = transcribe_started.elapsed().as_millis() as u32;
 
+        // Engine-independent, so the dictionary works on Parakeet (which drops
+        // the initial prompt) and with cleanup off. Runs before cleanup, not
+        // instead of it: the LLM still gets the terms, and fixing the spelling
+        // first gives it a transcript it can reason about.
+        let text = crate::dictionary::apply(&text, &settings.custom_prompt);
+
         if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
 
         println!("Transcript: {}", text);
         if text.is_empty() {
              let _ = app_handle.emit("patter://state", "Idle");
              return;
+        }
+
+        // Command mode diverges here: the transcript is an instruction about
+        // the user's selection, not text to paste. Taken (not read) so a failed
+        // command can't leave the next dictation in command mode.
+        let command_selection = app_handle
+            .state::<AppState>()
+            .command_selection
+            .lock()
+            .unwrap()
+            .take();
+        if let Some(selection) = command_selection {
+            run_command(
+                &app_handle,
+                settings.ollama_model.as_deref(),
+                settings.ollama_keep_alive_minutes,
+                &selection,
+                &text,
+                dictation_session_id,
+            );
+            return;
         }
 
         let frontmost = app_handle
@@ -445,6 +523,27 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                          misheard as similar-sounding ones. Where a word is implausible in \
                          context, replace it with the word it was most likely misheard from. \
                          Do not add content that isn't there.",
+                    );
+                }
+
+                // The dictionary also goes to the ASR engine as an initial
+                // prompt, but only Whisper honours that — Parakeet ignores the
+                // argument outright, which left the whole feature dead on it.
+                // Cleanup is the one stage every engine shares.
+                if !settings.custom_prompt.trim().is_empty() {
+                    if !context_prompt.is_empty() {
+                        context_prompt.push_str("\n\n");
+                    }
+                    context_prompt.push_str(
+                        "The user's custom vocabulary — names, acronyms and jargon the speech \
+                         model is likely to get wrong:\n",
+                    );
+                    context_prompt.push_str(&settings.custom_prompt);
+                    context_prompt.push_str(
+                        "\n\nWhen a word or phrase in the transcript is a near-homophone of one \
+                         of these terms, it is almost certainly that term — replace it, and \
+                         match the spelling and casing given above exactly. Never insert a term \
+                         that nothing in the transcript sounds like.",
                     );
                 }
                 if !settings.memories.is_empty() {
@@ -537,12 +636,15 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
 
         if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
 
+        // After cleanup, so it catches both the model's period and the engine's.
+        let text = strip_fragment_period(&text).to_string();
+
         // --- Undo / Scratch That Interception ---
         // --- Undo / Scratch That Interception ---
         let clean_text = text.trim().trim_matches(|c: char| c.is_ascii_punctuation()).to_lowercase();
         if clean_text == "scratch that" || clean_text == "undo that" {
             println!("[undo] Intercepted undo voice command");
-            crate::paste::undo();
+            crate::paste::undo(&app_handle);
             let _ = app_handle.emit("patter://hud_state", "idle");
             if settings.play_sounds {
                 play_system_sound(&app_handle, "stop");
@@ -590,7 +692,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             cleanup_ms,
             total_ms,
             app_name: frontmost,
-            
+            // Only an edit creates one; a fresh record has nothing to preserve.
+            original_text: None,
         });
         let _ = app_handle.emit("patter://db_updated", ());
         tray::refresh(&app_handle);
@@ -599,9 +702,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
 
         if paste::accessibility_trusted() {
             let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
-            let _ = app_handle.run_on_main_thread(move || {
-                paste::paste_text(&mode, &text);
-            });
+            paste::paste_text(&app_handle, &mode, &text);
         } else {
             // Can't synthesize keystrokes without the Accessibility permission;
             // land the text on the clipboard so it isn't lost and tell the UI.
@@ -615,9 +716,132 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     });
 }
 
+/// Whisper, Parakeet and the cleanup model all terminate an utterance with a
+/// period. That is right for a sentence and wrong for the single word someone
+/// dictates into a search box, a filename field or a chat message — and the
+/// prompt rule alone can't cover the cleanup-off path, where no model is
+/// looking at the text at all.
+///
+/// Only a one-word transcript is touched. Anything longer might genuinely be a
+/// sentence, and there is no cheap way to tell a fragment from one; guessing
+/// there would cost more than it saves. `?` and `!` are always deliberate, and
+/// a word carrying its own period ("etc.", "v1.2.") keeps it.
+fn strip_fragment_period(text: &str) -> &str {
+    /// One-word abbreviations whose period is part of the word, so they look
+    /// exactly like the case being stripped and can only be listed.
+    const ABBREVIATIONS: &[&str] = &[
+        "etc", "vs", "approx", "dr", "mr", "mrs", "ms", "prof", "inc", "ltd",
+        "co", "jr", "sr", "st", "no", "vol", "fig", "al",
+    ];
+
+    let trimmed = text.trim_end();
+    let Some(stem) = trimmed.strip_suffix('.') else {
+        return text;
+    };
+    if stem.is_empty() || stem.contains(char::is_whitespace) || stem.contains('.') {
+        return text;
+    }
+    if ABBREVIATIONS.contains(&stem.to_lowercase().as_str()) {
+        return text;
+    }
+    stem
+}
+
+/// Rewrite `selection` per the spoken `instruction` and paste the result over
+/// it. Failure pastes nothing: the selection is still highlighted, so pasting
+/// an error — or the raw instruction — would destroy the user's text. That is
+/// the opposite of dictation's fallback, and deliberately so.
+fn run_command(
+    app: &tauri::AppHandle,
+    ollama_model: Option<&str>,
+    keep_alive_minutes: i32,
+    selection: &str,
+    instruction: &str,
+    session_id: u64,
+) {
+    let Some(model) = ollama_model.filter(|m| !m.is_empty()) else {
+        let _ = app.emit("patter://state", "⚠ Command needs an Ollama model");
+        thread::sleep(Duration::from_millis(2000));
+        let _ = app.emit("patter://state", "Idle");
+        return;
+    };
+
+    let _ = app.emit("patter://state", "Rewriting…");
+
+    let partial_emitter = app.clone();
+    let mut last_partial = std::time::Instant::now();
+    let on_partial = |partial: &str| {
+        if last_partial.elapsed() >= Duration::from_millis(60) {
+            last_partial = std::time::Instant::now();
+            let _ = partial_emitter.emit("patter://cleanup_partial", partial);
+        }
+    };
+    let cancel_handle = app.clone();
+    let is_cancelled = move || bail_if_cancelled(&cancel_handle, session_id);
+
+    let result = match crate::ollama::command(
+        model,
+        selection,
+        instruction,
+        keep_alive_minutes,
+        on_partial,
+        is_cancelled,
+    ) {
+        Ok(result) => result,
+        Err(e) if e == crate::ollama::CLEANUP_CANCELLED => return,
+        Err(e) => {
+            eprintln!("Command failed: {}", e);
+            let _ = app.emit("patter://state", "⚠ Command failed");
+            thread::sleep(Duration::from_millis(2000));
+            let _ = app.emit("patter://state", "Idle");
+            return;
+        }
+    };
+
+    if bail_if_cancelled(app, session_id) {
+        return;
+    }
+
+    println!("[command] instruction={} result_chars={}", instruction, result.len());
+
+    // Always the paste path, never `type`: replacing a selection keystroke by
+    // keystroke means the first character overwrites it and every character
+    // after lands in a field the app may have already reformatted.
+    let _ = app.emit("patter://state", "✓ Rewritten");
+    paste::paste_text(app, "paste", &result);
+
+    thread::sleep(Duration::from_millis(1500));
+    let _ = app.emit("patter://state", "Idle");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn strips_the_period_only_from_one_word_transcripts() {
+        // The reported case: a single word dictated into a field.
+        assert_eq!(strip_fragment_period("iPhone."), "iPhone");
+        assert_eq!(strip_fragment_period("Kubernetes."), "Kubernetes");
+        assert_eq!(strip_fragment_period("iPhone.  "), "iPhone");
+
+        // A sentence keeps its period — a fragment can't be told from a
+        // sentence once there is more than one word in it.
+        assert_eq!(strip_fragment_period("Ship it."), "Ship it.");
+        assert_eq!(strip_fragment_period("This is really bad."), "This is really bad.");
+
+        // Deliberate marks, and words that carry their own period.
+        assert_eq!(strip_fragment_period("Ready?"), "Ready?");
+        assert_eq!(strip_fragment_period("Stop!"), "Stop!");
+        assert_eq!(strip_fragment_period("etc."), "etc.");
+        assert_eq!(strip_fragment_period("v1.2."), "v1.2.");
+        assert_eq!(strip_fragment_period("src/main.rs"), "src/main.rs");
+
+        // Nothing to strip.
+        assert_eq!(strip_fragment_period("iPhone"), "iPhone");
+        assert_eq!(strip_fragment_period(""), "");
+        assert_eq!(strip_fragment_period("."), ".");
+    }
 
     #[test]
     fn boost_gain_lifts_whispers_without_clipping() {

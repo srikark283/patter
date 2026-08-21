@@ -122,6 +122,7 @@ pub fn regenerate_meeting_summary(
     
     let state = app.state::<AppState>();
     let settings = state.settings.lock().unwrap().clone();
+    let dictionary = settings.custom_prompt.clone();
     let meeting_model = settings.meeting_ollama_model.or(settings.ollama_model);
     let model = meeting_model.ok_or("No Ollama model selected")?;
     
@@ -131,7 +132,7 @@ pub fn regenerate_meeting_summary(
         let transcript = meeting.transcript.clone();
         let meeting_id = meeting.id.clone();
         
-        match crate::ollama::summarize_meeting(&model, &transcript, |current, total| {
+        match crate::ollama::summarize_meeting(&model, &transcript, &dictionary, |current, total| {
             if total > 1 {
                 if current < total {
                     let _ = app_handle.emit("patter://meeting_progress", format!("Summarizing part {}/{}", current, total - 1));
@@ -175,6 +176,7 @@ pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<
     let mut current_settings = state.settings.lock().unwrap();
     let old_hotkey = current_settings.hotkey.clone();
     let old_meeting_hotkey = current_settings.meeting_hotkey.clone();
+    let old_command_hotkey = current_settings.command_hotkey.clone();
     let old_hud_position = current_settings.hud_position.clone();
     
     // Apply autostart if changed
@@ -218,6 +220,23 @@ pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<
         }
         if !settings.meeting_hotkey.is_empty() {
             if let Ok(new_shortcut) = settings.meeting_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                let _ = manager.register(new_shortcut);
+            }
+        }
+    }
+
+    // And again for the command hotkey.
+    if old_command_hotkey != settings.command_hotkey {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+        let manager = app.global_shortcut();
+        if !old_command_hotkey.is_empty() {
+            if let Ok(old_shortcut) = old_command_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
+                let _ = manager.unregister(old_shortcut);
+            }
+        }
+        if !settings.command_hotkey.is_empty() {
+            if let Ok(new_shortcut) = settings.command_hotkey.parse::<tauri_plugin_global_shortcut::Shortcut>() {
                 let _ = manager.register(new_shortcut);
             }
         }
@@ -275,6 +294,35 @@ pub fn get_history(app: tauri::AppHandle) -> Vec<db::TranscriptionRecord> {
 #[tauri::command]
 pub fn clear_history(app: tauri::AppHandle) {
     db::Db::new(&app).clear_history()
+}
+
+/// Dictionary terms mined from History edits, for the user to accept or reject.
+/// Recomputed on demand rather than stored: history and the dictionary both
+/// change underneath it, and a stale cache would keep proposing terms the user
+/// already added.
+#[tauri::command]
+pub fn dictionary_suggestions(app: tauri::AppHandle) -> Vec<crate::learn::Suggestion> {
+    let db = db::Db::new(&app);
+    let settings = app.state::<AppState>().settings.lock().unwrap().clone();
+    crate::learn::suggestions(
+        &db.get_history(),
+        &settings.custom_prompt,
+        &settings.dismissed_suggestions,
+    )
+}
+
+/// Reject a suggestion for good. Stored by key rather than by term so a term
+/// dismissed once can still be proposed if the engine starts getting it wrong
+/// in some new way.
+#[tauri::command]
+pub fn dismiss_dictionary_suggestion(app: tauri::AppHandle, key: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let mut settings = state.settings.lock().unwrap();
+    if !settings.dismissed_suggestions.contains(&key) {
+        settings.dismissed_suggestions.push(key);
+        db::Db::new(&app).save_settings(&settings);
+    }
+    Ok(())
 }
 
 #[tauri::command]

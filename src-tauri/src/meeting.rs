@@ -283,7 +283,9 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
         // where jargon and proper nouns actually concentrate, so withholding it
         // here was backwards. Whisper takes it as an initial prompt; Parakeet
         // ignores the argument.
-        let prompt = settings.custom_prompt;
+        // Cloned, not moved: used again as the dictionary note in summarization,
+        // which is the only place the engines that ignore this prompt see it.
+        let prompt = settings.custom_prompt.clone();
         let prompt = if prompt.trim().is_empty() { None } else { Some(prompt) };
 
         // A meeting can transcribe with a different engine from dictation.
@@ -384,6 +386,9 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
                 }
             }
         };
+        // Same pass dictation runs — the diarized form goes through it too,
+        // since the speaker labels it adds are not near-misses of anything.
+        let transcript = crate::dictionary::apply(&transcript, &settings.custom_prompt);
         let _ = app_handle.emit("patter://meeting_progress", "");
 
         if transcript.is_empty() {
@@ -397,10 +402,11 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
 
         // Analysis is best-effort: no Ollama model → save transcript-only record.
         // Meetings can use their own model; falls back to the cleanup model.
+        let dictionary = settings.custom_prompt.clone();
         let meeting_model = settings.meeting_ollama_model.or(settings.ollama_model);
         let analysis = if let Some(model) = meeting_model.as_deref() {
             let _ = app_handle.emit("patter://meeting_state", "summarizing");
-            match crate::ollama::summarize_meeting(model, &transcript, |current, total| {
+            match crate::ollama::summarize_meeting(model, &transcript, &dictionary, |current, total| {
                 if total > 1 {
                     if current < total {
                         let _ = app_handle.emit("patter://meeting_progress", format!("Summarizing part {}/{}", current, total - 1));

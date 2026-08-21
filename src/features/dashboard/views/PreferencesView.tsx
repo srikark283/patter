@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent, createContext, useContext, ReactNode, ComponentType } from "react";
 import { toast } from "sonner";
-import { Search, SunMoon, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type } from "lucide-react";
+import { Search, SunMoon, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type, Wand2 } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, requestAccessibilityPermission, openInputMonitoringSettings, requestInputMonitoringPermission, openMicrophoneSettings, requestMicrophonePermission, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
@@ -69,6 +69,28 @@ interface RowMeta {
 
 /** Every row's metadata in one place, so the filter and the markup can never
  *  disagree about what a row says. Sections search the same objects they render. */
+type HotkeyField = "hotkey" | "meeting_hotkey" | "command_hotkey";
+
+/// Bare-modifier bindings (rdev key codes) mapped to the name the same
+/// modifier carries inside a combo, so the two can be compared.
+const MODIFIER_AS_COMBO_PART: Record<string, string> = {
+  ControlLeft: "Control",
+  ControlRight: "Control",
+  Alt: "Alt",
+  AltGr: "Alt",
+  ShiftLeft: "Shift",
+  ShiftRight: "Shift",
+  MetaLeft: "Super",
+  MetaRight: "Super",
+};
+
+/// Doubles as the list of bindings `applyHotkey` checks for collisions.
+const HOTKEY_LABELS: Record<HotkeyField, string> = {
+  hotkey: "dictation",
+  meeting_hotkey: "meeting",
+  command_hotkey: "command",
+};
+
 const ROWS = {
   hotkey: { icon: Command, tint: "text-violet-400", bg: "bg-violet-500/10",
     title: "Global Hotkey", description: "Press to start/stop recording anywhere",
@@ -76,6 +98,9 @@ const ROWS = {
   meetingHotkey: { icon: Users, tint: "text-indigo-400", bg: "bg-indigo-500/10",
     title: "Meeting Hotkey", description: "Press to start/stop meeting recording",
     keywords: "shortcut keybinding trigger" },
+  commandHotkey: { icon: Wand2, tint: "text-violet-400", bg: "bg-violet-500/10",
+    title: "Command Hotkey", description: "Select text, press, and say how to rewrite it. Use a combo, not a bare modifier",
+    keywords: "shortcut keybinding trigger rewrite edit selection voice command" },
   pushToTalk: { icon: Hand, tint: "text-blue-400", bg: "bg-blue-500/10",
     title: "Push to Talk", description: "Hold the hotkey to record, release to transcribe",
     keywords: "hold ptt" },
@@ -220,7 +245,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mics, setMics] = useState<string[]>([]);
-  const [recordingField, setRecordingField] = useState<"hotkey" | "meeting_hotkey" | null>(null);
+  const [recordingField, setRecordingField] = useState<HotkeyField | null>(null);
   const [query, setQuery] = useState("");
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [appVersion, setAppVersion] = useState("");
@@ -299,17 +324,45 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
     }
   };
 
-  const applyHotkey = (field: "hotkey" | "meeting_hotkey", combo: string) => {
+  const applyHotkey = (field: HotkeyField, combo: string) => {
     setRecordingField(null);
-    const other = field === "hotkey" ? settings?.meeting_hotkey : settings?.hotkey;
-    if (other && other === combo) {
-      toast.error(`"${formatHotkey(combo)}" is already the ${field === "hotkey" ? "meeting" : "dictation"} hotkey`);
+    // Command mode opens by synthesizing Cmd/Ctrl+C into the target app. A
+    // modifier the user is still physically holding turns that into a
+    // different chord and the selection comes back empty, so the whole feature
+    // silently degrades to plain dictation. Refuse the binding instead.
+    if (field === "command_hotkey" && combo in MODIFIER_AS_COMBO_PART) {
+      toast.error("Command mode needs a key or combo, not a bare modifier — it holds Cmd+C to read your selection");
       return;
+    }
+    // Every binding is global, so a collision means one of them silently never
+    // fires — check the combo against all the others, not just one.
+    const taken = (Object.keys(HOTKEY_LABELS) as HotkeyField[]).find(
+      (f) => f !== field && settings?.[f] === combo
+    );
+    if (taken) {
+      toast.error(`"${formatHotkey(combo)}" is already the ${HOTKEY_LABELS[taken]} hotkey`);
+      return;
+    }
+    // A bare-modifier binding fires on the modifier's own key-down, so any
+    // combo built on that modifier triggers the other hotkey first and this one
+    // never gets a clean press. Warn rather than block — the user may be about
+    // to rebind the other one.
+    if (combo.includes("+")) {
+      const parts = combo.split("+");
+      const shadowing = (Object.keys(HOTKEY_LABELS) as HotkeyField[]).find((f) => {
+        const other = settings?.[f];
+        return f !== field && other && parts.includes(MODIFIER_AS_COMBO_PART[other]);
+      });
+      if (shadowing) {
+        toast.warning(
+          `"${formatHotkey(combo)}" starts with the ${HOTKEY_LABELS[shadowing]} hotkey — that one will fire first`
+        );
+      }
     }
     update({ [field]: combo });
   };
 
-  const handleHotkeyRecord = (field: "hotkey" | "meeting_hotkey") => (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleHotkeyRecord = (field: HotkeyField) => (e: KeyboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (recordingField !== field) return;
 
@@ -374,7 +427,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
       <FilterContext.Provider value={query}>
         {/* Shortcuts: every way of starting a recording, together. These used to
             sit in a "Hardware & System" group alongside updates and autostart. */}
-        <SettingsSection label="Shortcuts" rows={[ROWS.hotkey, ROWS.meetingHotkey, ROWS.pushToTalk]}>
+        <SettingsSection label="Shortcuts" rows={[ROWS.hotkey, ROWS.meetingHotkey, ROWS.commandHotkey, ROWS.pushToTalk]}>
           <Setting {...ROWS.hotkey}>
             <input
               readOnly
@@ -407,6 +460,31 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                   onClick={() => update({ meeting_hotkey: "" })}
                   className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
                   title="Clear meeting hotkey"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </Setting>
+
+          <Setting {...ROWS.commandHotkey}>
+            <div className="flex items-center gap-1.5">
+              <input
+                readOnly
+                value={recordingField === "command_hotkey" ? "Listening..." : (settings.command_hotkey ? formatHotkey(settings.command_hotkey) : "Not set")}
+                onClick={() => setRecordingField("command_hotkey")}
+                onBlur={() => setRecordingField(null)}
+                onKeyDown={handleHotkeyRecord("command_hotkey")}
+                className={cn(
+                  "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                  recordingField === "command_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
+                )}
+              />
+              {settings.command_hotkey && (
+                <button
+                  onClick={() => update({ command_hotkey: "" })}
+                  className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
+                  title="Clear command hotkey"
                 >
                   <X size={13} />
                 </button>
