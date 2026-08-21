@@ -483,6 +483,31 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             return;
         }
 
+        // Spoken trigger: same thing without a second hotkey. Checked here,
+        // before cleanup, because the cleanup model reads a leading "Patter,"
+        // as an address and strips it.
+        //
+        // The selection is read now rather than at record start — there was no
+        // way to know this was a command until the words arrived. In practice
+        // the user held a hotkey and spoke, so the selection they made is still
+        // the selection. With nothing selected this is not a command at all:
+        // fall through and dictate the words as spoken, which is the only
+        // outcome that can't destroy anything.
+        if let Some(instruction) = command_phrase_instruction(&text, &settings.command_phrase) {
+            if let Some(selection) = paste::read_selection(&app_handle) {
+                run_command(
+                    &app_handle,
+                    settings.ollama_model.as_deref(),
+                    settings.ollama_keep_alive_minutes,
+                    &selection,
+                    instruction,
+                    dictation_session_id,
+                );
+                return;
+            }
+            println!("[command] phrase matched but nothing selected — dictating instead");
+        }
+
         let frontmost = app_handle
             .state::<AppState>()
             .frontmost_app
@@ -716,6 +741,81 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     });
 }
 
+/// How closely the spoken trigger has to match the configured phrase. One edit
+/// in a short folded word, which is what a mangled trigger costs — "patter"
+/// comes back as "padder" often enough that a stricter bar means the trigger
+/// mostly doesn't fire, and a trigger that mostly doesn't fire is worse than no
+/// trigger.
+///
+/// The cost is that a near-homophone of the trigger can fire it, so a
+/// distinctive phrase is worth choosing. Two things bound the damage: it only
+/// counts at the very start of a transcript, and with nothing selected it falls
+/// through to ordinary dictation.
+const COMMAND_PHRASE_SIMILARITY: f32 = 0.8;
+
+/// The instruction inside a spoken command, or `None` when this transcript is
+/// ordinary dictation.
+///
+/// The phrase only counts as a trigger at the very start. Anywhere else it is
+/// someone saying the word — "the command phrase is patter" must dictate, not
+/// execute. Matching is phonetic for the same reason the dictionary is: the
+/// engine mangles trigger words, and a trigger that only fires on a perfect
+/// transcription fires rarely.
+///
+/// Must run BEFORE cleanup. The cleanup model treats a leading "Patter," as an
+/// address and strips it as filler, so by then the evidence is gone.
+fn command_phrase_instruction<'a>(text: &'a str, phrase: &str) -> Option<&'a str> {
+    let phrase = phrase.trim();
+    if phrase.is_empty() {
+        return None;
+    }
+    let phrase_words = phrase.split_whitespace().count();
+
+    // Whitespace-delimited words with their offsets, only as many as the phrase
+    // needs. `split_whitespace` would be simpler but drops the offsets, and the
+    // instruction is whatever follows the matched span.
+    let mut words: Vec<(usize, &str)> = Vec::new();
+    let mut word_start: Option<usize> = None;
+    for (i, c) in text.char_indices() {
+        if c.is_whitespace() {
+            if let Some(begin) = word_start.take() {
+                words.push((begin, &text[begin..i]));
+                if words.len() == phrase_words {
+                    break;
+                }
+            }
+        } else if word_start.is_none() {
+            word_start = Some(i);
+        }
+    }
+    if words.len() < phrase_words {
+        if let Some(begin) = word_start {
+            words.push((begin, &text[begin..]));
+        }
+    }
+
+    let spoken = words
+        .iter()
+        .map(|(_, word)| *word)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let end = words.last().map_or(0, |(offset, word)| offset + word.len());
+
+    if spoken.is_empty()
+        || crate::dictionary::phonetic_similarity(&spoken, phrase) < COMMAND_PHRASE_SIMILARITY
+    {
+        return None;
+    }
+
+    let instruction = text[end..]
+        .trim_start_matches(|c: char| c.is_whitespace() || c == ',' || c == ':' || c == '.')
+        .trim();
+    if instruction.is_empty() {
+        return None;
+    }
+    Some(instruction)
+}
+
 /// Whisper, Parakeet and the cleanup model all terminate an utterance with a
 /// period. That is right for a sentence and wrong for the single word someone
 /// dictates into a search box, a filename field or a chat message — and the
@@ -817,6 +917,47 @@ fn run_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spoken_trigger_fires_only_at_the_start() {
+        assert_eq!(
+            command_phrase_instruction("Patter, make this formal", "patter"),
+            Some("make this formal")
+        );
+        // The engine mangles trigger words; phonetic matching is the point.
+        assert_eq!(
+            command_phrase_instruction("Padder make this formal", "patter"),
+            Some("make this formal")
+        );
+        assert_eq!(
+            command_phrase_instruction("Patter: turn this into bullets", "patter"),
+            Some("turn this into bullets")
+        );
+
+        // Anywhere but the start, it is someone saying the word.
+        assert_eq!(
+            command_phrase_instruction("the command phrase is patter", "patter"),
+            None
+        );
+        // An unrelated first word never triggers.
+        assert_eq!(command_phrase_instruction("send this to Tom", "patter"), None);
+        // Trigger with nothing after it is not an instruction.
+        assert_eq!(command_phrase_instruction("Patter", "patter"), None);
+        assert_eq!(command_phrase_instruction("Patter.", "patter"), None);
+        // Off by default: an empty phrase can never match.
+        assert_eq!(command_phrase_instruction("anything at all", ""), None);
+        assert_eq!(command_phrase_instruction("", "patter"), None);
+    }
+
+    #[test]
+    fn spoken_trigger_handles_multi_word_phrases() {
+        assert_eq!(
+            command_phrase_instruction("hey patter make this formal", "hey patter"),
+            Some("make this formal")
+        );
+        // Only the first word of a two-word phrase is not a match.
+        assert_eq!(command_phrase_instruction("hey there", "hey patter"), None);
+    }
 
     #[test]
     fn strips_the_period_only_from_one_word_transcripts() {

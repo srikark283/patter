@@ -11,6 +11,7 @@ export interface Settings {
   hotkey: string;
   meeting_hotkey: string;
   command_hotkey: string;
+  command_phrase: string;
   microphone: string | null;
   output_mode: string;
   custom_prompt: string;

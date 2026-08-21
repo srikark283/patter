@@ -6,7 +6,7 @@
 // used to print the raw identifier, so the same key read as "Left Control" on
 // one screen and "ControlLeft" on another.
 
-const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
+export const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 
 const KEY_LABELS: Record<string, [mac: string, other: string]> = {
   Alt: ["Option", "Alt"],

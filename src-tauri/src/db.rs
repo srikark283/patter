@@ -37,6 +37,12 @@ pub struct Settings {
     /// instruction to rewrite it with. Empty = unset (no hotkey registered).
     #[serde(default)]
     pub command_hotkey: String,
+    /// Spoken prefix that turns an ordinary dictation into a command, so the
+    /// feature works without a second hotkey. Empty = off. Matched
+    /// phonetically against the first word(s), because a trigger word is
+    /// exactly the kind of thing an ASR engine mangles.
+    #[serde(default)]
+    pub command_phrase: String,
     pub microphone: Option<String>,
     pub output_mode: String,
     pub custom_prompt: String,
@@ -132,6 +138,7 @@ impl Default for Settings {
             hotkey: "Alt+Space".to_string(),
             meeting_hotkey: "".to_string(),
             command_hotkey: "".to_string(),
+            command_phrase: "".to_string(),
             microphone: None,
             output_mode: "type".to_string(),
             custom_prompt: "".to_string(),

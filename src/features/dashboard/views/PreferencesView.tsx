@@ -27,7 +27,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { formatHotkey } from "@/lib/hotkey";
+import { formatHotkey, IS_MAC } from "@/lib/hotkey";
 import { getTheme, setTheme, type Theme } from "@/lib/theme";
 
 const MODES = [
@@ -70,6 +70,7 @@ interface RowMeta {
 /** Every row's metadata in one place, so the filter and the markup can never
  *  disagree about what a row says. Sections search the same objects they render. */
 type HotkeyField = "hotkey" | "meeting_hotkey" | "command_hotkey";
+type CommandMode = "off" | "hotkey" | "phrase";
 
 /// Bare-modifier bindings (rdev key codes) mapped to the name the same
 /// modifier carries inside a combo, so the two can be compared.
@@ -98,9 +99,11 @@ const ROWS = {
   meetingHotkey: { icon: Users, tint: "text-indigo-400", bg: "bg-indigo-500/10",
     title: "Meeting Hotkey", description: "Press to start/stop meeting recording",
     keywords: "shortcut keybinding trigger" },
-  commandHotkey: { icon: Wand2, tint: "text-violet-400", bg: "bg-violet-500/10",
-    title: "Command Hotkey", description: "Select text, press, and say how to rewrite it. Use a combo, not a bare modifier",
-    keywords: "shortcut keybinding trigger rewrite edit selection voice command" },
+  // The hotkey and the phrase are configuration *of* this row, not rows of
+  // their own — so their search terms live here too.
+  commandMode: { icon: Wand2, tint: "text-violet-400", bg: "bg-violet-500/10",
+    title: "Command Mode", description: "Select text and say how to rewrite it",
+    keywords: "rewrite edit selection voice command hotkey phrase trigger keyword wake word shortcut keybinding" },
   pushToTalk: { icon: Hand, tint: "text-blue-400", bg: "bg-blue-500/10",
     title: "Push to Talk", description: "Hold the hotkey to record, release to transcribe",
     keywords: "hold ptt" },
@@ -141,21 +144,31 @@ const ROWS = {
 } satisfies Record<string, RowMeta>;
 
 /** One settings row: icon bubble, label, description, and its control. */
-function Setting({ icon: Icon, tint, bg, title, description, keywords, children }: RowMeta & { children: ReactNode }) {
+/** `expansion` renders inside the same cell, under the row and aligned with the
+ *  title — for a control that only exists because of what this row is set to.
+ *  A sibling row would sit past a divider and read as an unrelated setting. */
+function Setting({ icon: Icon, tint, bg, title, description, keywords, children, expansion }: RowMeta & {
+  children: ReactNode; expansion?: ReactNode;
+}) {
   const query = useContext(FilterContext);
   if (!matches(query, title, description, keywords)) return null;
   return (
-    <div className="flex items-center justify-between gap-4 p-4">
-      <div className="flex items-center gap-3">
-        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", bg)}>
-          <Icon size={14} className={tint} />
+    <div className="p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", bg)}>
+            <Icon size={14} className={tint} />
+          </div>
+          <div>
+            <p className="text-[13px] font-medium text-foreground/90">{title}</p>
+            <p className="text-[11px] text-muted-foreground">{description}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-[13px] font-medium text-foreground/90">{title}</p>
-          <p className="text-[11px] text-muted-foreground">{description}</p>
-        </div>
+        <div className="shrink-0">{children}</div>
       </div>
-      <div className="shrink-0">{children}</div>
+      {/* pl-11 clears the 32px icon and the 12px gap, so this lines up with the
+          title rather than the icon. */}
+      {expansion && <div className="pl-11 pt-3">{expansion}</div>}
     </div>
   );
 }
@@ -246,6 +259,10 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [mics, setMics] = useState<string[]>([]);
   const [recordingField, setRecordingField] = useState<HotkeyField | null>(null);
+  /// Which trigger command mode uses. Held locally as well as derived, because
+  /// picking "Hotkey" before recording one leaves both fields empty — a purely
+  /// derived value would snap the picker straight back to Off.
+  const [commandMode, setCommandMode] = useState<CommandMode>("off");
   const [query, setQuery] = useState("");
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [appVersion, setAppVersion] = useState("");
@@ -322,6 +339,25 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
       toast.error("Failed to save settings: " + e);
       setSettings(settings);
     }
+  };
+
+  // Re-derives whenever a trigger is actually set or cleared — including on
+  // first load. Depends on the two values rather than the settings object, so
+  // choosing a mode before configuring it doesn't get reverted.
+  useEffect(() => {
+    if (!settings) return;
+    setCommandMode(
+      settings.command_hotkey ? "hotkey" : settings.command_phrase ? "phrase" : "off"
+    );
+  }, [settings?.command_hotkey, settings?.command_phrase]);
+
+  /// Switching trigger clears the other one: two live triggers for one feature
+  /// is a setting that contradicts itself.
+  const changeCommandMode = (mode: CommandMode) => {
+    setCommandMode(mode);
+    if (mode === "off") update({ command_hotkey: "", command_phrase: "" });
+    else if (mode === "hotkey") update({ command_phrase: "" });
+    else update({ command_hotkey: "" });
   };
 
   const applyHotkey = (field: HotkeyField, combo: string) => {
@@ -427,7 +463,15 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
       <FilterContext.Provider value={query}>
         {/* Shortcuts: every way of starting a recording, together. These used to
             sit in a "Hardware & System" group alongside updates and autostart. */}
-        <SettingsSection label="Shortcuts" rows={[ROWS.hotkey, ROWS.meetingHotkey, ROWS.commandHotkey, ROWS.pushToTalk]}>
+        <SettingsSection
+          label="Shortcuts"
+          rows={[
+            ROWS.hotkey,
+            ROWS.meetingHotkey,
+            ROWS.commandMode,
+            ROWS.pushToTalk,
+          ]}
+        >
           <Setting {...ROWS.hotkey}>
             <input
               readOnly
@@ -467,29 +511,81 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             </div>
           </Setting>
 
-          <Setting {...ROWS.commandHotkey}>
-            <div className="flex items-center gap-1.5">
-              <input
-                readOnly
-                value={recordingField === "command_hotkey" ? "Listening..." : (settings.command_hotkey ? formatHotkey(settings.command_hotkey) : "Not set")}
-                onClick={() => setRecordingField("command_hotkey")}
-                onBlur={() => setRecordingField(null)}
-                onKeyDown={handleHotkeyRecord("command_hotkey")}
-                className={cn(
-                  "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
-                  recordingField === "command_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
-                )}
-              />
-              {settings.command_hotkey && (
-                <button
-                  onClick={() => update({ command_hotkey: "" })}
-                  className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
-                  title="Clear command hotkey"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
+          <Setting
+            {...ROWS.commandMode}
+            expansion={
+              commandMode === "hotkey" ? (
+                <div className="rounded-lg bg-foreground/[0.03] ring-1 ring-border/60 px-3 py-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[12px] text-foreground/80">Hotkey</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        readOnly
+                        value={recordingField === "command_hotkey" ? "Listening..." : (settings.command_hotkey ? formatHotkey(settings.command_hotkey) : "Not set")}
+                        onClick={() => setRecordingField("command_hotkey")}
+                        onBlur={() => setRecordingField(null)}
+                        onKeyDown={handleHotkeyRecord("command_hotkey")}
+                        className={cn(
+                          "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                          recordingField === "command_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
+                        )}
+                      />
+                      {settings.command_hotkey && (
+                        <button
+                          onClick={() => update({ command_hotkey: "" })}
+                          className="text-muted-foreground/50 hover:text-destructive transition-colors p-1"
+                          title="Clear command hotkey"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Press it, then say how to rewrite the selection. Not a bare modifier — reading
+                    your selection holds {IS_MAC ? "⌘C" : "Ctrl+C"}, which a held modifier would turn into a
+                    different shortcut.
+                  </p>
+                </div>
+              ) : commandMode === "phrase" ? (
+                <div className="rounded-lg bg-foreground/[0.03] ring-1 ring-border/60 px-3 py-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[12px] text-foreground/80">Phrase</span>
+                    <input
+                      type="text"
+                      spellCheck={false}
+                      placeholder="e.g. patter"
+                      defaultValue={settings.command_phrase}
+                      // Committed on blur/Enter rather than per keystroke: every
+                      // save round-trips the whole settings object to disk.
+                      onBlur={(e) => {
+                        const phrase = e.target.value.trim();
+                        if (phrase !== settings.command_phrase) update({ command_phrase: phrase });
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                      }}
+                      className="w-40 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-steel hover:border-foreground/25 transition-colors"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Say it first in a normal dictation — “{settings.command_phrase || "patter"}, make this
+                    formal”. Only counts at the very start, and with nothing selected it just dictates.
+                  </p>
+                </div>
+              ) : undefined
+            }
+          >
+            <Select value={commandMode} onValueChange={(value) => changeCommandMode(value as CommandMode)}>
+              <SelectTrigger className="w-40 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="off">Off</SelectItem>
+                <SelectItem value="hotkey">Separate hotkey</SelectItem>
+                <SelectItem value="phrase">Spoken phrase</SelectItem>
+              </SelectContent>
+            </Select>
           </Setting>
 
           <Setting {...ROWS.pushToTalk}>

@@ -10,7 +10,7 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 - **App-aware profiles** — Patter knows which app is frontmost and applies per-app cleanup rules (casual for Slack, verbatim for code editors, formal for Mail, and so on).
 - **Push-to-talk or toggle** — hold the hotkey to record and release to transcribe, or press once to start/stop. Works with modifier-only keys (e.g. right Option) or full combos.
 - **Two output modes** — instant paste (clipboard + simulated paste) or simulated typing (keystroke-by-keystroke, for remote desktops).
-- **Command mode** — select text anywhere, press a separate hotkey, and say what to do with it ("make this formal", "turn this into bullet points", "make this idiomatic"). The local model rewrites the selection in place. With nothing selected, it writes what you asked for instead.
+- **Command mode** — select text anywhere, then either press a separate hotkey or just open your normal dictation with a trigger phrase ("Patter, make this formal"), and say what to do with it ("make this formal", "turn this into bullet points", "make this idiomatic"). The local model rewrites the selection in place. With nothing selected, it writes what you asked for instead.
 
 ### Meetings
 - Record a meeting from your mic; stop to get a transcript, minutes, decisions, and action items — generated locally by Ollama.
