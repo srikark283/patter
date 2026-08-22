@@ -33,7 +33,7 @@ export function PageHeader({ title, description, action }: Props) {
     >
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="mt-1.5 text-[24px] font-semibold tracking-tight leading-none">{title}</h2>
+          <h2 className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.01em] leading-none">{title}</h2>
           {description && <p className="mt-1.5 text-[14px] text-muted-foreground">{description}</p>}
         </div>
         {action}

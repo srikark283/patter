@@ -57,8 +57,11 @@ function OnboardingPermissionRow({
   return (
     <div className="flex items-center justify-between p-3 rounded-lg bg-foreground/4 border border-foreground/8">
       <div className="flex items-center gap-3">
-        <div className="w-7 h-7 rounded-full bg-steel/10 flex items-center justify-center shrink-0">
-          <Icon size={14} className="text-steelIce" />
+        <div className={cn(
+          "w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors",
+          granted ? "bg-success/15 text-success" : "bg-amber-500/15 text-amber-500 dark:text-amber-400"
+        )}>
+          <Icon size={14} />
         </div>
         <div>
           <p className="text-[12px] font-medium text-foreground/90">{title}</p>
@@ -67,7 +70,7 @@ function OnboardingPermissionRow({
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {granted ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] text-success font-medium">
             <CheckCircle2 size={12} /> Granted
           </span>
         ) : (
@@ -185,7 +188,6 @@ export function Onboarding({
   const steps = [
     {
       icon: ShieldCheck,
-      tint: "bg-emerald-500/10 text-emerald-400",
       title: "Welcome to Patter",
       body: (
         <>
@@ -204,7 +206,6 @@ export function Onboarding({
     },
     {
       icon: KeyRound,
-      tint: "bg-amber-500/10 text-amber-400",
       title: "System Permissions",
       body: (
         <div className="space-y-2.5 my-1">
@@ -250,7 +251,6 @@ export function Onboarding({
     },
     {
       icon: Download,
-      tint: "bg-blue-500/10 text-blue-400",
       title: "Get a speech model",
       body: modelReady ? (
         <p>
@@ -294,7 +294,6 @@ export function Onboarding({
     },
     {
       icon: Keyboard,
-      tint: "bg-violet-500/10 text-violet-400",
       title: "Try it",
       body: (
         <>
@@ -345,12 +344,12 @@ export function Onboarding({
       <div className="relative w-[440px] max-w-[90vw]">
         <div className="flex items-center gap-3 mb-8">
           <img src={icon} alt="Patter" className="w-10 h-10" />
-          <h1 className="text-[28px] font-semibold tracking-[1px] font-['Nave']">Patter</h1>
+          <h1 className="font-display text-[28px] font-semibold tracking-[1px]">Patter</h1>
         </div>
 
-        <div className="bg-card ring-1 ring-border rounded-xl p-6">
+        <div className="surface-raised rounded-xl p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className={cn("w-8 h-8 shrink-0 rounded-full flex items-center justify-center", current.tint)}>
+            <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-accent-strong text-accent-foreground">
               <Icon size={15} />
             </div>
             <h2 className="text-[16px] font-medium text-foreground/90">{current.title}</h2>

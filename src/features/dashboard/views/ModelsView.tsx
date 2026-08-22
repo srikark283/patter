@@ -256,7 +256,7 @@ export function ModelsView({
         description="Everything runs on-device. Download once, use offline."
       />
 
-      <div className="bg-card ring-1 ring-border rounded-xl p-5">
+      <div className="surface-raised rounded-xl p-5">
         <h3 className="text-[15px] font-semibold text-foreground/90">
           Choose your transcription engine.
         </h3>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Copy, ArrowRight, AudioLines, Flame, WholeWord, Timer, Mic, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { listen } from "@tauri-apps/api/event";
@@ -168,19 +168,30 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
     return `${days}d ago`;
   };
 
-  const series = history ? areaChartSeries(history, timeframe) : null;
-  const topWords = history ? getTopWords(history) : [];
-  const topApps = history ? getTopApps(history) : [];
-  const longestStreak = history ? calculateStreak(history) : 0;
-  const uniqueAppsCount = history ? new Set(history.filter(r => r.app_name && r.app_name.trim() !== "").map(r => r.app_name)).size : 0;
-  
-  // Calculate this week's stats based on the exact same 7-day calendar window as the Activity chart
-  const last7DaysStart = new Date();
-  last7DaysStart.setHours(0, 0, 0, 0);
-  last7DaysStart.setDate(last7DaysStart.getDate() - 6);
-  
-  const weekWords = history ? history.filter(r => r.timestamp_ms >= last7DaysStart.getTime()).reduce((a, r) => a + r.words, 0) : 0;
-  const weekDictations = history ? history.filter(r => r.timestamp_ms >= last7DaysStart.getTime()).length : 0;
+  // Seven full passes over every record you have ever dictated. This component
+  // re-renders on each patter://state event, so without the memo the whole
+  // history got word-split and re-tallied every time recording started or
+  // stopped — work that grows with the log and never changed the answer.
+  const series = useMemo(() => (history ? areaChartSeries(history, timeframe) : null), [history, timeframe]);
+  const { topWords, topApps, longestStreak, uniqueAppsCount, weekWords, weekDictations } = useMemo(() => {
+    if (!history) {
+      return { topWords: [], topApps: [], longestStreak: 0, uniqueAppsCount: 0, weekWords: 0, weekDictations: 0 };
+    }
+    // Same 7-day calendar window the Activity chart uses.
+    const last7DaysStart = new Date();
+    last7DaysStart.setHours(0, 0, 0, 0);
+    last7DaysStart.setDate(last7DaysStart.getDate() - 6);
+    const weekStartMs = last7DaysStart.getTime();
+    const thisWeek = history.filter(r => r.timestamp_ms >= weekStartMs);
+    return {
+      topWords: getTopWords(history),
+      topApps: getTopApps(history),
+      longestStreak: calculateStreak(history),
+      uniqueAppsCount: new Set(history.filter(r => r.app_name && r.app_name.trim() !== "").map(r => r.app_name)).size,
+      weekWords: thisWeek.reduce((a, r) => a + r.words, 0),
+      weekDictations: thisWeek.length,
+    };
+  }, [history]);
 
   const [dictationState, setDictationState] = useState("Idle");
   const [meetingState, setMeetingState] = useState("idle");
@@ -262,8 +273,8 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Total Words */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
-          {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekWords} this week</div>}
+        <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
+          {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekWords} this week</div>}
           {weekWords === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.total_words : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Total Words</div>
@@ -271,8 +282,8 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         </div>
         
         {/* Dictations */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
-          {weekDictations > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekDictations} this week</div>}
+        <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
+          {weekDictations > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekDictations} this week</div>}
           {weekDictations === 0 && <div className="h-5 mb-3" />}
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.transcriptions_count : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Dictations</div>
@@ -280,7 +291,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         </div>
 
         {/* Time Saved */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? formatTime(stats.time_saved_seconds) : <Skeleton className="h-8 w-24" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Time Saved</div>
@@ -288,7 +299,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         </div>
 
         {/* Streak */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? `${longestStreak} day${longestStreak === 1 ? '' : 's'}` : <Skeleton className="h-8 w-20" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Longest Streak</div>
@@ -296,7 +307,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         </div>
 
         {/* Apps */}
-        <div className="relative overflow-hidden rounded-xl border border-border/60 bg-foreground/1.5 p-5 pt-4">
+        <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
           <div className="h-5 mb-3" />
           <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? uniqueAppsCount : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Apps Used</div>
@@ -310,9 +321,12 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Activity Chart */}
-          <div className="lg:col-span-2 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
+          <div className="lg:col-span-2 surface-raised rounded-xl p-5 flex flex-col">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
+                <p className="text-[11px] text-muted-foreground/70">Words dictated per day</p>
+              </div>
               <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
                 {[
                   { label: "All", value: "all" },
@@ -341,18 +355,24 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                   <AreaChart data={series} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorWords" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        <stop offset="5%" stopOpacity={0.35} />
+                        <stop offset="95%" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     {/* Recessive by design: horizontal rules only, no vertical
-                        lines competing with the curve, no axis spines. Without
-                        any axes the panel showed a shape with no magnitude and
-                        no dates — pretty, but unreadable. */}
-                    <CartesianGrid vertical={false} stroke="#ffffff" strokeOpacity={0.05} />
+                        lines competing with the curve, no axis spines.
+                        Colours live in index.css against recharts' own class
+                        names: recharts writes stroke/fill onto each element as
+                        an SVG presentation attribute, which a className cannot
+                        outrank but a stylesheet rule can. Hard-coded #ffffff meant
+                        the grid and both sets of tick labels rendered white on
+                        a white card in light theme — the axes were present in
+                        the markup and invisible on screen, leaving a shape with
+                        no magnitude and no dates unless you hovered it. */}
+                    <CartesianGrid vertical={false} />
                     <XAxis
                       dataKey="dateStr"
-                      tick={{ fill: "#ffffff", fillOpacity: 0.35, fontSize: 10 }}
+                      tick={{ fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                       tickMargin={8}
@@ -361,7 +381,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                     />
                     <YAxis
                       width={44}
-                      tick={{ fill: "#ffffff", fillOpacity: 0.35, fontSize: 10 }}
+                      tick={{ fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                       tickCount={4}
@@ -387,12 +407,14 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
                         }
                         return null;
                       }}
-                      cursor={{ stroke: '#ffffff20', strokeWidth: 1, strokeDasharray: '4 4' }}
+                      cursor
                     />
                     <Area
                       type="monotone"
                       dataKey="words"
-                      stroke="#3b82f6"
+                      // The accent pair, not the flat brand blue: #5b9bd1 is
+                      // only 2.98:1 on the white card, under the 3:1 floor.
+                      // steelDeep/steelIce reads in both themes.
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#colorWords)"
@@ -406,7 +428,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
 
           <div className="lg:col-span-1 flex flex-col gap-4">
             {/* Top Words */}
-            <div className="flex-1 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
+            <div className="flex-1 surface-raised rounded-xl p-5 flex flex-col">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Words</h3>
               {!history ? (
                 <Skeleton className="h-full w-full" />
@@ -427,7 +449,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             </div>
 
             {/* Top Apps */}
-            <div className="flex-1 rounded-xl border border-border/60 bg-foreground/1.5 p-5 flex flex-col">
+            <div className="flex-1 surface-raised rounded-xl p-5 flex flex-col">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Top Apps</h3>
               {!history ? (
                 <Skeleton className="h-full w-full" />
@@ -470,7 +492,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             {history.slice(0, 5).map((record) => (
               <div 
                 key={record.id} 
-                className="group relative flex flex-col gap-4 px-5 py-4 rounded-xl border border-border/60 bg-foreground/1.5 hover:bg-foreground/3 transition-colors"
+                className="group list-row relative flex flex-col gap-4 px-5 py-4"
               >
                 <p className="text-[15px] leading-relaxed text-foreground/90 wrap-break-word line-clamp-2 pr-8">
                   {record.text}

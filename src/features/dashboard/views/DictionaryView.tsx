@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings, dictionarySuggestions, dismissDictionarySuggestion, DictionarySuggestion } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { ListSkeleton } from "../components/ListSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { Search, Plus, ArrowUpDown, Trash2, Pencil, Check, AlertTriangle, BookOpen, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -335,7 +335,7 @@ export function DictionaryView() {
       {/* Main Content Area */}
       <div className="flex flex-col gap-2">
         {isAdding && (
-          <form onSubmit={handleAdd} className="flex items-start gap-3 bg-foreground/[0.03] px-4 py-3 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+          <form onSubmit={handleAdd} className="edit-shell flex items-start gap-3 px-4 py-3">
             <textarea
               autoFocus
               rows={1}
@@ -363,13 +363,7 @@ export function DictionaryView() {
         )}
 
         {settings === null ? (
-          // Loading, not empty. Without this branch the zero-state onboarding
-          // copy flashed on every visit, even for a user with hundreds of rows.
-          <div className="space-y-2 mt-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-[52px] w-full rounded-xl" />
-            ))}
-          </div>
+          <ListSkeleton />
         ) : terms.length === 0 && !isAdding ? (
           <EmptyState
             className="mt-2"
@@ -385,7 +379,7 @@ export function DictionaryView() {
         ) : (
           filteredTerms.map(term => (
             editingTerm === term ? (
-              <form key={term} onSubmit={(e) => handleEditSubmit(e, term)} className="flex items-center gap-3 bg-foreground/[0.03] px-4 py-3 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+              <form key={term} onSubmit={(e) => handleEditSubmit(e, term)} className="edit-shell flex items-center gap-3 px-4 py-3">
                 <input 
                   autoFocus
                   type="text" 
@@ -402,9 +396,9 @@ export function DictionaryView() {
                 </div>
               </form>
             ) : (
-              <div key={term} className="group flex items-center justify-between bg-foreground/[0.015] hover:bg-foreground/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">
+              <div key={term} className="group list-row flex items-center justify-between px-5 py-3.5">
                 <span className="font-medium text-[15px] text-foreground/90">{term}</span>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="row-actions">
                   <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => startEditing(term)}>
                     <Pencil size={15} />
                   </Button>

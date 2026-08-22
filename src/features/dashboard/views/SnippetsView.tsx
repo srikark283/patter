@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings, Snippet } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { ListSkeleton } from "../components/ListSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { Search, Plus, Trash2, Pencil, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 // import { cn } from "@/lib/utils";
 
 export function SnippetsView() {
@@ -122,7 +122,7 @@ export function SnippetsView() {
 
       <div className="flex flex-col gap-2">
         {isAdding && (
-          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-foreground/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+          <form onSubmit={handleAdd} className="edit-shell flex flex-col gap-3 px-5 py-4">
             <input 
               autoFocus
               type="text" 
@@ -146,13 +146,7 @@ export function SnippetsView() {
         )}
 
         {settings === null ? (
-          // Loading, not empty. Without this branch the zero-state onboarding
-          // copy flashed on every visit, even for a user with hundreds of rows.
-          <div className="space-y-2 mt-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-[52px] w-full rounded-xl" />
-            ))}
-          </div>
+          <ListSkeleton />
         ) : snippets.length === 0 && !isAdding ? (
           <EmptyState
             className="mt-2"
@@ -168,7 +162,7 @@ export function SnippetsView() {
         ) : (
           filteredSnippets.map(snippet => (
             editingTrigger === snippet.trigger ? (
-              <form key={snippet.trigger} onSubmit={(e) => handleEditSubmit(e, snippet.trigger)} className="flex flex-col gap-3 bg-foreground/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+              <form key={snippet.trigger} onSubmit={(e) => handleEditSubmit(e, snippet.trigger)} className="edit-shell flex flex-col gap-3 px-5 py-4">
                 <input 
                   autoFocus
                   type="text" 
@@ -188,10 +182,10 @@ export function SnippetsView() {
                 </div>
               </form>
             ) : (
-              <div key={snippet.trigger} className="group flex flex-col gap-2 bg-foreground/[0.015] hover:bg-foreground/[0.03] px-5 py-4 rounded-xl border border-border transition-colors">
+              <div key={snippet.trigger} className="group list-row flex flex-col gap-2 px-5 py-4">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-[14px] text-steelIce/90">"{snippet.trigger}"</span>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="row-actions">
                     <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => startEditing(snippet)}>
                       <Pencil size={15} />
                     </Button>

@@ -1,16 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
-
-@font-face {
-  font-family: 'Clash Display';
-  src: url('./fonts/clash-display/ClashDisplay-Variable.woff2') format('woff2');
-  font-weight: 200 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* Geist is imported from the entry modules, not here. Tailwind v4 inlines a
+   CSS `@import` itself, so Vite never rebases the `url(./files/*.woff2)` paths
+   inside the fontsource stylesheet — they shipped pointing at
+   /assets/files/…, which does not exist, and every build silently fell back to
+   system sans. Importing from TS routes it through Vite's asset pipeline. */
 
 @font-face {
   font-family: 'Cabinet Grotesk';
@@ -19,49 +14,6 @@
   font-style: normal;
   font-display: swap;
 }
-
-@font-face {
-  font-family: 'Nave';
-  src: url('./fonts/nave-font-family/nave-light.ttf') format('truetype');
-  font-weight: 300;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Nave';
-  src: url('./fonts/nave-font-family/nave-regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Nave';
-  src: url('./fonts/nave-font-family/nave-medium.ttf') format('truetype');
-  font-weight: 500;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Nave';
-  src: url('./fonts/nave-font-family/nave-bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Gibed';
-  src: url('./fonts/gibed.otf') format('opentype');
-  font-weight: 800;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Cassandra';
-  src: url('./fonts/cassandra-font/CassandraPersonalUseRegular-3BjG.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-}
-
 
 @custom-variant dark (&:is(.dark *));
 
@@ -75,6 +27,11 @@
   /* --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; */
   --font-sans: 'Geist Variable', sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+  /* Headings and the wordmark. Body stays Geist — a display/text split is what
+     stops every line on the page reading at the same weight. Previously the
+     wordmark rendered in Cabinet Grotesk in the sidebar and Nave in onboarding:
+     two faces for one brand. */
+  --font-display: 'Cabinet Grotesk', var(--font-sans);
 }
 
 @layer base {
@@ -95,10 +52,12 @@
     @apply font-sans;
   }
   button {
-    @apply cursor-pointer transition-all duration-200 active:scale-[0.97];
-  }
-  button:not(:disabled):hover {
-    filter: brightness(1.15);
+    /* Named properties, not `all`: `all` animates layout and paint too, and
+       fights the variants' own hover colours. */
+    @apply cursor-pointer active:scale-[0.98];
+    transition: background-color 160ms ease, border-color 160ms ease,
+      color 160ms ease, box-shadow 160ms ease, opacity 160ms ease,
+      transform 120ms ease;
   }
   button:disabled {
     @apply cursor-not-allowed;
@@ -113,6 +72,8 @@
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-strong: var(--accent-strong);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -158,8 +119,15 @@
   --secondary-foreground: #14171c;
   --muted: #eceef2;
   --muted-foreground: #66707e;
+  /* Three steps, not one. With a single tint, hover, selected and active all
+     land on the same colour and the UI stops responding to you. */
+  --accent-subtle: rgba(91, 155, 209, 0.07);
   --accent: rgba(91, 155, 209, 0.12);
+  --accent-strong: rgba(91, 155, 209, 0.22);
   --accent-foreground: var(--color-steelDeep);
+  /* Light surfaces sit *above* the page, so they cast rather than glow. */
+  --surface-shadow: 0 1px 2px rgba(20, 23, 28, 0.04), 0 8px 24px -12px rgba(20, 23, 28, 0.10);
+  --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   --destructive: #d24b4b;
   --border: rgba(20, 23, 28, 0.10);
   --input: rgba(20, 23, 28, 0.14);
@@ -191,8 +159,15 @@
   --secondary-foreground: #e7eaee;
   --muted: #171a1f;
   --muted-foreground: #828b99;
+  --accent-subtle: rgba(91, 155, 209, 0.07);
   --accent: rgba(91, 155, 209, 0.12);
+  --accent-strong: rgba(91, 155, 209, 0.22);
   --accent-foreground: var(--color-steelIce);
+  /* Dark surfaces are lit from above rather than shadowed — the same top
+     inset highlight `.hud-pill` uses, which is the one bit of depth language
+     this app already had and the dashboard never borrowed. */
+  --surface-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -16px rgba(0, 0, 0, 0.7);
+  --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --destructive: #f47171;
   --border: rgba(255, 255, 255, 0.07);
   --input: rgba(255, 255, 255, 0.09);
@@ -210,6 +185,110 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted-foreground);
+}
+
+/* A panel that reads as sitting above the page: hairline, cast shadow, and a
+   lit top edge. One utility so every card shares the same depth rather than
+   each view inventing its own ring. */
+@utility surface-raised {
+  background-color: var(--card);
+  box-shadow:
+    var(--surface-highlight),
+    0 0 0 1px var(--border),
+    var(--surface-shadow);
+}
+
+/* A row in an editable list — Dictionary, Voice Macros, Personal Memory. Rows
+   are numerous, so they stay flat rather than each casting its own shadow;
+   what they share with `surface-raised` is the hairline and the hover tint. */
+@utility list-row {
+  background-color: color-mix(in srgb, var(--foreground) 1.5%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  transition: background-color 160ms ease, border-color 160ms ease;
+  &:hover {
+    background-color: var(--accent-subtle);
+  }
+}
+
+/* The add/edit form that replaces a row in place. Recessed rather than raised,
+   because it sits *inside* the list, and accented so it is obvious which row
+   you are currently editing. */
+@utility edit-shell {
+  background-color: color-mix(in srgb, var(--foreground) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-steel) 40%, transparent);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-steel) 20%, transparent),
+    inset 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* Hover-revealed row controls. Kept visible while one of them has focus, so
+   the list is still operable from the keyboard. */
+@utility row-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  .group:hover &,
+  &:focus-within {
+    opacity: 1;
+  }
+}
+
+/* Focus that is actually visible without shouting: 2px, offset off the
+   control so it reads as a ring rather than a border thickening. */
+@utility ring-focus {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------- CHARTS
+   Recharts writes stroke/fill straight onto each element as an SVG
+   presentation attribute, so a className on the component cannot outrank it —
+   a stylesheet rule can. Keeping the palette here also means one place to fix
+   when a theme token moves, instead of hex literals scattered through JSX.
+
+   Everything below is recessive on purpose: hairline rules, muted ink, and a
+   single brand hue for the data itself. */
+
+/* Horizontal rules only — vertical ones compete with the curve. */
+.recharts-cartesian-grid-horizontal line {
+  stroke: var(--border);
+}
+
+/* Axis numbers and dates. tabular-nums so the y ticks line up vertically. */
+.recharts-cartesian-axis-tick-value {
+  fill: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hover crosshair. Solid hairline: a dashed rule reads as a threshold. */
+.recharts-tooltip-cursor {
+  stroke: var(--muted-foreground);
+  stroke-opacity: 0.4;
+  stroke-width: 1;
+}
+
+/* The series line. The flat brand steel is only 2.98:1 on the white card,
+   under the 3:1 floor — the accent pair reads in both themes. */
+.recharts-area-curve {
+  stroke: var(--accent-foreground);
+}
+
+/* The wash under the curve stays brand steel in both themes; it carries no
+   value on its own, so it is not held to line contrast. */
+#colorWords stop {
+  stop-color: var(--color-steel);
+}
+
+/* Hover marker. Without an explicit stroke on <Area>, recharts falls back to
+   its own #3182bd for this dot. The 2px surface ring keeps it reading on top
+   of the curve instead of merging into it. */
+.recharts-active-dot circle {
+  fill: var(--accent-foreground);
+  stroke: var(--card);
+  stroke-width: 2;
 }
 
 /* Film-grain overlay for the dashboard shell — kills the flat look. */

@@ -19,8 +19,8 @@ interface Props {
 /// History, Memory, Macros, and the Dictionary.
 export function EmptyState({ icon: Icon, title, description, action, className }: Props) {
   return (
-    <Card className={cn("items-center justify-center py-20 px-4 text-center bg-foreground/[0.01]", className)}>
-      <div className="w-12 h-12 rounded-xl bg-foreground/[0.04] ring-1 ring-border flex items-center justify-center mb-4">
+    <Card className={cn("items-center justify-center py-20 px-4 text-center", className)}>
+      <div className="w-12 h-12 rounded-xl bg-foreground/[0.04] border border-border flex items-center justify-center mb-4">
         <Icon className="w-7 h-7 text-muted-foreground" strokeWidth={1.5} />
       </div>
       <h3 className="text-lg font-medium text-foreground">{title}</h3>

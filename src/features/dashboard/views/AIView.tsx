@@ -5,6 +5,7 @@ import { NativeAppIcon } from "../components/NativeAppIcon";
 import { MagicWandIcon, LightningAIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, listOllamaModels, Settings } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { SettingIcon } from "../components/SettingIcon";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -105,7 +106,7 @@ export function AIView() {
       />
 
       {/* Ollama status */}
-      <div className="bg-card ring-1 ring-border rounded-xl p-4 flex items-center justify-between">
+      <div className="surface-raised rounded-xl p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span
             className={cn(
@@ -139,12 +140,10 @@ export function AIView() {
       {/* Dictation cleanup */}
       <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Dictation</span>
-        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-foreground/5">
+        <div className="surface-raised rounded-xl divide-y divide-foreground/5">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-fuchsia-500/10 flex items-center justify-center">
-                <SparkleIcon size={14} className="text-fuchsia-400" />
-              </div>
+              <SettingIcon icon={SparkleIcon} active={settings.llm_cleanup_enabled} />
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Semantic Cleanup</p>
                 <p className="text-[11px] text-muted-foreground">
@@ -161,9 +160,7 @@ export function AIView() {
           {settings.llm_cleanup_enabled && (
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-violet-500/10 flex items-center justify-center">
-                  <LightningAIcon size={14} className="text-violet-400" />
-                </div>
+                <SettingIcon icon={LightningAIcon} active={!!settings.ollama_model} />
                 <div>
                   <p className="text-[13px] font-medium text-foreground/90">Cleanup Model</p>
                   <p className="text-[11px] text-muted-foreground">
@@ -180,7 +177,7 @@ export function AIView() {
                 disabled={!ollamaModels?.length}
                 onValueChange={(val) => update({ ollama_model: val === "none" ? null : val })}
               >
-                <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+                <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-focus truncate disabled:opacity-50">
                   <SelectValue placeholder="Select a model" />
                 </SelectTrigger>
                 <SelectContent>
@@ -196,9 +193,7 @@ export function AIView() {
           {settings.llm_cleanup_enabled && (
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
-                  <Clock size={14} className="text-amber-400" />
-                </div>
+                <SettingIcon icon={Clock} active={settings.ollama_keep_alive_minutes !== 0} />
                 <div>
                   <p className="text-[13px] font-medium text-foreground/90">Keep Model Loaded</p>
                   <p className="text-[11px] text-muted-foreground">
@@ -211,7 +206,7 @@ export function AIView() {
                 value={String(settings.ollama_keep_alive_minutes)}
                 onValueChange={(val) => update({ ollama_keep_alive_minutes: Number(val) })}
               >
-                <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate">
+                <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-focus truncate">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,12 +227,10 @@ export function AIView() {
       {/* Meetings */}
       <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Meetings</span>
-        <div className="bg-card ring-1 ring-border rounded-xl">
+        <div className="surface-raised rounded-xl">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-sky-500/10 flex items-center justify-center">
-                <MagicWandIcon size={14} className="text-sky-400" />
-              </div>
+              <SettingIcon icon={MagicWandIcon} active={!!settings.meeting_ollama_model} />
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Meeting Notes Model</p>
                 <p className="text-[11px] text-muted-foreground">
@@ -250,7 +243,7 @@ export function AIView() {
               disabled={!ollamaModels?.length}
               onValueChange={(val) => update({ meeting_ollama_model: val === "same" ? null : val })}
             >
-              <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+              <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-focus truncate disabled:opacity-50">
                 <SelectValue placeholder="Same as cleanup model" />
               </SelectTrigger>
               <SelectContent>
@@ -264,12 +257,10 @@ export function AIView() {
         </div>
       </section>
 
-      
-
       {/* App profiles */}
       <section className="space-y-4">
         <span className="t-label block px-1 pb-1">App Profiles</span>
-        <div className="bg-card ring-1 ring-border rounded-xl p-4 space-y-3">
+        <div className="surface-raised rounded-xl p-4 space-y-3">
           <p className="text-[11px] text-muted-foreground">
             Extra cleanup instruction when dictating into a matching app (name substring, e.g.
             "slack"). {!settings.llm_cleanup_enabled && "Requires Semantic Cleanup to be enabled."}
@@ -288,7 +279,7 @@ export function AIView() {
                   );
                   update({ app_profiles: next });
                 }}
-                className="w-32 bg-background border border-foreground/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
+                className="w-32 bg-background border border-foreground/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus-visible:ring-focus text-foreground/80"
               />
               <input
                 value={profile.prompt}
@@ -299,13 +290,13 @@ export function AIView() {
                   );
                   update({ app_profiles: next });
                 }}
-                className="flex-1 bg-background border border-foreground/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80"
+                className="flex-1 bg-background border border-foreground/10 rounded-md text-xs font-sans px-2 py-1.5 focus:outline-none focus-visible:ring-focus text-foreground/80"
               />
               <button
                 onClick={() =>
                   update({ app_profiles: settings.app_profiles.filter((_, j) => j !== i) })
                 }
-                className="text-muted-foreground hover:text-red-400 transition-colors p-1"
+                className="text-muted-foreground hover:text-destructive transition-colors p-1"
                 title="Remove profile"
               >
                 <Trash2 size={14} />

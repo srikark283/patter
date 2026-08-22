@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings, MemoryFact, getEmbedding } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { ListSkeleton } from "../components/ListSkeleton";
 import { EmptyState } from "../components/EmptyState";
 import { Search, Plus, Trash2, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export function MemoryView() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -94,7 +94,7 @@ export function MemoryView() {
 
       <div className="flex flex-col gap-2">
         {isAdding && (
-          <form onSubmit={handleAdd} className="flex flex-col gap-3 bg-foreground/[0.03] px-5 py-4 rounded-xl border border-steel/40 ring-1 ring-steel/20 shadow-inner">
+          <form onSubmit={handleAdd} className="edit-shell flex flex-col gap-3 px-5 py-4">
             <textarea 
               autoFocus
               placeholder="E.g., 'My manager's name is John Doe' or 'Project Phoenix is a secret design system rewrite'"
@@ -111,13 +111,7 @@ export function MemoryView() {
         )}
 
         {settings === null ? (
-          // Loading, not empty. Without this branch the zero-state onboarding
-          // copy flashed on every visit, even for a user with hundreds of rows.
-          <div className="space-y-2 mt-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-[52px] w-full rounded-xl" />
-            ))}
-          </div>
+          <ListSkeleton />
         ) : memories.length === 0 && !isAdding ? (
           <EmptyState
             className="mt-2"
@@ -132,12 +126,12 @@ export function MemoryView() {
           />
         ) : (
           filteredMemories.map(memory => (
-            <div key={memory.id} className="group flex items-center justify-between bg-foreground/[0.015] hover:bg-foreground/[0.03] px-5 py-3.5 rounded-xl border border-border transition-colors">
+            <div key={memory.id} className="group list-row flex items-center justify-between px-5 py-3.5">
               <div className="flex items-center gap-3">
                 <Brain size={16} className="text-steelIce/60" />
                 <span className="font-medium text-[15px] text-foreground/90">{memory.content}</span>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="row-actions">
                 <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => removeMemory(memory.id)}>
                   <Trash2 size={15} />
                 </Button>

@@ -6,6 +6,7 @@ import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, get
 import { promptUpdateInstall } from "../../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { PageHeader } from "../components/PageHeader";
+import { SettingIcon } from "../components/SettingIcon";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -34,14 +35,12 @@ const MODES = [
   {
     id: "paste",
     icon: ClipboardPaste,
-    tint: "text-amber-400",
     label: "Instant Paste",
     detail: "Copies to clipboard and simulates Cmd+V — fastest",
   },
   {
     id: "type",
     icon: Type,
-    tint: "text-blue-400",
     label: "Simulate Typing",
     detail: "Injects keystrokes sequentially — best for remote desktop",
   },
@@ -59,12 +58,13 @@ function matches(query: string, ...text: (string | undefined)[]) {
 
 interface RowMeta {
   icon: ComponentType<{ size?: number; className?: string }>;
-  tint: string;
-  bg: string;
   title: string;
   description: string;
   /** Extra search terms — what someone would type looking for this row. */
   keywords?: string;
+  /** The setting a section is really about. Gets more room and a heavier
+   *  title, so a page of rows has a shape instead of one flat rhythm. */
+  primary?: boolean;
 }
 
 /** Every row's metadata in one place, so the filter and the markup can never
@@ -93,52 +93,52 @@ const HOTKEY_LABELS: Record<HotkeyField, string> = {
 };
 
 const ROWS = {
-  hotkey: { icon: Command, tint: "text-violet-400", bg: "bg-violet-500/10",
+  hotkey: { icon: Command,
     title: "Global Hotkey", description: "Press to start/stop recording anywhere",
-    keywords: "shortcut keybinding trigger record" },
-  meetingHotkey: { icon: Users, tint: "text-indigo-400", bg: "bg-indigo-500/10",
+    keywords: "shortcut keybinding trigger record", primary: true },
+  meetingHotkey: { icon: Users,
     title: "Meeting Hotkey", description: "Press to start/stop meeting recording",
     keywords: "shortcut keybinding trigger" },
   // The hotkey and the phrase are configuration *of* this row, not rows of
   // their own — so their search terms live here too.
-  commandMode: { icon: Wand2, tint: "text-violet-400", bg: "bg-violet-500/10",
+  commandMode: { icon: Wand2,
     title: "Command Mode", description: "Select text and say how to rewrite it",
-    keywords: "rewrite edit selection voice command hotkey phrase trigger keyword wake word shortcut keybinding" },
-  pushToTalk: { icon: Hand, tint: "text-blue-400", bg: "bg-blue-500/10",
+    keywords: "rewrite edit selection voice command hotkey phrase trigger keyword wake word shortcut keybinding", primary: true },
+  pushToTalk: { icon: Hand,
     title: "Push to Talk", description: "Hold the hotkey to record, release to transcribe",
     keywords: "hold ptt" },
-  language: { icon: Languages, tint: "text-sky-400", bg: "bg-sky-500/10",
+  language: { icon: Languages,
     title: "Language", description: "For Whisper models only", keywords: "locale english spanish" },
-  silence: { icon: Timer, tint: "text-amber-400", bg: "bg-amber-500/10",
+  silence: { icon: Timer,
     title: "Silence Timeout", description: "Auto-stop after pausing for",
     keywords: "pause auto stop vad" },
-  trimSilence: { icon: AudioWaveform, tint: "text-teal-400", bg: "bg-teal-500/10",
+  trimSilence: { icon: AudioWaveform,
     title: "Trim Silence",
     description: "Remove silence and noise before transcribing (Silero VAD) — prevents hallucinations",
     keywords: "vad silero noise hallucination" },
-  whisperMode: { icon: Ear, tint: "text-amber-400", bg: "bg-amber-500/10",
+  whisperMode: { icon: Ear,
     title: "Whisper Mode",
     description: "For dictating quietly in shared spaces — boosts quiet audio, tracks the room's noise floor, and keeps speech the VAD would discard",
     keywords: "quiet shared office library gain" },
-  microphone: { icon: Mic, tint: "text-rose-400", bg: "bg-rose-500/10",
+  microphone: { icon: Mic,
     title: "Microphone", description: "Select audio input device",
-    keywords: "input device audio mic" },
-  appearance: { icon: SunMoon, tint: "text-yellow-400", bg: "bg-yellow-500/10",
+    keywords: "input device audio mic", primary: true },
+  appearance: { icon: SunMoon,
     title: "Appearance", description: "Light or dark, or follow the system",
-    keywords: "theme dark light mode colour color" },
-  hudPosition: { icon: Monitor, tint: "text-cyan-400", bg: "bg-cyan-500/10",
+    keywords: "theme dark light mode colour color", primary: true },
+  hudPosition: { icon: Monitor,
     title: "HUD Position", description: "Where the recording pill appears",
     keywords: "overlay pill top bottom" },
-  sounds: { icon: Volume2, tint: "text-orange-400", bg: "bg-orange-500/10",
+  sounds: { icon: Volume2,
     title: "UI Sounds", description: "Play a sound when recording starts/stops",
     keywords: "audio feedback chime pop volume" },
-  autostart: { icon: Power, tint: "text-green-400", bg: "bg-green-500/10",
+  autostart: { icon: Power,
     title: "Launch at Login", description: "Start Patter automatically on boot",
     keywords: "startup autostart boot login" },
-  outputMode: { icon: Zap, tint: "text-accent-foreground", bg: "bg-steel/10",
+  outputMode: { icon: Zap,
     title: "Text Output", description: "How finished text reaches your cursor",
     keywords: "paste type insert clipboard keystroke" },
-  updates: { icon: PackageIcon, tint: "text-fuchsia-400", bg: "bg-fuchsia-500/10",
+  updates: { icon: PackageIcon,
     title: "Updates", description: "Notify about new versions on launch",
     keywords: "version upgrade release" },
 } satisfies Record<string, RowMeta>;
@@ -147,28 +147,33 @@ const ROWS = {
 /** `expansion` renders inside the same cell, under the row and aligned with the
  *  title — for a control that only exists because of what this row is set to.
  *  A sibling row would sit past a divider and read as an unrelated setting. */
-function Setting({ icon: Icon, tint, bg, title, description, keywords, children, expansion }: RowMeta & {
-  children: ReactNode; expansion?: ReactNode;
+function Setting({ icon: Icon, title, description, keywords, primary, active, children, expansion }: RowMeta & {
+  children: ReactNode;
+  /** Whether this setting is actually doing something — configured, enabled,
+   *  chosen. The only thing that earns accent colour on this page. */
+  active?: boolean;
+  expansion?: ReactNode;
 }) {
   const query = useContext(FilterContext);
   if (!matches(query, title, description, keywords)) return null;
   return (
-    <div className="p-4">
+    <div className={cn("group/row transition-colors", primary ? "p-5" : "p-4", "hover:bg-accent-subtle")}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", bg)}>
-            <Icon size={14} className={tint} />
-          </div>
+          <SettingIcon icon={Icon} active={active} size={primary ? "lg" : "sm"} />
           <div>
-            <p className="text-[13px] font-medium text-foreground/90">{title}</p>
+            <p className={cn(
+              "font-medium text-foreground/90",
+              primary ? "text-[14px] tracking-tight" : "text-[13px]"
+            )}>{title}</p>
             <p className="text-[11px] text-muted-foreground">{description}</p>
           </div>
         </div>
         <div className="shrink-0">{children}</div>
       </div>
-      {/* pl-11 clears the 32px icon and the 12px gap, so this lines up with the
-          title rather than the icon. */}
-      {expansion && <div className="pl-11 pt-3">{expansion}</div>}
+      {/* Clears the icon and its gap, so this lines up with the title rather
+          than the icon. */}
+      {expansion && <div className={cn("pt-3", primary ? "pl-12" : "pl-11")}>{expansion}</div>}
     </div>
   );
 }
@@ -183,15 +188,13 @@ function SettingsSection({ label, rows, children }: {
   return (
     <section className="space-y-4">
       <span className="t-label block px-1 pb-1">{label}</span>
-      <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-border">{children}</div>
+      <div className="surface-raised rounded-xl divide-y divide-border overflow-hidden">{children}</div>
     </section>
   );
 }
 
 interface PermissionRowProps {
   icon: typeof Mic;
-  tint: string;
-  bg: string;
   title: string;
   description: string;
   /** Omit when the OS gives no reliable way to query the live status. */
@@ -200,12 +203,23 @@ interface PermissionRowProps {
   onOpenSettings: () => Promise<void>;
 }
 
-function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onRequestAccess, onOpenSettings }: PermissionRowProps) {
+function PermissionRow({ icon: Icon, title, description, granted, onRequestAccess, onOpenSettings }: PermissionRowProps) {
   return (
-    <div className="flex items-center justify-between p-4">
+    <div className="flex items-center justify-between p-4 transition-colors hover:bg-accent-subtle">
       <div className="flex items-center gap-3">
-        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", bg)}>
-          <Icon size={14} className={tint} />
+        {/* The chip states whether the permission is granted. Which permission
+            it is was never worth a colour of its own. */}
+        <div
+          className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors",
+            granted
+              ? "bg-success/15 text-success"
+              : granted === false
+                ? "bg-amber-500/15 text-amber-500 dark:text-amber-400"
+                : "bg-foreground/[0.05] text-muted-foreground"
+          )}
+        >
+          <Icon size={14} />
         </div>
         <div>
           <p className="text-[13px] font-medium text-foreground/90">{title}</p>
@@ -216,7 +230,7 @@ function PermissionRow({ icon: Icon, tint, bg, title, description, granted, onRe
         {granted === undefined ? (
           <span className="text-[11px] text-muted-foreground">Check in System Settings</span>
         ) : granted ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] text-success font-medium">
             <CheckCircle2 size={12} /> Granted
           </span>
         ) : (
@@ -447,7 +461,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter settings…"
-          className="w-full bg-card ring-1 ring-border rounded-xl pl-9 pr-9 py-2.5 text-[13px] text-foreground/90 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-steel transition-shadow"
+          className="w-full surface-raised rounded-xl pl-9 pr-9 py-2.5 text-[13px] text-foreground/90 placeholder:text-muted-foreground/60 focus:outline-none focus-visible:ring-focus transition-shadow"
         />
         {query && (
           <button
@@ -472,7 +486,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             ROWS.pushToTalk,
           ]}
         >
-          <Setting {...ROWS.hotkey}>
+          <Setting {...ROWS.hotkey} active={!!settings.hotkey}>
             <input
               readOnly
               value={recordingField === "hotkey" ? "Listening..." : formatHotkey(settings.hotkey)}
@@ -480,13 +494,13 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
               onBlur={() => setRecordingField(null)}
               onKeyDown={handleHotkeyRecord("hotkey")}
               className={cn(
-                "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus-visible:ring-focus cursor-pointer transition-colors",
                 recordingField === "hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
               )}
             />
           </Setting>
 
-          <Setting {...ROWS.meetingHotkey}>
+          <Setting {...ROWS.meetingHotkey} active={!!settings.meeting_hotkey}>
             <div className="flex items-center gap-1.5">
               <input
                 readOnly
@@ -495,7 +509,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                 onBlur={() => setRecordingField(null)}
                 onKeyDown={handleHotkeyRecord("meeting_hotkey")}
                 className={cn(
-                  "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                  "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus-visible:ring-focus cursor-pointer transition-colors",
                   recordingField === "meeting_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
                 )}
               />
@@ -513,6 +527,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
 
           <Setting
             {...ROWS.commandMode}
+            active={commandMode !== "off"}
             expansion={
               commandMode === "hotkey" ? (
                 <div className="rounded-lg bg-foreground/[0.03] ring-1 ring-border/60 px-3 py-2.5 space-y-2">
@@ -526,7 +541,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                         onBlur={() => setRecordingField(null)}
                         onKeyDown={handleHotkeyRecord("command_hotkey")}
                         className={cn(
-                          "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel cursor-pointer transition-colors",
+                          "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus-visible:ring-focus cursor-pointer transition-colors",
                           recordingField === "command_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
                         )}
                       />
@@ -565,7 +580,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                       onKeyDown={(e) => {
                         if (e.key === "Enter") e.currentTarget.blur();
                       }}
-                      className="w-40 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-steel hover:border-foreground/25 transition-colors"
+                      className="w-40 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 text-muted-foreground focus:outline-none focus-visible:ring-focus hover:border-foreground/25 transition-colors"
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -577,7 +592,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             }
           >
             <Select value={commandMode} onValueChange={(value) => changeCommandMode(value as CommandMode)}>
-              <SelectTrigger className="w-40 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-40 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-focus">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -588,7 +603,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             </Select>
           </Setting>
 
-          <Setting {...ROWS.pushToTalk}>
+          <Setting {...ROWS.pushToTalk} active={settings.push_to_talk}>
             <Switch
               checked={settings.push_to_talk}
               onCheckedChange={(checked) => update({ push_to_talk: checked })}
@@ -606,8 +621,9 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           <Setting
             {...ROWS.outputMode}
             icon={activeMode.icon}
-            tint={activeMode.tint}
             description={activeMode.detail}
+            primary
+            active
           >
             <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
               {MODES.map(({ id, label }) => (
@@ -638,7 +654,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                 </span>
               )}
               <Select value={settings.language} onValueChange={(val) => update({ language: val })}>
-                <SelectTrigger className="w-40 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                <SelectTrigger className="w-40 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-focus">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
@@ -661,7 +677,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
               value={settings.silence_timeout_ms.toString()}
               onValueChange={(val) => update({ silence_timeout_ms: parseInt(val, 10) })}
             >
-              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-focus">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -673,14 +689,14 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             </Select>
           </Setting>
 
-          <Setting {...ROWS.trimSilence}>
+          <Setting {...ROWS.trimSilence} active={settings.trim_silence}>
             <Switch
               checked={settings.trim_silence}
               onCheckedChange={(checked) => update({ trim_silence: checked })}
             />
           </Setting>
 
-          <Setting {...ROWS.whisperMode}>
+          <Setting {...ROWS.whisperMode} active={settings.whisper_mode}>
             <Switch
               checked={settings.whisper_mode}
               onCheckedChange={(checked) => update({ whisper_mode: checked })}
@@ -694,7 +710,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
               value={settings.microphone ?? "none"}
               onValueChange={(val) => update({ microphone: val === "none" ? null : val })}
             >
-              <SelectTrigger className="w-48 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-48 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-focus">
                 <SelectValue placeholder="System Default" />
               </SelectTrigger>
               <SelectContent>
@@ -732,7 +748,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
               value={settings.hud_position ?? "bottom"}
               onValueChange={(val) => update({ hud_position: val })}
             >
-              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+              <SelectTrigger className="w-32 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-focus">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -742,14 +758,14 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             </Select>
           </Setting>
 
-          <Setting {...ROWS.sounds}>
+          <Setting {...ROWS.sounds} active={settings.play_sounds}>
             <div className="flex items-center gap-3">
               {settings.play_sounds && (
                 <Select
                   value={settings.sound_theme ?? "pop"}
                   onValueChange={(val) => update({ sound_theme: val })}
                 >
-                  <SelectTrigger className="w-28 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel">
+                  <SelectTrigger className="w-28 bg-background border-input text-[13px] text-foreground/80 focus-visible:ring-focus">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -769,7 +785,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         </SettingsSection>
 
         <SettingsSection label="Application" rows={[ROWS.autostart, ROWS.updates]}>
-          <Setting {...ROWS.autostart}>
+          <Setting {...ROWS.autostart} active={settings.autostart}>
             <Switch
               checked={settings.autostart}
               onCheckedChange={(checked) => update({ autostart: checked })}
@@ -800,11 +816,9 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Permissions</span>
 
-        <div className="bg-card ring-1 ring-border rounded-xl divide-y divide-border">
+        <div className="surface-raised rounded-xl divide-y divide-border">
           <PermissionRow
             icon={Accessibility}
-            tint="text-violet-400"
-            bg="bg-violet-500/10"
             title="Accessibility"
             description="Lets Patter type finished text into other apps"
             granted={permissions?.accessibility ?? true}
@@ -813,8 +827,6 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           />
           <PermissionRow
             icon={KeyRound}
-            tint="text-blue-400"
-            bg="bg-blue-500/10"
             title="Input Monitoring"
             description="Needed for the global hotkey to work anywhere"
             granted={permissions?.input_monitoring ?? true}
@@ -823,8 +835,6 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           />
           <PermissionRow
             icon={Mic}
-            tint="text-rose-400"
-            bg="bg-rose-500/10"
             title="Microphone"
             description="Required to capture dictation and meeting audio"
             granted={permissions?.microphone ?? true}
@@ -833,8 +843,6 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           />
           <PermissionRow
             icon={Bell}
-            tint="text-amber-400"
-            bg="bg-amber-500/10"
             title="Notifications"
             description="Used to alert you when a new version is available"
             onOpenSettings={openNotificationSettings}
@@ -846,7 +854,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         {matches(query, "Data backup restore export import") && (
         <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Data</span>
-        <div className="bg-card ring-1 ring-border rounded-xl p-4">
+        <div className="surface-raised rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[13px] font-medium text-foreground/90">Backup &amp; restore</p>
@@ -892,7 +900,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         {matches(query, "Privacy on-device local telemetry") && (
         <section className="space-y-4">
         <span className="t-label block px-1 pb-1">Privacy</span>
-        <div className="bg-card ring-1 ring-border rounded-xl p-4">
+        <div className="surface-raised rounded-xl p-4">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 shrink-0 rounded-full bg-emerald-500/10 flex items-center justify-center">
               <ShieldCheck size={14} className="text-emerald-500" />

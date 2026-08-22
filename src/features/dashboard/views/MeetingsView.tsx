@@ -41,6 +41,7 @@ import {
   ModelState,
 } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { SettingIcon } from "../components/SettingIcon";
 import { EmptyState } from "../components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -97,11 +98,11 @@ function toMarkdown(m: MeetingRecord): string {
   return lines.join("\n");
 }
 
-function Section({ icon: Icon, title, tint, children }: { icon: typeof ListChecks; title: string; tint?: string; children: React.ReactNode }) {
+function Section({ icon: Icon, title, children }: { icon: typeof ListChecks; title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-        <Icon size={13} className={tint} /> {title}
+        <Icon size={13} /> {title}
       </div>
       {children}
     </div>
@@ -119,6 +120,8 @@ function speakerLabels(text: string): string[] {
   }
   return labels;
 }
+// The one place colour carries data rather than decorating: it's what tells two
+// speakers apart down a transcript. Left saturated on purpose.
 const SPEAKER_COLORS = [
   "text-sky-400",
   "text-violet-400",
@@ -507,17 +510,15 @@ export function MeetingsView({ modelStatus }: Props) {
             placeholder="Search meetings..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-9 bg-foreground/[0.02] border-border/50 focus-visible:ring-1 focus-visible:ring-steelIce/50" 
+            className="pl-9 pr-9 bg-foreground/[0.02] border-border/50 focus-visible:ring-focusIce/50" 
           />
           
         </div>
       )}
 
-      <div className="flex items-center justify-between bg-card ring-1 ring-border rounded-xl p-4">
+      <div className="flex items-center justify-between surface-raised rounded-xl p-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
-            <User size={14} className="text-indigo-400" />
-          </div>
+          <SettingIcon icon={User} active={diarize} />
           <div>
             <p className="text-[13px] font-medium text-foreground/90">Speaker labels</p>
             <p className="text-[11px] text-muted-foreground">
@@ -532,11 +533,9 @@ export function MeetingsView({ modelStatus }: Props) {
         )}
       </div>
 
-      <div className="flex items-center justify-between bg-card ring-1 ring-border rounded-xl p-4">
+      <div className="flex items-center justify-between surface-raised rounded-xl p-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-sky-500/10 flex items-center justify-center">
-            <AudioLines size={14} className="text-sky-400" />
-          </div>
+          <SettingIcon icon={AudioLines} active={!!meetingEngine} />
           <div>
             <p className="text-[13px] font-medium text-foreground/90">Meeting speech model</p>
             <p className="text-[11px] text-muted-foreground">
@@ -549,7 +548,7 @@ export function MeetingsView({ modelStatus }: Props) {
           disabled={!downloadedEngines.length}
           onValueChange={(val) => saveMeetingEngine(val === "same" ? null : val)}
         >
-          <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-1 focus-visible:ring-steel truncate disabled:opacity-50">
+          <SelectTrigger className="w-48 bg-background border-foreground/10 text-[13px] text-foreground/80 focus-visible:ring-focus truncate disabled:opacity-50">
             <SelectValue placeholder="Same as dictation" />
           </SelectTrigger>
           <SelectContent>
@@ -624,18 +623,18 @@ export function MeetingsView({ modelStatus }: Props) {
                         {progress || "Generating notes…"}
                       </div>
                       <div className="space-y-3">
-                        <div className="h-3 w-20 rounded bg-sky-400/20 animate-pulse" />
+                        <div className="h-3 w-20 rounded bg-foreground/[0.06] animate-pulse" />
                         <div className="h-14 w-full rounded bg-foreground/[0.03] animate-pulse" />
                       </div>
                       <div className="space-y-3">
-                        <div className="h-3 w-24 rounded bg-violet-400/20 animate-pulse" />
+                        <div className="h-3 w-24 rounded bg-foreground/[0.06] animate-pulse" />
                         <div className="space-y-2">
                           <div className="h-4 w-3/4 rounded bg-foreground/[0.03] animate-pulse" />
                           <div className="h-4 w-1/2 rounded bg-foreground/[0.03] animate-pulse" />
                         </div>
                       </div>
                       <div className="space-y-3">
-                        <div className="h-3 w-24 rounded bg-emerald-400/20 animate-pulse" />
+                        <div className="h-3 w-24 rounded bg-foreground/[0.06] animate-pulse" />
                         <div className="space-y-2">
                           <div className="h-4 w-2/3 rounded bg-foreground/[0.03] animate-pulse" />
                         </div>
@@ -644,22 +643,22 @@ export function MeetingsView({ modelStatus }: Props) {
                   ) : (
                     <>
                       {m.summary && (
-                        <Section icon={AlignLeft} title="Summary" tint="text-sky-400">
+                        <Section icon={AlignLeft} title="Summary">
                           <p className="text-[13px] leading-relaxed text-foreground/85">{m.summary}</p>
                         </Section>
                       )}
                       {m.minutes.length > 0 && (
-                        <Section icon={ScrollText} title="Minutes" tint="text-violet-400">
+                        <Section icon={ScrollText} title="Minutes">
                           <BulletList items={m.minutes} />
                         </Section>
                       )}
                   {m.decisions.length > 0 && (
-                    <Section icon={Gavel} title="Decisions" tint="text-amber-400">
+                    <Section icon={Gavel} title="Decisions">
                       <BulletList items={m.decisions} />
                     </Section>
                   )}
                   {m.action_items.length > 0 && (
-                    <Section icon={ListChecks} title="Action Items" tint="text-emerald-400">
+                    <Section icon={ListChecks} title="Action Items">
                       <ul className="space-y-1.5">
                         {m.action_items.map((item: string, i: number) => {
                           const isChecked = item.startsWith("[x] ");
@@ -677,7 +676,7 @@ export function MeetingsView({ modelStatus }: Props) {
                                 className={cn(
                                   "mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
                                   isChecked
-                                    ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-500"
+                                    ? "bg-success/20 border-success/30 text-success"
                                     : "border-steel/30 bg-foreground/5"
                                 )}
                               >
@@ -697,7 +696,7 @@ export function MeetingsView({ modelStatus }: Props) {
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
                           placeholder="Meeting title"
-                          className="w-full bg-background border border-foreground/10 rounded-md text-[13px] font-medium px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
+                          className="w-full bg-background border border-foreground/10 rounded-md text-[13px] font-medium px-3 py-2 focus:outline-none focus-visible:ring-focus text-foreground/90"
                         />
                         {speakerLabels(editTranscript).length > 0 && (
                           <div className="space-y-1.5">
@@ -714,7 +713,7 @@ export function MeetingsView({ modelStatus }: Props) {
                                   }}
                                   onBlur={(e) => renameSpeaker(label, e.target.value)}
                                   className={cn(
-                                    "w-32 bg-background border border-foreground/10 rounded-md text-[12px] font-medium px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-steel",
+                                    "w-32 bg-background border border-foreground/10 rounded-md text-[12px] font-medium px-2 py-1.5 focus:outline-none focus-visible:ring-focus",
                                     SPEAKER_COLORS[i % SPEAKER_COLORS.length]
                                   )}
                                 />
@@ -726,7 +725,7 @@ export function MeetingsView({ modelStatus }: Props) {
                           value={editTranscript}
                           onChange={(e) => setEditTranscript(e.target.value)}
                           spellCheck={false}
-                          className="w-full h-64 bg-background border border-foreground/10 rounded-md text-[12.5px] leading-relaxed font-sans px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/80 resize-y"
+                          className="w-full h-64 bg-background border border-foreground/10 rounded-md text-[12.5px] leading-relaxed font-sans px-3 py-2 focus:outline-none focus-visible:ring-focus text-foreground/80 resize-y"
                         />
                         <div className="flex justify-end gap-2">
                           <Button
@@ -822,7 +821,7 @@ export function MeetingsView({ modelStatus }: Props) {
             onChange={(e) => setSpeakerCountInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && confirmSpeakerCount()}
             placeholder="Auto-detect"
-            className="w-full bg-background border border-foreground/10 rounded-md text-[13px] px-3 py-2 focus:outline-none focus:ring-1 focus:ring-steel text-foreground/90"
+            className="w-full bg-background border border-foreground/10 rounded-md text-[13px] px-3 py-2 focus:outline-none focus-visible:ring-focus text-foreground/90"
           />
           <DialogFooter>
             <Button variant="outline" onClick={confirmSpeakerCount}>
