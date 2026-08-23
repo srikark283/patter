@@ -4,7 +4,7 @@ import { updateSettings, getSettings, Settings, dictionarySuggestions, dismissDi
 import { PageHeader } from "../components/PageHeader";
 import { ListSkeleton } from "../components/ListSkeleton";
 import { EmptyState } from "../components/EmptyState";
-import { Search, Plus, ArrowUpDown, Trash2, Pencil, Check, AlertTriangle, BookOpen, Sparkles, X } from "lucide-react";
+import { Search, Plus, ArrowUpDown, Trash2, Check, AlertTriangle, BookOpen, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -168,16 +168,30 @@ export function DictionaryView() {
     setEditValue(term);
   };
 
-  const handleEditSubmit = (e: React.FormEvent, oldTerm: string) => {
-    e.preventDefault();
+  const commitEdit = (oldTerm: string) => {
     const clean = editValue.trim();
     if (clean && clean !== oldTerm) {
-      const newTerms = terms.map(t => (t === oldTerm ? clean : t));
-      const unique = Array.from(new Set(newTerms));
-      save(unique);
+      // A rename can land on a term that is already in the list. The old
+      // `new Set` dedupe was exact-match, so renaming "ggml" to "metal" beside
+      // an existing "Metal" left both — two entries biasing Whisper toward the
+      // same word and spending the prompt budget twice. Matching is
+      // case-insensitive here for the same reason it is in `mergeTerms`, and
+      // the existing spelling wins there too, so add and rename agree.
+      const collision = terms.find(t => t !== oldTerm && t.toLowerCase() === clean.toLowerCase());
+      save(
+        collision
+          // Merge: the renamed entry folds into the one already there, which
+          // keeps its own spelling and its own place in the list.
+          ? terms.filter(t => t !== oldTerm)
+          : terms.map(t => (t === oldTerm ? clean : t))
+      );
+      // Said out loud, because otherwise a chip just vanishes.
+      if (collision) toast.success(`Merged into "${collision}"`);
     }
     setEditingTerm(null);
   };
+
+
 
   const sortedTerms = [...terms].sort((a, b) => {
     if (sortOrder === "alpha") return a.localeCompare(b);
@@ -272,7 +286,7 @@ export function DictionaryView() {
       {budgetUsed >= 0.8 && (
         <div className={`flex items-start gap-2.5 rounded-lg p-3 text-[12px] leading-relaxed ring-1 ${
           budgetUsed >= 1
-            ? "bg-amber-500/10 ring-amber-500/20 text-amber-200/90"
+            ? "bg-warning/10 ring-warning/25 text-warning"
             : "bg-foreground/5 ring-foreground/10 text-muted-foreground"
         }`}>
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
@@ -377,38 +391,61 @@ export function DictionaryView() {
             }
           />
         ) : (
-          filteredTerms.map(term => (
-            editingTerm === term ? (
-              <form key={term} onSubmit={(e) => handleEditSubmit(e, term)} className="edit-shell flex items-center gap-3 px-4 py-3">
-                <input 
-                  autoFocus
-                  type="text" 
-                  value={editValue}
-                  onChange={e => setEditValue(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Escape") setEditingTerm(null);
-                  }}
-                  className="flex-1 bg-transparent border-none text-foreground outline-none text-[15px] font-medium"
-                />
-                <div className="flex gap-2 items-center">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setEditingTerm(null)}>Cancel</Button>
-                  <Button type="submit" size="sm" disabled={!editValue.trim() || editValue.trim() === term}>Save</Button>
+          /* Chips, not rows. These are single words — one per full-width row
+             turned eight terms into three screens of scroll. Wrapping chips put
+             the whole dictionary in view at once, which is the only way to see
+             what Whisper is actually being primed with. Reading order is still
+             list order, so the budget warning's "dropped from the top" holds. */
+          <div className="flex flex-wrap gap-2">
+            {filteredTerms.map(term => (
+              editingTerm === term ? (
+                <div
+                  key={term}
+                  className="inline-flex items-center rounded-full border border-steel/50 bg-accent py-1 pl-3 pr-3 shadow-[0_0_0_3px_var(--accent-subtle)]"
+                >
+                  <input
+                    autoFocus
+                    type="text"
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    onFocus={e => e.currentTarget.select()}
+                    // Enter keeps the rename; Escape and clicking away drop it.
+                    // Blur deliberately does not commit: committing there too
+                    // would run a second time off a stale `terms` closure when
+                    // Enter unmounts the input.
+                    onKeyDown={e => {
+                      if (e.key === "Escape") setEditingTerm(null);
+                      if (e.key === "Enter") commitEdit(term);
+                    }}
+                    onBlur={() => setEditingTerm(null)}
+                    style={{ width: `${Math.max(editValue.length, 3) + 1}ch` }}
+                    className="bg-transparent border-none text-foreground outline-none text-[13px] font-medium"
+                  />
                 </div>
-              </form>
-            ) : (
-              <div key={term} className="group list-row flex items-center justify-between px-5 py-3.5">
-                <span className="font-medium text-[15px] text-foreground/90">{term}</span>
-                <div className="row-actions">
-                  <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => startEditing(term)}>
-                    <Pencil size={15} />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => removeTerm(term)}>
-                    <Trash2 size={15} />
-                  </Button>
-                </div>
-              </div>
-            )
-          ))
+              ) : (
+                <span
+                  key={term}
+                  className="group inline-flex items-center rounded-full border border-border bg-foreground/[0.02] py-1 pl-3 pr-1 transition-colors hover:border-steelIce/40 hover:bg-accent-subtle"
+                >
+                  <button
+                    onClick={() => startEditing(term)}
+                    title="Rename"
+                    className="text-[13px] font-medium text-foreground/90 rounded-full focus-visible:ring-focus"
+                  >
+                    {term}
+                  </button>
+                  <button
+                    onClick={() => removeTerm(term)}
+                    aria-label={`Remove ${term}`}
+                    title="Remove"
+                    className="ml-1.5 flex size-4 items-center justify-center rounded-full text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive focus-visible:ring-focus"
+                  >
+                    <X size={11} strokeWidth={2.5} />
+                  </button>
+                </span>
+              )
+            ))}
+          </div>
         )}
         
         {terms.length > 0 && filteredTerms.length === 0 && !isAdding && (

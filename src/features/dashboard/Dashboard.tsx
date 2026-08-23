@@ -230,7 +230,7 @@ export default function Dashboard() {
                 </span>
               </div>
               {appVersion && (
-                <p className="mt-2 font-sans text-[10px] text-muted-foreground/60 tabular-nums">
+                <p className="mt-2 font-sans text-[10px] text-muted-foreground tabular-nums">
                   Patter v{appVersion}
                 </p>
               )}

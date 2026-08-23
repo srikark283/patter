@@ -215,7 +215,7 @@ function PermissionRow({ icon: Icon, title, description, granted, onRequestAcces
             granted
               ? "bg-success/15 text-success"
               : granted === false
-                ? "bg-amber-500/15 text-amber-500 dark:text-amber-400"
+                ? "bg-warning/15 text-warning"
                 : "bg-foreground/[0.05] text-muted-foreground"
           )}
         >
@@ -234,7 +234,7 @@ function PermissionRow({ icon: Icon, title, description, granted, onRequestAcces
             <CheckCircle2 size={12} /> Granted
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] text-warning font-medium">
             <AlertCircle size={12} /> Not granted
           </span>
         )}
@@ -249,7 +249,7 @@ function PermissionRow({ icon: Icon, title, description, granted, onRequestAcces
         {granted !== true && (
           <button
             onClick={() => onOpenSettings().catch(console.error)}
-            className="text-[11px] text-primary/80 hover:text-primary transition-colors"
+            className="text-[11px] text-primary hover:text-primary/80 transition-colors"
           >
             Open Settings
           </button>
@@ -647,7 +647,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             <div className="flex items-center gap-2">
               {englishOnlyModel && (
                 <span
-                  className="text-[11px] text-amber-600 dark:text-amber-400"
+                  className="text-[11px] text-warning"
                   title="English-only weights ignore this setting. Install a multilingual model from Speech Models to use another language."
                 >
                   English-only model
@@ -800,7 +800,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
               <button
                 onClick={handleCheckUpdates}
                 disabled={checkingUpdate}
-                className="text-[12px] text-primary/80 hover:text-primary disabled:opacity-50 transition-colors"
+                className="text-[12px] text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
               >
                 {checkingUpdate ? "Checking…" : "Check for Updates"}
               </button>

@@ -59,7 +59,7 @@ function OnboardingPermissionRow({
       <div className="flex items-center gap-3">
         <div className={cn(
           "w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors",
-          granted ? "bg-success/15 text-success" : "bg-amber-500/15 text-amber-500 dark:text-amber-400"
+          granted ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
         )}>
           <Icon size={14} />
         </div>
@@ -74,7 +74,7 @@ function OnboardingPermissionRow({
             <CheckCircle2 size={12} /> Granted
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] text-warning font-medium">
             <AlertCircle size={12} /> Missing
           </span>
         )}

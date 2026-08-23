@@ -111,7 +111,7 @@ export function AIView() {
           <span
             className={cn(
               "w-2 h-2 rounded-full flex-none",
-              ollamaUp ? "bg-success shadow-[0_0_6px_var(--color-success)]" : "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]"
+              ollamaUp ? "bg-success shadow-[0_0_6px_var(--color-success)]" : "bg-warning shadow-[0_0_6px_var(--color-warning)]"
             )}
           />
           <div>
@@ -130,7 +130,7 @@ export function AIView() {
         <button
           onClick={refreshOllama}
           disabled={checkingOllama}
-          className="flex items-center gap-1.5 text-[12px] text-steelIce/80 hover:text-steelIce disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 text-[12px] text-steelIce hover:text-steelIce/80 disabled:opacity-50 transition-colors"
         >
           <RefreshCw size={12} className={checkingOllama ? "animate-spin" : ""} />
           Refresh

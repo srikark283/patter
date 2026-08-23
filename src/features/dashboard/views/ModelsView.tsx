@@ -41,7 +41,7 @@ const MODELS: ModelSpec[] = [
 function RatingDots({ value, label }: { value: number; label: string }) {
   return (
     <span className="inline-flex items-center gap-1" title={`${label}: ${value}/5`}>
-      <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80">{label}</span>
+      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</span>
       <span className="flex gap-[2.5px]">
         {[1, 2, 3, 4, 5].map((i) => (
           <span
@@ -210,7 +210,7 @@ export function ModelsView({
         <div className="shrink-0 flex items-center gap-1.5">
           {isPartial && !isDownloading && !isDeleting && (
             <span
-              className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20"
+              className="text-[11px] px-2 py-0.5 rounded-full bg-warning/10 text-warning ring-1 ring-warning/25"
               title={`An interrupted download left ${strayMb} MB on disk. Click the model to download it again, or delete to reclaim the space.`}
             >
               Incomplete · {strayMb} MB
@@ -235,7 +235,7 @@ export function ModelsView({
           ) : isSettingActive || isDeleting ? (
             <Loader2 size={15} className="animate-spin text-steelIce" />
           ) : isDownloaded ? (
-            <span className="text-[11px] text-muted-foreground/60 group-hover:text-steelIce transition-colors">
+            <span className="text-[11px] text-muted-foreground group-hover:text-steelIce transition-colors">
               Use
             </span>
           ) : !isDownloading ? (
@@ -277,7 +277,7 @@ export function ModelsView({
           <section className="space-y-3">
             <div className="flex items-center gap-2 px-1">
               <Type size={12} className="text-muted-foreground/60" />
-              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/60">
+              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                 English only
               </span>
             </div>
@@ -287,7 +287,7 @@ export function ModelsView({
           <section className="space-y-3">
             <div className="flex items-center gap-2 px-1">
               <Globe size={12} className="text-muted-foreground/60" />
-              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/60">
+              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                 Multilingual
               </span>
             </div>

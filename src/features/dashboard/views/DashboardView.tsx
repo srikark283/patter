@@ -151,10 +151,16 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
     getSettings().then((s) => setHotkey(s.hotkey)).catch(console.error);
   }, []);
 
+  // Rolls into hours. The headline figure grows without bound, and a heavy
+  // user's "27400s saved" rendered as "456m 40s" — technically right, and
+  // nobody reads minutes past about ninety of them.
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}m ${secs}s`;
+    const total = Math.floor(seconds);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    if (m > 0) return `${m}m ${total % 60}s`;
+    return `${total}s`;
   };
 
   const timeAgo = (ms: number) => {
@@ -235,7 +241,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
       <PageHeader 
-        title={`${greeting} 👋`} 
+        title={`${greeting}!`} 
         description="Here's an overview of your dictations." 
         action={
           hotkey && (
@@ -274,9 +280,9 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Total Words */}
         <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
-          {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekWords} this week</div>}
+          {weekWords > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekWords.toLocaleString()} this week</div>}
           {weekWords === 0 && <div className="h-5 mb-3" />}
-          <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.total_words : <Skeleton className="h-8 w-16" />}</div>
+          <div className="text-[28px] font-semibold tracking-tight tabular-nums mb-0.5 text-foreground">{stats ? stats.total_words.toLocaleString() : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Total Words</div>
           <div className={WATERMARK}><WholeWord size={100} strokeWidth={1.4} /></div>
         </div>
@@ -285,7 +291,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
           {weekDictations > 0 && <div className="inline-block px-2.5 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-semibold mb-3 whitespace-nowrap">+{weekDictations} this week</div>}
           {weekDictations === 0 && <div className="h-5 mb-3" />}
-          <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? stats.transcriptions_count : <Skeleton className="h-8 w-16" />}</div>
+          <div className="text-[28px] font-semibold tracking-tight tabular-nums mb-0.5 text-foreground">{stats ? stats.transcriptions_count.toLocaleString() : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Dictations</div>
           <div className={WATERMARK}><AudioLines size={100} strokeWidth={1.4} /></div>
         </div>
@@ -293,7 +299,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         {/* Time Saved */}
         <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
           <div className="h-5 mb-3" />
-          <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{stats ? formatTime(stats.time_saved_seconds) : <Skeleton className="h-8 w-24" />}</div>
+          <div className="text-[28px] font-semibold tracking-tight tabular-nums mb-0.5 text-foreground">{stats ? formatTime(stats.time_saved_seconds) : <Skeleton className="h-8 w-24" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Time Saved</div>
           <div className={WATERMARK}><Timer size={100} strokeWidth={1.4} /></div>
         </div>
@@ -301,7 +307,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         {/* Streak */}
         <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
           <div className="h-5 mb-3" />
-          <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? `${longestStreak} day${longestStreak === 1 ? '' : 's'}` : <Skeleton className="h-8 w-20" />}</div>
+          <div className="text-[28px] font-semibold tracking-tight tabular-nums mb-0.5 text-foreground">{history ? `${longestStreak} day${longestStreak === 1 ? '' : 's'}` : <Skeleton className="h-8 w-20" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Longest Streak</div>
           <div className={WATERMARK}><Flame size={100} strokeWidth={1.4} /></div>
         </div>
@@ -309,7 +315,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
         {/* Apps */}
         <div className="relative overflow-hidden surface-raised rounded-xl p-5 pt-4">
           <div className="h-5 mb-3" />
-          <div className="text-[28px] font-semibold tracking-tight mb-0.5 text-foreground">{history ? uniqueAppsCount : <Skeleton className="h-8 w-16" />}</div>
+          <div className="text-[28px] font-semibold tracking-tight tabular-nums mb-0.5 text-foreground">{history ? uniqueAppsCount : <Skeleton className="h-8 w-16" />}</div>
           <div className="text-xs text-muted-foreground font-medium">Apps Used</div>
           <div className={WATERMARK}><LayoutGrid size={100} strokeWidth={1.4} /></div>
         </div>
@@ -325,7 +331,7 @@ export function DashboardView({ stats, history, onViewAll }: Props) {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
-                <p className="text-[11px] text-muted-foreground/70">Words dictated per day</p>
+                <p className="text-[11px] text-muted-foreground">Words dictated per day</p>
               </div>
               <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
                 {[

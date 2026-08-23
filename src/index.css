@@ -24,6 +24,7 @@
   --color-mist: #e8f0f7;
   --color-graphite: rgba(12, 15, 19, 0.88);
   --color-success: #4fc79a;
+  --color-warning: #fbbf24;
   /* --font-sans: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; */
   --font-sans: 'Geist Variable', sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
@@ -128,7 +129,11 @@
   /* Light surfaces sit *above* the page, so they cast rather than glow. */
   --surface-shadow: 0 1px 2px rgba(20, 23, 28, 0.04), 0 8px 24px -12px rgba(20, 23, 28, 0.10);
   --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --destructive: #d24b4b;
+  /* One step deeper than the dark theme's red. #d24b4b is 4.33:1 on the white
+     card, which drops to 3.8:1 once it sits on its own `bg-destructive/10`
+     tint — the ghost destructive button ("Clear all") rendered pale pink ink
+     on pale pink fill. #b83232 holds 5.9:1 on the card and 5.1:1 on the tint. */
+  --destructive: #b83232;
   --border: rgba(20, 23, 28, 0.10);
   --input: rgba(20, 23, 28, 0.14);
   --ring: var(--color-steel);
@@ -141,6 +146,18 @@
      call sites keeps every current and future usage correct.
      The HUD is unaffected: hud.html is always `.dark`. */
   --color-steelIce: #2f5d85;
+  /* Same problem, same fix: the mint #4fc79a is tuned for near-black and is
+     only 2.1:1 on white — the "+N this week" pills and the "Granted"
+     permission badges were legible in dark and a pale smudge in light. The
+     deep step holds 5.4:1 on the card and 4.7:1 on its own `bg-success/10`
+     tint. `.dark` keeps the mint, which reads on #101216 at 8.9:1. */
+  --color-success: #0f7a52;
+  /* Same story again for the warning ramp. The amber the dark theme wants is
+     2.2:1 on white; permission rows shipped "Missing" in it, unreadable. Four
+     files each reached for a different amber (400 bare, 500, 600, 200/90) and
+     none of them cleared the floor in light. #96530b holds 5.9:1 on the card
+     and 4.8:1 on its own /15 tint. */
+  --color-warning: #96530b;
   /* One step darker than the dark theme's equivalent: #828b99 on white is only
      just past the contrast floor and reads washed out next to solid ink. */
   --muted-foreground: #5c6675;
@@ -175,6 +192,11 @@
   --radius: 0.625rem;
   --waveform-rgb: 174, 205, 232;
   --color-steelIce: #aecde8;
+  /* These must be restated here, not only in `:root`. `:root` and `.dark` both
+     match <html>, so any token the light block overrides and the dark block
+     omits leaks into dark mode. */
+  --color-success: #4fc79a;
+  --color-warning: #fbbf24;
 }
 
 /* Instrument-panel micro label: uppercase mono, wide tracking. */
