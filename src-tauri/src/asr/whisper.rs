@@ -1,5 +1,6 @@
 use super::ASREngine;
 use anyhow::Result;
+use std::sync::OnceLock;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState};
 
 /// whisper.cpp trims the initial prompt to `n_text_ctx / 2 - 1` tokens. Every
@@ -38,6 +39,26 @@ fn cap_prompt(prompt: &str, max_tokens: usize, count: impl Fn(&str) -> usize) ->
     terms[terms.len() - kept..].join(", ")
 }
 
+/// whisper.cpp defaults to `min(4, hardware_concurrency)`, a floor chosen for
+/// machines nothing here runs on.
+///
+/// Measured on an 8P+4E Mac with Metal on, this changes nothing — 4 threads and
+/// 8 both transcribe 7.8s of audio in ~228ms, because the GPU is doing the
+/// work and only the mel spectrogram is left on the CPU. It is here for the
+/// Windows and Linux builds, which have no `metal` feature and run the whole
+/// encoder on those threads.
+///
+/// ponytail: capped at 8 because past that the count includes efficiency cores,
+/// which finish their share late and leave the fast cores waiting at the join.
+/// The exact split is `hw.perflevel0.logicalcpu`, a sysctl and a new dependency
+/// away if the cap ever measures worse than the real number.
+fn n_threads() -> i32 {
+    static N: OnceLock<i32> = OnceLock::new();
+    *N.get_or_init(|| {
+        std::thread::available_parallelism().map_or(4, |n| n.get().clamp(4, 8) as i32)
+    })
+}
+
 pub struct WhisperEngine {
     ctx: WhisperContext,
     whisper_mode: bool,
@@ -64,7 +85,14 @@ fn is_english_only(model_path: &str) -> bool {
 
 impl WhisperEngine {
     pub fn new(model_path: &str) -> Result<Self> {
-        let ctx = WhisperContext::new_with_params(model_path, WhisperContextParameters::default())?;
+        let mut params = WhisperContextParameters::default();
+        // Fused attention: fewer kernel launches and no full attention matrix in
+        // memory, which is where a Metal build spends most of the encode.
+        // Measured on small.en over 7.8s of speech, 270ms → 227ms, repeatably.
+        // Off by default in whisper.cpp only because it is incompatible with DTW
+        // token timestamps, which nothing here asks for.
+        params.flash_attn(true);
+        let ctx = WhisperContext::new_with_params(model_path, params)?;
         let english_only = is_english_only(model_path);
         Ok(Self { ctx, whisper_mode: false, state: None, english_only })
     }
@@ -89,6 +117,7 @@ impl ASREngine for WhisperEngine {
         } else {
             FullParams::new(SamplingStrategy::Greedy { best_of: 1 })
         };
+        params.set_n_threads(n_threads());
         params.set_print_progress(false);
         params.set_print_special(false);
         params.set_print_realtime(false);
@@ -244,3 +273,4 @@ mod tests {
         assert_eq!(MAX_PROMPT_TOKENS, 448 / 2 - 1);
     }
 }
+

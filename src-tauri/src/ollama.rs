@@ -755,10 +755,6 @@ fn run_json_generate<T: serde::de::DeserializeOwned>(model: &str, prompt: &str) 
 mod tests {
     use super::*;
 
-    /// A fence that survives lands in the user's editor as literal backticks,
-    /// and a fence stripped too eagerly eats real content — a rewrite that is
-    /// *about* markdown fences, or an unclosed one.
-    #[test]
     /// Two things at once. Every token before the last two messages must be
     /// identical whatever the context is, or Ollama reprefills the examples on
     /// every dictation — and the context must stay a system turn rather than
@@ -795,6 +791,9 @@ mod tests {
         assert!(!last.content.contains("Casual tone"));
     }
 
+    /// A fence that survives lands in the user's editor as literal backticks,
+    /// and a fence stripped too eagerly eats real content — a rewrite that is
+    /// *about* markdown fences, or an unclosed one.
     #[test]
     fn strip_fence_unwraps_only_a_complete_fence() {
         assert_eq!(strip_fence("```rust\nlet x = 1;\n```"), "let x = 1;");
@@ -854,3 +853,5 @@ mod tests {
         assert_eq!(raw[raw.find("</think>").unwrap() + 8..].trim(), "Ship it.");
     }
 }
+
+

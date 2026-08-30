@@ -296,6 +296,25 @@ fn main() {
                     println!("[warm] ASR ready in {}ms", started.elapsed().as_millis());
                 }
 
+                let (trim_silence, whisper_mode) = {
+                    let s = state.settings.lock().unwrap();
+                    (s.trim_silence, s.whisper_mode)
+                };
+                // Silero's onnxruntime session otherwise gets built on the first
+                // dictation, between the recording stopping and Whisper starting.
+                // Downloads the 2.3MB model here too, if this is a first run.
+                if trim_silence {
+                    let threshold = if whisper_mode {
+                        vad::WHISPER_THRESHOLD
+                    } else {
+                        vad::DEFAULT_THRESHOLD
+                    };
+                    match vad::ensure_model(&warm_handle).and_then(|p| vad::warm(&p, threshold)) {
+                        Ok(()) => {}
+                        Err(e) => eprintln!("[warm] VAD warm-up skipped: {}", e),
+                    }
+                }
+
                 let (cleanup_enabled, model, keep_alive_minutes) = {
                     let s = state.settings.lock().unwrap();
                     (s.llm_cleanup_enabled, s.ollama_model.clone(), s.ollama_keep_alive_minutes)
