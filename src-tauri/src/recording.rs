@@ -182,6 +182,13 @@ pub fn start_recording(app: &tauri::AppHandle) {
         if let Some(model) = settings.ollama_model.clone() {
             crate::ollama::warm_background(model, settings.ollama_keep_alive_minutes);
         }
+        // The embedding model is loaded mid-pipeline, between the transcript
+        // and cleanup, so a cold one costs more than a cold chat model: the
+        // user is already waiting when it starts. Only worth loading when
+        // there are memories for it to score.
+        if !settings.memories.is_empty() {
+            crate::ollama::warm_embedding_background(settings.ollama_keep_alive_minutes);
+        }
     }
 
     let _ = app.emit("patter://state", "Listening...");
@@ -571,9 +578,17 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                          that nothing in the transcript sounds like.",
                     );
                 }
-                if !settings.memories.is_empty() {
+                // A one- or two-word transcript — a name, a filename, a search
+                // box — has nothing for the memory index to match on, and the
+                // embedding round trip sits directly in front of cleanup.
+                let worth_embedding = text.split_whitespace().count() >= 4;
+                if worth_embedding && !settings.memories.is_empty() {
                     // Embed the current text
-                    if let Ok(text_emb) = crate::ollama::get_embedding("nomic-embed-text", &text) {
+                    if let Ok(text_emb) = crate::ollama::get_embedding(
+                        crate::ollama::EMBEDDING_MODEL,
+                        &text,
+                        settings.ollama_keep_alive_minutes,
+                    ) {
                         let mut scored_memories: Vec<(&db::MemoryFact, f32)> = settings.memories.iter().filter_map(|m| {
                             if m.embedding.is_empty() || text_emb.len() != m.embedding.len() {
                                 None
@@ -703,6 +718,22 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         let word_count = text.split_whitespace().count();
         let duration_seconds = audio.len() as f32 / WHISPER_SAMPLE_RATE as f32;
 
+        // Output first, then persist. Nothing below can change the text,
+        // and the sqlite write plus the tray refresh were milliseconds the
+        // user spent watching an empty cursor.
+        let mode = settings.output_mode;
+
+        if paste::accessibility_trusted() {
+            let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
+            paste::paste_text(&app_handle, &mode, &text);
+        } else {
+            // Can't synthesize keystrokes without the Accessibility permission;
+            // land the text on the clipboard so it isn't lost and tell the UI.
+            paste::copy_text(&text);
+            let _ = app_handle.emit("patter://accessibility_missing", ());
+            let _ = app_handle.emit("patter://state", "⚠ Copied — needs Accessibility");
+        }
+
         let db = db::Db::new(&app_handle);
         db.add_record(db::TranscriptionRecord {
             id: String::new(),
@@ -722,19 +753,6 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         });
         let _ = app_handle.emit("patter://db_updated", ());
         tray::refresh(&app_handle);
-
-        let mode = settings.output_mode;
-
-        if paste::accessibility_trusted() {
-            let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
-            paste::paste_text(&app_handle, &mode, &text);
-        } else {
-            // Can't synthesize keystrokes without the Accessibility permission;
-            // land the text on the clipboard so it isn't lost and tell the UI.
-            paste::copy_text(&text);
-            let _ = app_handle.emit("patter://accessibility_missing", ());
-            let _ = app_handle.emit("patter://state", "⚠ Copied — needs Accessibility");
-        }
 
         thread::sleep(Duration::from_millis(1500));
         let _ = app_handle.emit("patter://state", "Idle");

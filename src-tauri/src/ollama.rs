@@ -1,10 +1,24 @@
 use serde::Deserialize;
 use serde::Serialize;
 use std::io::{BufRead, BufReader};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 const OLLAMA_URL: &str = "http://localhost:11434";
+
+/// The model RAG embeddings go through. Named here because it has to be warmed
+/// by the same code that warms the chat model.
+pub const EMBEDDING_MODEL: &str = "nomic-embed-text";
+
+/// One HTTP client for every Ollama call. `Client::new()` per request builds a
+/// fresh connection pool and tears it down again, so no connection to the local
+/// server was ever reused between dictations. Per-call timeouts still come from
+/// the request builder, which overrides the client default.
+fn client() -> &'static reqwest::blocking::Client {
+    static CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+    CLIENT.get_or_init(reqwest::blocking::Client::new)
+}
 
 /// Encodes the configured keep-alive for Ollama's API. Ollama's own default is
 /// 5 minutes, which unloads the model between dictations and makes the next
@@ -220,13 +234,19 @@ struct EmbeddingResponse {
     embedding: Vec<f32>,
 }
 
-pub fn get_embedding(model: &str, prompt: &str) -> Result<Vec<f32>, String> {
-    let resp: EmbeddingResponse = reqwest::blocking::Client::new()
+/// `keep_alive` matters as much here as it does for the chat model, and for a
+/// worse reason: this call sits *inside* the dictation hot path, between the
+/// transcript and cleanup. Left on Ollama's 5-minute default the embedding
+/// model unloads between dictations, and the next one pays a cold load
+/// serially, in front of the user, before cleanup has even started.
+pub fn get_embedding(model: &str, prompt: &str, keep_alive_minutes: i32) -> Result<Vec<f32>, String> {
+    let resp: EmbeddingResponse = client()
         .post(format!("{}/api/embeddings", OLLAMA_URL))
         .timeout(Duration::from_secs(10))
         .json(&serde_json::json!({
             "model": model,
             "prompt": prompt,
+            "keep_alive": keep_alive_value(keep_alive_minutes),
         }))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?
@@ -237,7 +257,7 @@ pub fn get_embedding(model: &str, prompt: &str) -> Result<Vec<f32>, String> {
 
 /// List locally downloaded Ollama models. Errors if Ollama isn't running.
 pub fn list_models() -> Result<Vec<String>, String> {
-    let resp: TagsResponse = reqwest::blocking::Client::new()
+    let resp: TagsResponse = client()
         .get(format!("{}/api/tags", OLLAMA_URL))
         .timeout(Duration::from_secs(3))
         .send()
@@ -253,27 +273,68 @@ pub fn list_models() -> Result<Vec<String>, String> {
 /// also refreshes `keep_alive`. The flag stops rapid hotkey toggling from
 /// piling up threads on a load that is already in flight.
 pub fn warm_background(model: String, keep_alive_minutes: i32) {
-    static WARMING: AtomicBool = AtomicBool::new(false);
-    if WARMING.swap(true, Ordering::SeqCst) {
+    let key = model.clone();
+    spawn_warm(key, move || warm_cleanup(&model, keep_alive_minutes));
+}
+
+/// Same idea for the RAG embedding model. It cannot go through `warm`: the
+/// `/api/generate` load route is for generative models, so the load is done by
+/// asking for one throwaway embedding instead.
+pub fn warm_embedding_background(keep_alive_minutes: i32) {
+    spawn_warm(EMBEDDING_MODEL.to_string(), move || {
+        get_embedding(EMBEDDING_MODEL, "warm", keep_alive_minutes).map(|_| ())
+    });
+}
+
+/// Load one model on a background thread, skipping models already in flight.
+/// Keyed by model name rather than a single flag: the chat and embedding models
+/// are warmed back to back on the same hotkey press, and one flag let the
+/// second call fall out as a duplicate of the first.
+fn spawn_warm(model: String, load: impl FnOnce() -> Result<(), String> + Send + 'static) {
+    static WARMING: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    let warming = WARMING.get_or_init(Default::default);
+    if !warming.lock().unwrap().insert(model.clone()) {
         return;
     }
     std::thread::spawn(move || {
         let started = std::time::Instant::now();
-        match warm(&model, keep_alive_minutes) {
+        match load() {
             Ok(()) => println!("[warm] {} ready in {}ms", model, started.elapsed().as_millis()),
-            Err(e) => eprintln!("[warm] Ollama warm-up skipped: {}", e),
+            Err(e) => eprintln!("[warm] {} warm-up skipped: {}", model, e),
         }
-        WARMING.store(false, Ordering::SeqCst);
+        warming.lock().unwrap().remove(&model);
     });
 }
 
-/// Load `model` into Ollama's memory without generating anything, so the first
-/// dictation of a session doesn't pay the weight-load cost.
-pub fn warm(model: &str, keep_alive_minutes: i32) -> Result<(), String> {
-    reqwest::blocking::Client::new()
-        .post(format!("{}/api/generate", OLLAMA_URL))
+/// Load `model` into Ollama's memory **and** leave the cleanup prefix in its KV
+/// cache, so the first dictation of a session pays neither cost.
+///
+/// Loading alone is not enough, and the timings say so plainly: with the model
+/// already resident (`warm` returning in 39ms) the first cleanup of a session
+/// still took 4724ms while every later one in the same session took ~700-1000ms.
+/// The difference is prompt prefill — the system prompt plus 26 few-shot pairs,
+/// evaluated from scratch because an empty `/api/generate` caches nothing.
+/// Sending that exact prefix here, capped at a one-token reply, moves the
+/// prefill to app launch and to the hotkey press, where nobody is waiting on it.
+///
+/// ponytail: Ollama caches one prefix per slot, so a command-mode turn — which
+/// has a different system prompt and its own examples — evicts this one, and the
+/// next dictation prefills again. Raising `OLLAMA_NUM_PARALLEL` to 2 gives both
+/// prefixes a slot if that turns out to be a common enough pattern to matter.
+pub fn warm_cleanup(model: &str, keep_alive_minutes: i32) -> Result<(), String> {
+    client()
+        .post(format!("{}/api/chat", OLLAMA_URL))
         .timeout(Duration::from_secs(180))
-        .json(&serde_json::json!({ "model": model, "keep_alive": keep_alive_value(keep_alive_minutes) }))
+        .json(&serde_json::json!({
+            "model": model,
+            "messages": cleanup_prefix(),
+            "stream": false,
+            "think": false,
+            "keep_alive": keep_alive_value(keep_alive_minutes),
+            // One token, thrown away. The reply is not the point; the prefilled
+            // prefix it leaves behind is.
+            "options": { "temperature": 0.0, "top_k": 1, "num_predict": 1 },
+        }))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?;
     Ok(())
@@ -298,7 +359,7 @@ fn stream_chat(
     mut on_partial: impl FnMut(&str),
     cancelled: impl Fn() -> bool,
 ) -> Result<String, String> {
-    let resp = reqwest::blocking::Client::new()
+    let resp = client()
         .post(format!("{}/api/chat", OLLAMA_URL))
         .timeout(Duration::from_secs(60))
         .json(&serde_json::json!({
@@ -307,6 +368,17 @@ fn stream_chat(
             "stream": true,
             "think": false,
             "keep_alive": keep_alive_value(keep_alive_minutes),
+            // Cleanup and command mode are deterministic rewrites, not creative
+            // generation, so Ollama's sampling defaults (temperature 0.8,
+            // top_k 40) only buy variance between two runs on the same words.
+            // `num_predict` is the runaway guard: a small model that starts
+            // looping on a garbled transcript otherwise generates until the
+            // 60s timeout, and the user waits through all of it.
+            "options": {
+                "temperature": 0.0,
+                "top_k": 1,
+                "num_predict": 1024,
+            },
         }))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?;
@@ -411,24 +483,15 @@ fn strip_fence(text: &str) -> String {
     }
 }
 
-pub fn cleanup(
-    model: &str,
-    text: &str,
-    extra: Option<&str>,
-    keep_alive_minutes: i32,
-    on_partial: impl FnMut(&str),
-    cancelled: impl Fn() -> bool,
-) -> Result<String, String> {
-    let extra_instruction = extra
-        .map(|e| format!("\n\nAdditional instruction for this context: {}", e))
-        .unwrap_or_default();
-        
-    let mut messages = vec![
-        ChatMessage {
-            role: "system".to_string(),
-            content: format!("{}{}", SYSTEM_PROMPT, extra_instruction),
-        }
-    ];
+/// The part of a cleanup request that never varies: the system prompt and the
+/// few-shot pairs. `warm_cleanup` sends exactly this so Ollama prefills it
+/// ahead of time, and `cleanup_messages` appends to it — the two must stay
+/// byte-identical or the warmed cache is not the one that gets reused.
+fn cleanup_prefix() -> Vec<ChatMessage> {
+    let mut messages = vec![ChatMessage {
+        role: "system".to_string(),
+        content: SYSTEM_PROMPT.to_string(),
+    }];
 
     for (user, assistant) in CLEANUP_EXAMPLES {
         messages.push(ChatMessage {
@@ -441,10 +504,58 @@ pub fn cleanup(
         });
     }
 
+    messages
+}
+
+/// The chat turns for one cleanup, split out so the ordering below can be
+/// asserted without a model.
+///
+/// Everything up to the last message is byte-identical on every call, which is
+/// what lets Ollama reuse the cached KV for the whole prefix. `extra` is not:
+/// it carries the app profile, the dictionary and the top RAG facts, so it
+/// changes with the target app and with what was said. Folding it into the
+/// system message put a per-dictation string at token 0 and invalidated the
+/// cache every time, reprefilling ~2k tokens of examples before a single new
+/// token could be decoded. It rides with the transcript in the final message
+/// instead, where it costs only its own length — and stays outside the
+/// `<transcript>` tags, so the untrusted-input rule is unchanged.
+fn cleanup_messages(text: &str, extra: Option<&str>) -> Vec<ChatMessage> {
+    let mut messages = cleanup_prefix();
+
+    // Per-dictation context — app profile, dictionary, RAG facts — as its own
+    // system turn after the examples. Two things have to hold at once: it must
+    // land after the cached prefix, and it must not be the last thing the model
+    // reads before the transcript. Inlined ahead of the transcript in the user
+    // message it became the operative instruction for the turn, and because the
+    // dictionary block ends on a negative constraint ("never insert a term…")
+    // the model answered by changing nothing: measured on qwen2.5:7b, fillers
+    // left in and not a mark of punctuation added, byte-identical output. As a
+    // system turn it reads as standing rules and cleanup behaves as it does
+    // with no context at all.
+    if let Some(extra) = extra {
+        messages.push(ChatMessage {
+            role: "system".to_string(),
+            content: extra.to_string(),
+        });
+    }
+
     messages.push(ChatMessage {
         role: "user".to_string(),
         content: format!("<transcript>\n{}\n</transcript>", text),
     });
+
+    messages
+}
+
+pub fn cleanup(
+    model: &str,
+    text: &str,
+    extra: Option<&str>,
+    keep_alive_minutes: i32,
+    on_partial: impl FnMut(&str),
+    cancelled: impl Fn() -> bool,
+) -> Result<String, String> {
+    let messages = cleanup_messages(text, extra);
 
     let raw_response = stream_chat(model, messages, keep_alive_minutes, on_partial, cancelled)?;
 
@@ -601,7 +712,7 @@ fn summarize_meeting_chunk(model: &str, transcript: &str, dictionary: &str, is_f
 }
 
 fn run_json_generate<T: serde::de::DeserializeOwned>(model: &str, prompt: &str) -> Result<T, String> {
-    let resp: GenerateResponse = reqwest::blocking::Client::new()
+    let resp: GenerateResponse = client()
         .post(format!("{}/api/generate", OLLAMA_URL))
         .timeout(Duration::from_secs(300))
         .json(&serde_json::json!({
@@ -647,6 +758,43 @@ mod tests {
     /// A fence that survives lands in the user's editor as literal backticks,
     /// and a fence stripped too eagerly eats real content — a rewrite that is
     /// *about* markdown fences, or an unclosed one.
+    #[test]
+    /// Two things at once. Every token before the last two messages must be
+    /// identical whatever the context is, or Ollama reprefills the examples on
+    /// every dictation — and the context must stay a system turn rather than
+    /// the last thing before the transcript, which is what made the model echo
+    /// its input straight back.
+    #[test]
+    fn context_lands_after_the_cached_prefix_and_before_the_transcript() {
+        let plain = cleanup_messages("hello there", None);
+        let with_context = cleanup_messages("hello there", Some("Casual tone."));
+        let warmed = cleanup_prefix();
+
+        // The warmed prefix has to be the prefix a real cleanup reuses; if
+        // these drift apart the warm-up primes a cache nothing ever hits.
+        for (i, w) in warmed.iter().enumerate() {
+            assert_eq!((&w.role, &w.content), (&plain[i].role, &plain[i].content));
+            assert_eq!(
+                (&w.role, &w.content),
+                (&with_context[i].role, &with_context[i].content),
+                "context moved the cached prefix at message {}",
+                i
+            );
+        }
+        assert_eq!(plain.len(), warmed.len() + 1);
+        assert_eq!(with_context.len(), warmed.len() + 2);
+
+        let context = &with_context[warmed.len()];
+        assert_eq!(context.role, "system");
+        assert_eq!(context.content, "Casual tone.");
+
+        // The transcript stays the last word, and untouched by the context.
+        let last = with_context.last().unwrap();
+        assert_eq!(last.role, "user");
+        assert_eq!(last.content, plain.last().unwrap().content);
+        assert!(!last.content.contains("Casual tone"));
+    }
+
     #[test]
     fn strip_fence_unwraps_only_a_complete_fence() {
         assert_eq!(strip_fence("```rust\nlet x = 1;\n```"), "let x = 1;");

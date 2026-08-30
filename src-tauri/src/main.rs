@@ -302,7 +302,7 @@ fn main() {
                 };
                 if let (true, Some(model)) = (cleanup_enabled, model) {
                     let started = std::time::Instant::now();
-                    match ollama::warm(&model, keep_alive_minutes) {
+                    match ollama::warm_cleanup(&model, keep_alive_minutes) {
                         Ok(()) => println!(
                             "[warm] {} ready in {}ms",
                             model,

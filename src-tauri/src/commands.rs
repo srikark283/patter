@@ -282,8 +282,21 @@ pub fn get_stats(app: tauri::AppHandle) -> db::AppStats {
 }
 
 #[tauri::command]
-pub fn get_ollama_embedding(model: String, prompt: String) -> Result<Vec<f32>, String> {
-    crate::ollama::get_embedding(&model, &prompt)
+pub fn get_ollama_embedding(
+    app: tauri::AppHandle,
+    model: String,
+    prompt: String,
+) -> Result<Vec<f32>, String> {
+    // Same keep-alive the dictation path uses: memory facts are embedded here
+    // when the user saves one, and leaving the model resident afterwards is
+    // exactly what the next dictation needs.
+    let keep_alive = app
+        .state::<AppState>()
+        .settings
+        .lock()
+        .unwrap()
+        .ollama_keep_alive_minutes;
+    crate::ollama::get_embedding(&model, &prompt, keep_alive)
 }
 
 #[tauri::command]
