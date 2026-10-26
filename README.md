@@ -6,7 +6,7 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 
 ### Dictation
 - **On-device transcription** — Whisper (OpenAI) and Parakeet (Nvidia), Metal/GPU-accelerated. Six models from 78 MB to 1.6 GB; pick fast or accurate per your hardware.
-- **AI cleanup** — built-in S1-mini by Superwhisper on Apple Silicon, or a local Ollama model, cleans up dictation before the text is typed. Silence and noise trimmed by on-device VAD (Silero) first.
+- **AI cleanup** — Built-in S1-mini by Superwhisper on Apple Silicon, or a local Ollama model, cleans up dictation before the text is typed. Silence and noise trimmed by on-device VAD (Silero) first.
 - **App-aware profiles** — Patter knows which app is frontmost and applies per-app cleanup rules (casual for Slack, verbatim for code editors, formal for Mail, and so on).
 - **Push-to-talk or toggle** — hold the hotkey to record and release to transcribe, or press once to start/stop. Works with modifier-only keys (e.g. right Option) or full combos.
 - **Two output modes** — instant paste (clipboard + simulated paste) or simulated typing (keystroke-by-keystroke, for remote desktops).
