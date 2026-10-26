@@ -15,6 +15,12 @@ jobs:
       matrix:
         platform: [macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
+    env:
+      # Use the same native compiler settings for tests and release builds.
+      # M1 baseline avoids ggml i8mm errors and supports every Apple Silicon Mac.
+      CFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
+      CXXFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
+      RUSTFLAGS: ${{ matrix.platform == 'windows-latest' && '-C target-feature=+crt-static' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,14 +41,17 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: xcodebuild -downloadComponent MetalToolchain
 
+      # Tauri validates bundled resource paths even when compiling unit tests.
+      - name: Build the bundled S1-mini runtime
+        if: matrix.platform == 'macos-latest'
+        run: npm run build:s1
+
       - name: Run regression tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Verify the built-in model on Apple Silicon
         if: matrix.platform == 'macos-latest'
-        run: |
-          npm run build:s1
-          cargo test --manifest-path src-tauri/Cargo.toml s1::tests::bundled_runtime_smoke -- --ignored --nocapture
+        run: cargo test --manifest-path src-tauri/Cargo.toml s1::tests::bundled_runtime_smoke -- --ignored --nocapture
 
       # Self-signed (not Apple Developer ID) codesigning, macOS only. Without
       # this, every release is signed ad-hoc with a fresh identity each build,
@@ -79,12 +88,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && 'Patter Local Signing' || '' }}
-          # M1 baseline: avoids ggml i8mm always_inline build break on the
-          # runner's Xcode clang, and keeps the binary running on every
-          # Apple Silicon Mac (i8mm only exists on M2+).
-          CFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
-          CXXFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
-          RUSTFLAGS: ${{ matrix.platform == 'windows-latest' && '-C target-feature=+crt-static' || '' }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Patter ${{ github.ref_name }}"
