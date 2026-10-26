@@ -19,6 +19,8 @@ export interface Settings {
   language: string;
   silence_timeout_ms: number;
   llm_cleanup_enabled: boolean;
+  cleanup_provider: "ollama" | "built_in";
+  built_in_model: "s1_mini";
   ollama_model: string | null;
   meeting_ollama_model: string | null;
   meeting_engine_id: string | null;
@@ -281,3 +283,22 @@ export function dictionarySuggestions() {
 export function dismissDictionarySuggestion(key: string) {
   return invoke<void>("dismiss_dictionary_suggestion", { key });
 }
+
+
+export const onCleanupError = (callback: (message: string) => void) =>
+  listen<string>("patter://error", event => callback(event.payload));
+
+export interface S1Status {
+  supported: boolean;
+  installed: boolean;
+  runtime_ready: boolean;
+  downloading: boolean;
+  progress: number;
+  download_bytes: number;
+  downloading_model: Settings["built_in_model"] | null;
+}
+export const getS1Status = (model: Settings["built_in_model"]) => invoke<S1Status>("s1_status", { model });
+export const installS1 = (model: Settings["built_in_model"]) => invoke<void>("install_s1", { model });
+export const testS1Cleanup = (text: string, appName: string | null = null) => invoke<string>("test_s1_cleanup", { text, appName });
+
+export const enableS1 = () => invoke<Settings>("enable_s1");

@@ -3,8 +3,9 @@ import { toast } from "sonner";
 import { RefreshCw, Trash2, SparkleIcon, Clock } from "lucide-react";
 import { NativeAppIcon } from "../components/NativeAppIcon";
 import { MagicWandIcon, LightningAIcon } from '@phosphor-icons/react'
-import { getSettings, updateSettings, listOllamaModels, Settings } from "../../../lib/ipc";
+import { getSettings, updateSettings, listOllamaModels, getS1Status, enableS1, Settings, S1Status } from "../../../lib/ipc";
 import { PageHeader } from "../components/PageHeader";
+import { S1Settings } from "../components/S1Settings";
 import { SettingIcon } from "../components/SettingIcon";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -53,6 +54,31 @@ const APP_PROFILE_TEMPLATES = [
 export function AIView() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
+  const [providerChoice, setProviderChoice] = useState<Settings["cleanup_provider"]>("ollama");
+  const [s1Status, setS1Status] = useState<S1Status | null>(null);
+  const [s1Error, setS1Error] = useState("");
+  const [s1StatusError, setS1StatusError] = useState("");
+  const [setupBusy, setSetupBusy] = useState(false);
+  const refreshS1 = async () => {
+    try { setS1Status(await getS1Status("s1_mini")); setS1StatusError(""); }
+    catch (error) { setS1StatusError(String(error)); }
+  };
+  useEffect(() => {
+    void refreshS1();
+    if (providerChoice !== "built_in") return;
+    const timer = window.setInterval(() => { void refreshS1(); }, 1000);
+    return () => window.clearInterval(timer);
+  }, [providerChoice]);
+  const setUpS1 = async () => {
+    setSetupBusy(true); setS1Error("");
+    try {
+      const saved = await enableS1();
+      setSettings(saved); setProviderChoice("built_in");
+      await refreshS1();
+      toast.success("S1-mini cleanup enabled in English");
+    } catch (error) { setS1Error(String(error)); }
+    finally { setSetupBusy(false); }
+  };
   const [checkingOllama, setCheckingOllama] = useState(false);
   
   const refreshOllama = () => {
@@ -64,7 +90,7 @@ export function AIView() {
   };
 
   useEffect(() => {
-    getSettings().then(setSettings).catch(console.error);
+    getSettings().then(saved => { setSettings(saved); setProviderChoice(saved.cleanup_provider); }).catch(console.error);
     refreshOllama();
   }, []);
 
@@ -74,9 +100,11 @@ export function AIView() {
     setSettings(newSettings);
     try {
       await updateSettings(newSettings);
+      return true;
     } catch (e) {
       toast.error("Failed to save settings: " + e);
       setSettings(settings);
+      return false;
     }
   };
 
@@ -87,7 +115,7 @@ export function AIView() {
       <div className="space-y-6 pb-10">
         <PageHeader
           title="Intelligence"
-          description="Local LLM features powered by Ollama — cleanup, meeting notes, per-app tone."
+          description="Local intelligence for dictation cleanup, meeting notes, and per-app tone."
         />
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-[104px] w-full rounded-xl" />
@@ -97,16 +125,24 @@ export function AIView() {
   }
 
   const ollamaUp = ollamaModels !== null;
+  const builtInSelected = providerChoice === "built_in";
+  const s1Ready = !!s1Status?.supported && s1Status.installed && s1Status.runtime_ready;
+  const cleanupActive = settings.cleanup_provider === providerChoice && settings.llm_cleanup_enabled;
+  const chooseProvider = async (value: Settings["cleanup_provider"]) => {
+    const previous = providerChoice;
+    setProviderChoice(value);
+    if (value === "ollama" && !await update({ cleanup_provider: value })) setProviderChoice(previous);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <PageHeader
         title="Intelligence"
-        description="Local LLM features powered by Ollama — cleanup, meeting notes, per-app tone."
+        description="Local intelligence for dictation cleanup, meeting notes, and per-app tone."
       />
 
       {/* Ollama status */}
-      <div className="surface-raised rounded-xl p-4 flex items-center justify-between">
+      {providerChoice === "ollama" && <div className="surface-raised rounded-xl p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span
             className={cn(
@@ -135,7 +171,7 @@ export function AIView() {
           <RefreshCw size={12} className={checkingOllama ? "animate-spin" : ""} />
           Refresh
         </button>
-      </div>
+      </div>}
 
       {/* Dictation cleanup */}
       <section className="space-y-4">
@@ -143,21 +179,37 @@ export function AIView() {
         <div className="surface-raised rounded-xl divide-y divide-foreground/5">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
-              <SettingIcon icon={SparkleIcon} active={settings.llm_cleanup_enabled} />
+              <SettingIcon icon={SparkleIcon} active={cleanupActive} />
               <div>
-                <p className="text-[13px] font-medium text-foreground/90">Semantic Cleanup</p>
+                <p className="text-[13px] font-medium text-foreground/90">Dictation Cleanup</p>
                 <p className="text-[11px] text-muted-foreground">
                   Polish transcripts — fixes grammar, removes filler words
                 </p>
               </div>
             </div>
             <Switch
-              checked={settings.llm_cleanup_enabled}
-              onCheckedChange={(checked) => update({ llm_cleanup_enabled: checked })}
+              checked={cleanupActive}
+              disabled={setupBusy || (builtInSelected && (!s1Ready || settings.language !== "en"))}
+              aria-label="Enable dictation cleanup"
+              onCheckedChange={(checked) => builtInSelected && checked ? setUpS1() : update({ llm_cleanup_enabled: checked })}
             />
           </div>
 
-          {settings.llm_cleanup_enabled && (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <p className="text-[13px] font-medium text-foreground/90" id="cleanup-provider-label">Dictation Cleanup Provider</p>
+              <p className="text-[11px] text-muted-foreground">Meetings, voice commands, and memory embeddings use Ollama.</p>
+            </div>
+            <Select disabled={setupBusy} value={providerChoice} onValueChange={chooseProvider}>
+              <SelectTrigger aria-labelledby="cleanup-provider-label" className="w-48 bg-background border-foreground/10 text-[13px]"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="ollama">Ollama</SelectItem><SelectItem value="built_in" disabled={!s1Status?.supported}>Built-in</SelectItem></SelectContent>
+            </Select>
+          </div>
+          {s1Status && !s1Status.supported && <p className="px-4 pb-4 text-xs text-muted-foreground">Built-in cleanup requires Apple Silicon and macOS 14 or newer. Use Ollama on this device.</p>}
+          {s1StatusError && !builtInSelected && <div role="alert" className="p-4 text-sm text-destructive"><p>Could not check built-in availability: {s1StatusError}</p><button onClick={refreshS1} className="rounded-md underline underline-offset-4 focus-visible:ring-focus">Retry</button></div>}
+          {builtInSelected && <S1Settings settings={settings} status={s1Status} error={s1Error || s1StatusError} busy={setupBusy} onEnable={setUpS1} onRefresh={() => { setS1Error(""); void refreshS1(); }} />}
+
+          {providerChoice === "ollama" && (
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
                 <SettingIcon icon={LightningAIcon} active={!!settings.ollama_model} />
@@ -190,7 +242,7 @@ export function AIView() {
             </div>
           )}
 
-          {settings.llm_cleanup_enabled && (
+          {settings.llm_cleanup_enabled && providerChoice === "ollama" && (
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
                 <SettingIcon icon={Clock} active={settings.ollama_keep_alive_minutes !== 0} />
@@ -262,8 +314,8 @@ export function AIView() {
         <span className="t-label block px-1 pb-1">App Profiles</span>
         <div className="surface-raised rounded-xl p-4 space-y-3">
           <p className="text-[11px] text-muted-foreground">
-            Extra cleanup instruction when dictating into a matching app (name substring, e.g.
-            "slack"). {!settings.llm_cleanup_enabled && "Requires Semantic Cleanup to be enabled."}
+            Ollama follows the full instruction. S1-mini uses supported tone, list, and email hints; code and terminal dictation stays verbatim. Match an app by name (e.g.
+            "slack"). {!settings.llm_cleanup_enabled && "Requires Dictation Cleanup to be enabled."}
           </p>
           {settings.app_profiles.map((profile, i) => (
             <div key={i} className="flex items-center gap-2">

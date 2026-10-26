@@ -39,3 +39,26 @@ docs/desktop/raw/
 
 # scripts
 scripts/capture-demo.sh
+
+# Local evaluation artifacts and environment
+/evals/results/
+/evals/.venv/
+/evals/cleanup/__pycache__/
+
+# MLflow legacy/default artifact directory
+/mlruns/
+
+# Cleanup model datasets and weights
+/training/cleanup/prepared/
+/training/cleanup/local/
+/training/cleanup/runs/
+/training/cleanup/.venv/
+/training/cleanup/__pycache__/
+
+# Downloaded public training sources
+/training/sotto/
+
+# Bundled MLX helper build products
+/native/s1-mini/.build/
+/native/s1-mini/dist/
+/native/s1-mini/.swiftpm/

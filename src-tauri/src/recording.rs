@@ -179,8 +179,10 @@ pub fn start_recording(app: &tauri::AppHandle) {
     // rather than at cleanup time — the load then runs under the recording and
     // transcription instead of after them.
     if settings.llm_cleanup_enabled {
-        if let Some(model) = settings.ollama_model.clone() {
-            crate::ollama::warm_background(model, settings.ollama_keep_alive_minutes);
+        if settings.cleanup_provider == crate::inference::CleanupProvider::Ollama {
+            if let Some(model) = settings.ollama_model.clone() {
+                crate::ollama::warm_background(model, settings.ollama_keep_alive_minutes);
+            }
         }
         // The embedding model is loaded mid-pipeline, between the transcript
         // and cleanup, so a cold one costs more than a cold chat model: the
@@ -296,6 +298,7 @@ pub fn cancel(app: &tauri::AppHandle) {
 }
 
 pub fn stop_and_transcribe(app: &tauri::AppHandle) {
+    let pipeline_started = std::time::Instant::now();
     let state = app.state::<AppState>();
     println!("Stopping recording...");
     
@@ -324,9 +327,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     let whisper_mode = state.settings.lock().unwrap().whisper_mode;
 
     thread::spawn(move || {
-        // Everything after the hotkey release, so the stage timings can be read
-        // against the number the user actually waits through.
-        let pipeline_started = std::time::Instant::now();
+        let capture_ms = pipeline_started.elapsed().as_millis();
+        let prepare_started = std::time::Instant::now();
         let mono: Vec<f32> = if channels > 1 {
             raw.chunks(channels)
                 .map(|frame| {
@@ -392,6 +394,8 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         let prompt = settings.custom_prompt.clone();
         let language = settings.language.clone();
 
+        let prepare_ms = prepare_started.elapsed().as_millis();
+        let vad_started = std::time::Instant::now();
         // Silero VAD: strip silence/noise so Whisper never hallucinates on it.
         // Any VAD failure falls back to untrimmed audio — never lose a recording.
         let vad_threshold = if whisper_mode {
@@ -431,6 +435,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         let max_val = audio.iter().cloned().fold(0.0f32, f32::max);
         println!("Audio length: {}, max val: {}", audio.len(), max_val);
 
+        let vad_ms = vad_started.elapsed().as_millis();
         let transcribe_started = std::time::Instant::now();
         let text = {
             let mut lock = engine_arc.lock().unwrap();
@@ -521,24 +526,15 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             .lock()
             .unwrap()
             .clone();
-        let profile_prompt = frontmost.as_deref().and_then(|name| {
-            let lower = name.to_lowercase();
-            settings
-                .app_profiles
-                .iter()
-                .find(|p| {
-                    !p.app.is_empty() && p.app.to_lowercase().split(',').map(str::trim).any(|s| !s.is_empty() && lower.contains(s))
-                })
-                .map(|p| {
-                    println!("[cleanup] app profile matched: {} ({})", p.app, name);
-                    p.prompt.clone()
-                })
-        });
+        let profile_prompt = frontmost.as_deref().and_then(|name|
+            crate::inference::app_profile(&settings, name).map(|p| p.prompt.clone()));
 
         // Stays 0 when cleanup is disabled, which is what the record should say.
         let mut cleanup_ms = 0u32;
+        let mut memory_ms = 0u128;
+        let mut cleanup_first_text_ms = None;
         let text = if settings.llm_cleanup_enabled {
-            if let Some(model) = settings.ollama_model.as_deref() {
+            if settings.cleanup_provider != crate::inference::CleanupProvider::Ollama || settings.ollama_model.is_some() {
                 let _ = app_handle.emit("patter://state", "Cleaning up…");
                 
                 // RAG: Find relevant memories
@@ -582,7 +578,13 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                 // box — has nothing for the memory index to match on, and the
                 // embedding round trip sits directly in front of cleanup.
                 let worth_embedding = text.split_whitespace().count() >= 4;
-                if worth_embedding && !settings.memories.is_empty() {
+                if settings.cleanup_provider == crate::inference::CleanupProvider::Ollama {
+                    // Facts saved offline remain usable after switching providers.
+                    let local = crate::inference::local_memory_context(settings.memories.iter().filter(|m| m.embedding.is_empty()), &text);
+                    if !local.is_empty() { context_prompt.push_str("\n\n"); context_prompt.push_str(&local); }
+                }
+                if settings.cleanup_provider == crate::inference::CleanupProvider::Ollama && worth_embedding && settings.memories.iter().any(|m| !m.embedding.is_empty()) {
+                    let memory_started = std::time::Instant::now();
                     // Embed the current text
                     if let Ok(text_emb) = crate::ollama::get_embedding(
                         crate::ollama::EMBEDDING_MODEL,
@@ -620,31 +622,35 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                             context_prompt.push_str(&relevant.join("\n"));
                         }
                     }
+                    memory_ms = memory_started.elapsed().as_millis();
                 }
                 
                 let final_extra = if context_prompt.is_empty() { None } else { Some(context_prompt.as_str()) };
                 
                 // Throttled so a fast model doesn't fire hundreds of IPC events
                 // a second at a pill that can only show a couple dozen chars.
+                let cleanup_started = std::time::Instant::now();
                 let partial_emitter = app_handle.clone();
                 let mut last_partial = std::time::Instant::now();
                 let on_partial = |partial: &str| {
+                    if !partial.trim().is_empty() && cleanup_first_text_ms.is_none() {
+                        cleanup_first_text_ms = Some(cleanup_started.elapsed().as_millis());
+                    }
                     if last_partial.elapsed() >= Duration::from_millis(60) {
                         last_partial = std::time::Instant::now();
                         let _ = partial_emitter.emit("patter://cleanup_partial", partial);
                     }
                 };
 
-                let cleanup_started = std::time::Instant::now();
                 let cancel_handle = app_handle.clone();
                 let is_cancelled =
                     move || bail_if_cancelled(&cancel_handle, dictation_session_id);
 
-                match crate::ollama::cleanup(
-                    model,
+                match crate::inference::cleanup(
+                    &settings,
                     &text,
                     final_extra,
-                    settings.ollama_keep_alive_minutes,
+                    frontmost.as_deref(),
                     on_partial,
                     is_cancelled,
                 ) {
@@ -664,6 +670,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                         // failing is exactly what this measurement is for.
                         cleanup_ms = cleanup_started.elapsed().as_millis() as u32;
                         eprintln!("LLM cleanup failed: {}", e);
+                        let _ = app_handle.emit("patter://error", format!("Cleanup failed; using original transcript: {}", e));
                         text
                     }
                 }
@@ -675,6 +682,11 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         };
 
         if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
+
+        if text.trim().is_empty() {
+            let _ = app_handle.emit("patter://state", "Idle");
+            return;
+        }
 
         // After cleanup, so it catches both the model's period and the engine's.
         let text = strip_fragment_period(&text).to_string();
@@ -709,12 +721,6 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             }
         };
 
-        let total_ms = pipeline_started.elapsed().as_millis() as u32;
-        println!(
-            "[timing] transcribe={}ms cleanup={}ms total={}ms",
-            transcribe_ms, cleanup_ms, total_ms
-        );
-
         let word_count = text.split_whitespace().count();
         let duration_seconds = audio.len() as f32 / WHISPER_SAMPLE_RATE as f32;
 
@@ -723,6 +729,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         // user spent watching an empty cursor.
         let mode = settings.output_mode;
 
+        let output_started = std::time::Instant::now();
         if paste::accessibility_trusted() {
             let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
             paste::paste_text(&app_handle, &mode, &text);
@@ -733,6 +740,15 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             let _ = app_handle.emit("patter://accessibility_missing", ());
             let _ = app_handle.emit("patter://state", "⚠ Copied — needs Accessibility");
         }
+
+        let output_dispatch_ms = output_started.elapsed().as_millis();
+        let total_ms = pipeline_started.elapsed().as_millis() as u32;
+        println!(
+            "[timing] session={} capture={}ms prepare={}ms vad={}ms transcribe={}ms memory={}ms cleanup_first_text_ms={:?} cleanup={}ms output_dispatch={}ms total={}ms audio_seconds={:.2}",
+            dictation_session_id, capture_ms, prepare_ms, vad_ms, transcribe_ms,
+            memory_ms, cleanup_first_text_ms, cleanup_ms, output_dispatch_ms,
+            total_ms, duration_seconds
+        );
 
         let db = db::Db::new(&app_handle);
         db.add_record(db::TranscriptionRecord {

@@ -266,7 +266,7 @@ pub(crate) fn open_dashboard_tab(app: &AppHandle, tab: &str) {
 pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     let id = event.id.as_ref();
     match id {
-        "quit" => std::process::exit(0),
+        "quit" => app.exit(0),
         "meeting" => {
             let active = app
                 .state::<AppState>()
@@ -309,7 +309,7 @@ pub fn on_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 let state = app.state::<AppState>();
                 let mut settings = state.settings.lock().unwrap();
                 settings.microphone = if mic.is_empty() { None } else { Some(mic.to_string()) };
-                db::Db::new(app).save_settings(&settings);
+                let _ = db::Db::new(app).save_settings(&settings);
                 drop(settings);
                 refresh(app);
             }

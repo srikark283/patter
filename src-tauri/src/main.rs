@@ -10,6 +10,8 @@ mod learn;
 mod meeting;
 mod models;
 mod ollama;
+mod inference;
+mod s1;
 mod paste;
 mod permissions;
 mod recording;
@@ -204,9 +206,14 @@ fn main() {
                 }
             });
 
+            s1::initialize(app.handle())?;
             let model_manager = models::registry::ModelManager::new(app.handle())?;
             let db_instance = db::Db::new(app.handle());
-            let settings = db_instance.get_settings();
+            let mut settings = db_instance.get_settings();
+            if s1::validate_settings(&settings).is_err() {
+                settings.llm_cleanup_enabled = false;
+                db_instance.save_settings(&settings)?;
+            }
 
             let mut initial_engine: Option<Box<dyn asr::ASREngine>> = None;
             let mut initial_engine_id: Option<String> = None;
@@ -317,7 +324,7 @@ fn main() {
 
                 let (cleanup_enabled, model, keep_alive_minutes) = {
                     let s = state.settings.lock().unwrap();
-                    (s.llm_cleanup_enabled, s.ollama_model.clone(), s.ollama_keep_alive_minutes)
+                    (s.llm_cleanup_enabled && s.cleanup_provider == inference::CleanupProvider::Ollama, s.ollama_model.clone(), s.ollama_keep_alive_minutes)
                 };
                 if let (true, Some(model)) = (cleanup_enabled, model) {
                     let started = std::time::Instant::now();
@@ -670,6 +677,10 @@ fn main() {
             commands::cancel_dictation,
             commands::open_dashboard,
                                                 commands::list_ollama_models,
+            commands::enable_s1,
+            commands::s1_status,
+            commands::install_s1,
+            commands::test_s1_cleanup,
             commands::start_meeting_recording,
             commands::stop_meeting_recording,
             commands::cancel_meeting_recording,
@@ -694,6 +705,9 @@ fn main() {
             commands::check_update,
             commands::install_update
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_, event| {
+            if matches!(event, tauri::RunEvent::Exit) { s1::shutdown(); }
+        });
 }

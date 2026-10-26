@@ -171,6 +171,7 @@ pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
 
 #[tauri::command]
 pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<(), String> {
+    crate::s1::validate_settings(&settings)?;
     let state = app.state::<AppState>();
     
     let mut current_settings = state.settings.lock().unwrap();
@@ -190,8 +191,8 @@ pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<
         }
     }
     
+    db::Db::new(&app).save_settings(&settings).map_err(|e| format!("Could not save settings: {e}"))?;
     *current_settings = settings.clone();
-    db::Db::new(&app).save_settings(&settings);
     
     // If hotkey changed, update global shortcut
     if old_hotkey != settings.hotkey {
@@ -333,7 +334,7 @@ pub fn dismiss_dictionary_suggestion(app: tauri::AppHandle, key: String) -> Resu
     let mut settings = state.settings.lock().unwrap();
     if !settings.dismissed_suggestions.contains(&key) {
         settings.dismissed_suggestions.push(key);
-        db::Db::new(&app).save_settings(&settings);
+        let _ = db::Db::new(&app).save_settings(&settings);
     }
     Ok(())
 }
@@ -396,7 +397,7 @@ pub async fn import_data(app: tauri::AppHandle) -> Result<bool, String> {
     let backup: db::Backup = serde_json::from_str(&json).map_err(|e| e.to_string())?;
 
     let db = db::Db::new(&app);
-    db.save_settings(&backup.settings);
+    let _ = db.save_settings(&backup.settings);
     db.save_history(&backup.history);
     db.save_meetings(&backup.meetings);
     let _ = app.emit("patter://db_updated", ());
@@ -451,7 +452,7 @@ pub fn set_engine(app: tauri::AppHandle, id: String) -> Result<(), String> {
 
     let mut settings = state.settings.lock().unwrap();
     settings.active_engine_id = Some(id);
-    crate::db::Db::new(&app).save_settings(&settings);
+    let _ = crate::db::Db::new(&app).save_settings(&settings);
     drop(settings);
 
     crate::tray::refresh(&app);
@@ -716,4 +717,53 @@ pub async fn get_app_icon(app_name: String) -> Result<Vec<u8>, String> {
 pub async fn get_app_icon(_app_name: String) -> Result<Vec<u8>, String> {
     // TODO: Implement Windows icon extraction using ExtractIconEx / GetForegroundWindow
     Err("Not implemented on Windows".to_string())
+}
+
+#[tauri::command]
+pub async fn s1_status(model: crate::inference::BuiltInModel) -> Result<crate::s1::Status, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::s1::status(model)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn install_s1(model: crate::inference::BuiltInModel) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::s1::install(model)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn test_s1_cleanup(app: tauri::AppHandle, text: String, app_name: Option<String>) -> Result<String, String> {
+    if text.trim().is_empty() || text.len() > 128000 {
+        return Err("Enter a sample between 1 and 128,000 bytes".into());
+    }
+    let mut settings = app.state::<AppState>().settings.lock().unwrap().clone();
+    settings.cleanup_provider = crate::inference::CleanupProvider::BuiltIn;
+    tauri::async_runtime::spawn_blocking(move || {
+        let text = crate::dictionary::apply(&text, &settings.custom_prompt);
+        crate::inference::cleanup(&settings, &text, None, app_name.as_deref(), |_| {}, || false)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn enable_s1(app: tauri::AppHandle) -> Result<db::Settings, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let model = crate::inference::BuiltInModel::S1Mini;
+        let status = crate::s1::status(model)?;
+        if !status.supported { return Err("S1-mini requires Apple Silicon and macOS 14 or newer".into()); }
+        if !status.runtime_ready { return Err("The S1-mini runtime is missing. Reinstall Patter and retry.".into()); }
+        if !status.installed { crate::s1::install(model)?; }
+        // Load the actual local model before enabling; settings stay unchanged on failure.
+        let mut probe = db::Settings::default();
+        probe.language = "en".into();
+        crate::s1::cleanup(&probe, "", None, None, |_| {}, || false)?;
+        let state = app.state::<AppState>();
+        let mut current = state.settings.lock().map_err(|e| e.to_string())?;
+        let mut next = current.clone();
+        next.cleanup_provider = crate::inference::CleanupProvider::BuiltIn;
+        next.built_in_model = model;
+        next.language = "en".into();
+        next.llm_cleanup_enabled = true;
+        crate::s1::validate_settings(&next)?;
+        db::Db::new(&app).save_settings(&next).map_err(|e| format!("Could not save S1-mini setup: {e}"))?;
+        *current = next.clone();
+        Ok(next)
+    }).await.map_err(|e| e.to_string())?
 }

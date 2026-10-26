@@ -1,0 +1,25 @@
+so um here is the update for our planning meeting today i reviewed the customer interviews and grouped the feedback into three themes people want faster search clearer notifications and a simpler way to invite colleagues the search issue seems most urgent because several teams use the application throughout the day
+
+maya is going to investigate the slow queries tomorrow morning please make sure she has access to the staging database before she starts we should use anonymized records for the investigation and keep the production database unchanged until we understand what is causing the delay
+
+for notifications i would like us to distinguish between messages that need an immediate response and background updates that can wait until the end of the day the current design makes everything look equally urgent which is distracting when someone is trying to concentrate on a longer task
+
+jules has prepared a few sketches for the invitation flow we will review them after lunch on thursday the main question is whether the person sending an invitation should choose a role immediately or whether the recipient should request the level of access they need after joining
+
+our next release is still scheduled for friday afternoon but that depends on the regression checks passing please do not move the release earlier simply because the visual changes look finished we also need to verify keyboard navigation screen reader labels and the behavior on smaller laptop displays
+
+the support team asked for a short explanation of the new search filters i can draft that explanation this afternoon and send it to nina for review it should include a practical example showing how someone can find a document when they remember the author but have forgotten the title
+
+we also need to decide what to do with old invitations some customers have invitations that were sent months ago and never accepted my preference is to show those invitations separately and let administrators resend or remove them without having to search through the entire list of active members
+
+on the infrastructure side the overnight backup completed successfully and the restore exercise finished within the expected window the team found one missing dashboard label but no missing records we should document the exact restoration steps while they are still fresh rather than relying on everyone remembering them next month
+
+please ask sam to collect the latest numbers for the onboarding experiment we need the number of people who completed the first task as well as the number who opened the welcome screen looking only at the welcome screen would make the change seem more successful than it really is
+
+for next weeks workshop we should leave time for people to try the application themselves a presentation alone will not tell us whether the instructions are clear lets prepare a small example project with realistic names and enough documents to make the search exercise useful without overwhelming new participants
+
+there is one budget question that still needs an answer the additional test devices will cost four hundred and fifty dollars and delivery takes about a week if we want them before the workshop we need approval by wednesday otherwise we can borrow two devices from the mobile team
+
+finally i would like everyone to write down any assumptions they are making about the new permissions behavior it is easier to discuss those assumptions now than to discover conflicting interpretations after implementation we should pay particular attention to what happens when a member changes teams or loses access to a shared project
+
+once the meeting is finished i will send a summary with the decisions and the people responsible for each follow up task if something is still an open question the summary should say so clearly please do not turn a suggestion into a commitment unless the person involved has actually agreed to do it the final code is neptune

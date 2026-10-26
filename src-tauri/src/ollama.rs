@@ -214,7 +214,7 @@ struct GenerateResponse {
 }
 
 #[derive(Serialize)]
-struct ChatMessage {
+pub(crate) struct ChatMessage {
     role: String,
     content: String,
 }
@@ -349,20 +349,8 @@ pub fn warm_cleanup(model: &str, keep_alive_minutes: i32) -> Result<(), String> 
 /// fallback.
 pub const CLEANUP_CANCELLED: &str = "cleanup cancelled";
 
-/// One streamed `/api/chat` turn, returned with any reasoning block stripped.
-/// Shared by cleanup and command mode: same NDJSON framing, same per-line
-/// cancellation, same `<think>` handling.
-fn stream_chat(
-    model: &str,
-    messages: Vec<ChatMessage>,
-    keep_alive_minutes: i32,
-    mut on_partial: impl FnMut(&str),
-    cancelled: impl Fn() -> bool,
-) -> Result<String, String> {
-    let resp = client()
-        .post(format!("{}/api/chat", OLLAMA_URL))
-        .timeout(Duration::from_secs(60))
-        .json(&serde_json::json!({
+pub(crate) fn chat_request(model: &str, messages: Vec<ChatMessage>, keep_alive_minutes: i32) -> serde_json::Value {
+    serde_json::json!({
             "model": model,
             "messages": messages,
             "stream": true,
@@ -379,7 +367,23 @@ fn stream_chat(
                 "top_k": 1,
                 "num_predict": 1024,
             },
-        }))
+        })
+}
+
+/// One streamed `/api/chat` turn, returned with any reasoning block stripped.
+/// Shared by cleanup and command mode: same NDJSON framing, same per-line
+/// cancellation, same `<think>` handling.
+fn stream_chat(
+    model: &str,
+    messages: Vec<ChatMessage>,
+    keep_alive_minutes: i32,
+    mut on_partial: impl FnMut(&str),
+    cancelled: impl Fn() -> bool,
+) -> Result<String, String> {
+    let resp = client()
+        .post(format!("{}/api/chat", OLLAMA_URL))
+        .timeout(Duration::from_secs(60))
+        .json(&chat_request(model, messages, keep_alive_minutes))
         .send()
         .map_err(|e| format!("Ollama not reachable: {}", e))?;
 
@@ -519,7 +523,7 @@ fn cleanup_prefix() -> Vec<ChatMessage> {
 /// token could be decoded. It rides with the transcript in the final message
 /// instead, where it costs only its own length — and stays outside the
 /// `<transcript>` tags, so the untrusted-input rule is unchanged.
-fn cleanup_messages(text: &str, extra: Option<&str>) -> Vec<ChatMessage> {
+pub(crate) fn cleanup_messages(text: &str, extra: Option<&str>) -> Vec<ChatMessage> {
     let mut messages = cleanup_prefix();
 
     // Per-dictation context — app profile, dictionary, RAG facts — as its own

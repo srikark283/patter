@@ -53,6 +53,10 @@ pub struct Settings {
     #[serde(default)]
     pub llm_cleanup_enabled: bool,
     #[serde(default)]
+    pub cleanup_provider: crate::inference::CleanupProvider,
+    #[serde(default)]
+    pub built_in_model: crate::inference::BuiltInModel,
+    #[serde(default)]
     pub ollama_model: Option<String>,
     #[serde(default)]
     pub meeting_ollama_model: Option<String>,
@@ -114,7 +118,7 @@ fn default_auto_update() -> bool {
 pub struct AppProfile {
     /// Case-insensitive substring of the app name ("slack", "mail").
     pub app: String,
-    /// Extra instruction for the Ollama cleanup pass in that app.
+    /// Cleanup instruction: full text for instruction models, supported controls for S1-mini.
     pub prompt: String,
 }
 
@@ -147,6 +151,8 @@ impl Default for Settings {
             silence_timeout_ms: 1000,
             active_engine_id: None,
             llm_cleanup_enabled: false,
+            cleanup_provider: crate::inference::CleanupProvider::default(),
+            built_in_model: crate::inference::BuiltInModel::default(),
             ollama_model: None,
             meeting_ollama_model: None,
             ollama_keep_alive_minutes: default_ollama_keep_alive_minutes(),
@@ -204,8 +210,8 @@ pub struct TranscriptionRecord {
     /// LLM cleanup time. 0 when cleanup is off, or for records predating this.
     #[serde(default)]
     pub cleanup_ms: u32,
-    /// Hotkey release to text-in-app, so the stages can be read against the
-    /// number the user actually feels. 0 for records predating this field.
+    /// Stop-handler entry to output dispatch (the target app handles paste
+    /// asynchronously). 0 for records predating this field.
     #[serde(default)]
     pub total_ms: u32,
     #[serde(default)]
@@ -243,17 +249,16 @@ impl Db {
     pub fn get_settings(&self) -> Settings {
         let path = self.data_dir.join("settings.json");
         if let Ok(content) = fs::read_to_string(path) {
-            serde_json::from_str(&content).unwrap_or_default()
+            crate::inference::load_settings(&content).unwrap_or_default()
         } else {
             Settings::default()
         }
     }
 
-    pub fn save_settings(&self, settings: &Settings) {
+    pub fn save_settings(&self, settings: &Settings) -> std::io::Result<()> {
         let path = self.data_dir.join("settings.json");
-        if let Ok(content) = serde_json::to_string_pretty(settings) {
-            let _ = fs::write(path, content);
-        }
+        let content = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
+        fs::write(path, content)
     }
 
     pub fn get_stats(&self) -> AppStats {

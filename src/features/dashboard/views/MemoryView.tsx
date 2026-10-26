@@ -22,18 +22,21 @@ export function MemoryView() {
   }, []);
 
   const save = async (newMemories: MemoryFact[]) => {
+    if (!settings) return false;
     setMemories(newMemories);
-    if (!settings) return;
     
     const newSettings = { ...settings, memories: newMemories };
     setSettings(newSettings);
     
     try {
       await updateSettings(newSettings);
+      return true;
     } catch (e) {
       console.error(e);
       toast.error("Failed to save memory: " + e);
       setSettings(settings); // revert
+      setMemories(settings.memories);
+      return false;
     }
   };
 
@@ -45,7 +48,10 @@ export function MemoryView() {
       const toastId = toast.loading("Embedding memory...");
       try {
         const embedding = await getEmbedding("nomic-embed-text", content);
-        await save([...memories, { id: crypto.randomUUID(), content, embedding }]);
+        if (!await save([...memories, { id: crypto.randomUUID(), content, embedding }])) {
+          toast.dismiss(toastId);
+          return;
+        }
         setNewContent("");
         toast.success("Fact remembered!", { id: toastId });
       } catch (e) {
@@ -88,6 +94,7 @@ export function MemoryView() {
         action={headerAction}
       />
 
+      {settings?.cleanup_provider === "built_in" && <p className="text-sm text-muted-foreground">Personal memory is used by Ollama cleanup. S1-mini applies app formatting hints and dictionary corrections.</p>}
       <div className="flex items-center justify-between text-muted-foreground text-sm font-medium px-1">
         <span>{memories.length} facts remembered</span>
       </div>

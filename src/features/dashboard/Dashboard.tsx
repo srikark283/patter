@@ -26,7 +26,7 @@ import {
 
 
 import { AppStats, TranscriptionRecord } from "../../types";
-import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, getModelStates, ModelState, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate } from "../../lib/ipc";
+import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, getModelStates, ModelState, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate, onCleanupError } from "../../lib/ipc";
 import { promptUpdateInstall } from "../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -112,6 +112,7 @@ export default function Dashboard() {
       .catch(console.error);
     const unlistenAx = onAccessibilityMissing(warnAccessibility);
 
+    const unlistenCleanup = onCleanupError(message => toast.error(message));
     const unlistenUpdate = onUpdateAvailable(promptUpdateInstall);
     const unlistenNav = onNavigate(setActiveTab);
 
@@ -131,6 +132,7 @@ export default function Dashboard() {
       unlistenProgress.then((f) => f());
       unlistenDb.then((f) => f());
       unlistenAx.then((f) => f());
+      unlistenCleanup.then((f) => f());
       unlistenUpdate.then((f) => f());
       unlistenNav.then((f) => f());
     };

@@ -31,6 +31,19 @@ jobs:
 
       - run: npm ci
 
+      - name: Install Metal compiler for the bundled S1-mini runtime
+        if: matrix.platform == 'macos-latest'
+        run: xcodebuild -downloadComponent MetalToolchain
+
+      - name: Run regression tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Verify the built-in model on Apple Silicon
+        if: matrix.platform == 'macos-latest'
+        run: |
+          npm run build:s1
+          cargo test --manifest-path src-tauri/Cargo.toml s1::tests::bundled_runtime_smoke -- --ignored --nocapture
+
       # Self-signed (not Apple Developer ID) codesigning, macOS only. Without
       # this, every release is signed ad-hoc with a fresh identity each build,
       # so macOS TCC treats each update as a "new app" and drops the user's
@@ -78,5 +91,7 @@ jobs:
           # Publish immediately: pushing a v* tag IS the release decision.
           # Installed apps see the update as soon as the build finishes.
           releaseDraft: false
+          # Beta/RC tags stay opt-in; the stable updater points at releases/latest.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           # ponytail: Apple Silicon only — universal needs x86_64 cross-compile
           # of sherpa-onnx/whisper.cpp native libs; add when Intel users ask.
