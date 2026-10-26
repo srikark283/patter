@@ -175,6 +175,10 @@ and license notices. Model weights are downloaded inside the app. Revisions and
 checksums are recorded in `native/s1-mini/model.json`;
 Swift dependencies are locked in `native/s1-mini/Package.resolved`.
 
+The helper builds MLX with `MLX_METAL_NO_NAX` so it uses standard Metal GPU
+kernels on both physical and virtualized Macs. This avoids unsupported
+cooperative-tensor kernels on CI runners; the hardware smoke test remains enabled.
+
 The model-free chunking regression check:
 
 ```bash

@@ -51,4 +51,9 @@ remains `releases/latest/download/latest.json`; beta builds stay opt-in.
 The release workflow runs Rust tests on both platforms and the S1-mini hardware
 smoke on macOS before publishing. A local `.app` build disables updater-artifact
 creation only for that invocation; CI continues generating signed updater files.
+The native build uses MLX's `MLX_METAL_NO_NAX` compile definition to select standard
+Metal GPU kernels. Newer cooperative-tensor kernels can fail with
+`unsupported deferred-static-alloca-size` on virtualized Metal devices. The same
+runtime configuration is used for local builds, CI tests, and release packaging;
+the hardware smoke test is not skipped or allowed to fail.
 No release has been tagged or published by this validation work.

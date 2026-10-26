@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 if (process.platform !== "darwin") process.exit(0);
 if (process.arch !== "arm64") throw new Error("Build the S1-mini helper on Apple Silicon");
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../native/s1-mini");
-execFileSync("xcodebuild", ["-scheme", "PatterS1", "-configuration", "Release", "-destination", "platform=macOS,arch=arm64", "-derivedDataPath", join(root, ".build/xcode"), "CODE_SIGNING_ALLOWED=NO", "build"], { cwd: root, stdio: "inherit" });
+// NAX cooperative-tensor kernels fail on virtualized Metal devices; use MLX's
+// standard GPU kernels for the same compatible runtime in CI and shipped apps.
+execFileSync("xcodebuild", ["-scheme", "PatterS1", "-configuration", "Release", "-destination", "platform=macOS,arch=arm64", "-derivedDataPath", join(root, ".build/xcode"), "CODE_SIGNING_ALLOWED=NO", "OTHER_CPLUSPLUSFLAGS=$(inherited) -DMLX_METAL_NO_NAX", "build"], { cwd: root, stdio: "inherit" });
 const bin = join(root, ".build/xcode/Build/Products/Release");
 const dist = join(root, "dist");
 rmSync(dist, { recursive: true, force: true });
