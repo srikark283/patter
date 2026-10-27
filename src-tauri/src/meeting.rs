@@ -388,7 +388,7 @@ pub fn stop_meeting(app: &tauri::AppHandle, num_speakers: Option<i32>) -> Result
         };
         // Same pass dictation runs — the diarized form goes through it too,
         // since the speaker labels it adds are not near-misses of anything.
-        let transcript = crate::dictionary::apply(&transcript, &settings.custom_prompt);
+        let transcript = crate::dictionary::apply(&transcript, &settings.custom_prompt, &settings.dictionary_aliases);
         let _ = app_handle.emit("patter://meeting_progress", "");
 
         if transcript.is_empty() {

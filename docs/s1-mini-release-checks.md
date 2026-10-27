@@ -3,7 +3,7 @@
 Scope: built-in S1-mini for English dictation cleanup on Apple Silicon/macOS 14+;
 Ollama retains free-form instructions, personal memory, meetings, and commands.
 S1-mini receives supported app formatting hints; dictionary corrections run before
-cleanup. This is a beta, with no promise of full instruction following by S1-mini.
+and after cleanup. This is a beta, with no promise of full instruction following by S1-mini.
 
 ## Verified locally on 2026-10-26
 

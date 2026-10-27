@@ -56,6 +56,8 @@ export function DictionaryView() {
 
   const [editingTerm, setEditingTerm] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [editAliases, setEditAliases] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "alpha">("newest");
   const [confirmClear, setConfirmClear] = useState(false);
@@ -82,20 +84,30 @@ export function DictionaryView() {
     }).catch(console.error);
   }, []);
 
-  const save = async (newTerms: string[]) => {
-    setTerms(newTerms);
-    const value = newTerms.join(", ");
-    if (!settings) return;
-    
-    const newSettings = { ...settings, custom_prompt: value };
-    setSettings(newSettings);
-    
+  const save = async (
+    newTerms: string[],
+    aliases = settings?.dictionary_aliases ?? {},
+  ): Promise<boolean> => {
+    if (!settings || saving) return false;
+    setSaving(true);
     try {
-      await updateSettings(newSettings);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to save term: " + e);
-      setSettings(settings); // revert
+      const current = await getSettings();
+      const next = {
+        ...current,
+        custom_prompt: newTerms.join(", "),
+        dictionary_aliases: Object.fromEntries(
+          Object.entries(aliases).filter(([term]) => newTerms.includes(term)),
+        ),
+      };
+      await updateSettings(next);
+      setSettings(next);
+      setTerms(newTerms);
+      return true;
+    } catch (error) {
+      toast.error("Could not save dictionary: " + error);
+      return false;
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -107,10 +119,7 @@ export function DictionaryView() {
   // move underneath it, and a stale list keeps offering terms already added.
   useEffect(refreshSuggestions, []);
 
-  /// Mirror the dismissal into local state. `save` sends the whole settings
-  /// object, built from the copy loaded at mount — without this, editing a term
-  /// after dismissing anything writes back the old list and the dismissals come
-  /// straight back.
+  // Keep dismissed suggestions and the local settings snapshot in sync.
   const rememberDismissal = (key: string) => {
     setSettings((current) =>
       current
@@ -121,76 +130,91 @@ export function DictionaryView() {
   };
 
   const acceptSuggestion = async (suggestion: DictionarySuggestion) => {
-    const { merged, added } = mergeTerms(terms, [suggestion.term]);
-    if (added) await save(merged);
-    // Dismissed as well as added, so an accepted term can't be re-proposed by
-    // a spelling of it that is still sitting in history.
-    await dismissDictionarySuggestion(suggestion.key);
-    rememberDismissal(suggestion.key);
-    toast.success(`Added "${suggestion.term}"`);
+    const { merged } = mergeTerms(terms, [suggestion.term]);
+    const term = merged.find(t => t.toLowerCase() === suggestion.term.toLowerCase())!;
+    const aliases = {
+      ...settings?.dictionary_aliases,
+      [term]: mergeTerms(settings?.dictionary_aliases?.[term] ?? [], suggestion.replaces).merged,
+    };
+    if (await save(merged, aliases)) {
+      refreshSuggestions();
+      toast.success(`Remembered corrections for "${term}"`);
+    }
   };
 
   const rejectSuggestion = async (suggestion: DictionarySuggestion) => {
-    await dismissDictionarySuggestion(suggestion.key);
-    rememberDismissal(suggestion.key);
+    try {
+      await dismissDictionarySuggestion(suggestion.key);
+      rememberDismissal(suggestion.key);
+    } catch (error) {
+      toast.error("Could not dismiss suggestion: " + error);
+    }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    // One field for both cases: a single word, or a whole list pasted in.
     const incoming = parseTerms(newTerm);
-    if (incoming.length) {
-      const { merged, added, skipped } = mergeTerms(terms, incoming);
-      if (added) save(merged);
-      if (incoming.length > 1 || skipped) {
-        toast.success(
-          `Added ${added} term${added === 1 ? "" : "s"}` +
-            (skipped ? ` · skipped ${skipped} already in the list` : "")
-        );
-      }
+    if (!incoming.length) return;
+    const { merged, added, skipped } = mergeTerms(terms, incoming);
+    if (added && !await save(merged)) return;
+    if (incoming.length > 1 || skipped) {
+      toast.success(
+        `Added ${added} term${added === 1 ? "" : "s"}` +
+          (skipped ? ` · skipped ${skipped} already in the list` : ""),
+      );
     }
     setNewTerm("");
     setIsAdding(false);
+    refreshSuggestions();
   };
 
   const handleClearAll = async () => {
-    await save([]);
-    setConfirmClear(false);
-    toast.success("Dictionary cleared");
+    if (await save([])) {
+      setConfirmClear(false);
+      setEditingTerm(null);
+      refreshSuggestions();
+      toast.success("Dictionary cleared");
+    }
   };
 
-  const removeTerm = (term: string) => {
-    save(terms.filter(t => t !== term));
+  const removeTerm = async (term: string) => {
+    if (await save(terms.filter(t => t !== term))) {
+      if (editingTerm === term) setEditingTerm(null);
+      refreshSuggestions();
+    }
   };
 
   const startEditing = (term: string) => {
+    setIsAdding(false);
     setEditingTerm(term);
     setEditValue(term);
+    setEditAliases((settings?.dictionary_aliases?.[term] ?? []).join("\n"));
   };
 
-  const commitEdit = (oldTerm: string) => {
+  const commitEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingTerm) return;
     const clean = editValue.trim();
-    if (clean && clean !== oldTerm) {
-      // A rename can land on a term that is already in the list. The old
-      // `new Set` dedupe was exact-match, so renaming "ggml" to "metal" beside
-      // an existing "Metal" left both — two entries biasing Whisper toward the
-      // same word and spending the prompt budget twice. Matching is
-      // case-insensitive here for the same reason it is in `mergeTerms`, and
-      // the existing spelling wins there too, so add and rename agree.
-      const collision = terms.find(t => t !== oldTerm && t.toLowerCase() === clean.toLowerCase());
-      save(
-        collision
-          // Merge: the renamed entry folds into the one already there, which
-          // keeps its own spelling and its own place in the list.
-          ? terms.filter(t => t !== oldTerm)
-          : terms.map(t => (t === oldTerm ? clean : t))
-      );
-      // Said out loud, because otherwise a chip just vanishes.
-      if (collision) toast.success(`Merged into "${collision}"`);
+    if (!clean || parseTerms(clean).length !== 1) {
+      toast.error("Enter one preferred spelling.");
+      return;
     }
-    setEditingTerm(null);
+    const collision = terms.find(t => t !== editingTerm && t.toLowerCase() === clean.toLowerCase());
+    const preferred = collision ?? clean;
+    const aliases = { ...settings?.dictionary_aliases };
+    delete aliases[editingTerm];
+    const variants = parseTerms(editAliases).filter(t => t.toLowerCase() !== preferred.toLowerCase());
+    const mergedAliases = mergeTerms(collision ? aliases[collision] ?? [] : [], variants).merged;
+    if (mergedAliases.length) aliases[preferred] = mergedAliases;
+    const nextTerms = collision
+      ? terms.filter(t => t !== editingTerm)
+      : terms.map(t => t === editingTerm ? preferred : t);
+    if (await save(nextTerms, aliases)) {
+      setEditingTerm(null);
+      refreshSuggestions();
+      toast.success(collision ? `Merged into "${collision}"` : "Dictionary entry saved");
+    }
   };
-
 
 
   const sortedTerms = [...terms].sort((a, b) => {
@@ -201,7 +225,10 @@ export function DictionaryView() {
     sortedTerms.reverse();
   }
 
-  const filteredTerms = sortedTerms.filter(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredTerms = sortedTerms.filter(term =>
+    [term, ...(settings?.dictionary_aliases?.[term] ?? [])]
+      .some(value => value.toLowerCase().includes(searchQuery.toLowerCase())),
+  );
 
   const headerAction = (
     <div className="flex items-center gap-3">
@@ -210,6 +237,7 @@ export function DictionaryView() {
         <input 
           type="text" 
           placeholder="Search..." 
+          aria-label="Search words and corrections"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="bg-transparent border-none text-foreground outline-none py-1.5 pl-2.5 w-32 md:w-40 text-sm placeholder:text-muted-foreground"
@@ -220,11 +248,11 @@ export function DictionaryView() {
         size="sm"
         className="rounded-full"
         onClick={() => setConfirmClear(true)}
-        disabled={!terms.length}
+        disabled={saving || !terms.length}
       >
         <Trash2 size={15} /> Clear all
       </Button>
-      <Button onClick={() => setIsAdding(true)} className="rounded-full shadow-sm">
+      <Button disabled={saving} onClick={() => { setEditingTerm(null); setIsAdding(true); }} className="rounded-full shadow-sm">
         <Plus size={16} /> Add new
       </Button>
     </div>
@@ -245,8 +273,8 @@ export function DictionaryView() {
             Learned from your edits
           </div>
           <p className="text-[12px] text-muted-foreground leading-relaxed">
-            You corrected these in History more than once. Adding a term lets Patter fix it
-            automatically next time — on any speech model, with or without cleanup.
+            You corrected these in History. Remembering them saves the preferred spelling and
+            these mishearings for next time — on any speech model, with or without cleanup.
           </p>
           <div className="space-y-2">
             {suggestions.map((suggestion) => (
@@ -265,13 +293,15 @@ export function DictionaryView() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Button size="sm" className="rounded-full h-7" onClick={() => acceptSuggestion(suggestion)}>
-                    <Check size={14} /> Add
+                  <Button disabled={saving} size="sm" className="rounded-full h-7" onClick={() => acceptSuggestion(suggestion)}>
+                    <Check size={14} /> Remember
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     title="Never suggest this"
+                    aria-label={`Dismiss correction for ${suggestion.term}`}
+                    disabled={saving}
                     onClick={() => rejectSuggestion(suggestion)}
                   >
                     <X size={14} />
@@ -306,7 +336,7 @@ export function DictionaryView() {
 
       {/* Toolbar */}
       <div className="flex items-center justify-between text-muted-foreground text-sm font-medium px-1">
-        <span>{terms.length} terms</span>
+        <span>{terms.length} term{terms.length === 1 ? "" : "s"}</span>
         <div className="flex gap-2 relative" ref={sortRef}>
           <Button
             variant="ghost"
@@ -355,6 +385,7 @@ export function DictionaryView() {
               rows={1}
               placeholder="Enter a term, or paste a list separated by commas or new lines..."
               value={newTerm}
+              disabled={saving}
               onChange={e => setNewTerm(e.target.value)}
               onKeyDown={e => {
                 if (e.key === "Escape") {
@@ -370,8 +401,8 @@ export function DictionaryView() {
               className="flex-1 bg-transparent border-none text-foreground outline-none text-[15px] font-medium resize-none max-h-40 leading-relaxed placeholder:text-muted-foreground"
             />
             <div className="flex gap-2 items-center">
-              <Button type="button" variant="ghost" size="sm" onClick={() => { setIsAdding(false); setNewTerm(""); }}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!newTerm.trim()}>Add</Button>
+              <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => { setIsAdding(false); setNewTerm(""); }}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={saving || !newTerm.trim()}>Add</Button>
             </div>
           </form>
         )}
@@ -385,7 +416,7 @@ export function DictionaryView() {
             title="Add a term to the Dictionary"
             description="Add words you want Patter to recognize. It can be particular spellings, names, and slang that you often use."
             action={
-              <Button onClick={() => setIsAdding(true)} className="rounded-full">
+              <Button disabled={saving} onClick={() => { setEditingTerm(null); setIsAdding(true); }} className="rounded-full">
                 <Plus size={16} /> Add new
               </Button>
             }
@@ -398,52 +429,37 @@ export function DictionaryView() {
              list order, so the budget warning's "dropped from the top" holds. */
           <div className="flex flex-wrap gap-2">
             {filteredTerms.map(term => (
-              editingTerm === term ? (
-                <div
-                  key={term}
-                  className="inline-flex items-center rounded-full border border-steel/50 bg-accent py-1 pl-3 pr-3 shadow-[0_0_0_3px_var(--accent-subtle)]"
+              <span
+                key={term}
+                className={cn(
+                  "group inline-flex items-center rounded-full border border-border bg-foreground/[0.02] py-1 pl-3 pr-1 transition-colors hover:border-steelIce/40 hover:bg-accent-subtle",
+                  editingTerm === term && "border-steelIce/40 bg-accent-subtle",
+                )}
+              >
+                <button
+                  onClick={() => startEditing(term)}
+                  disabled={saving}
+                  title="Edit spelling and corrections"
+                  aria-label={`Edit ${term}`}
+                  className="text-[13px] font-medium text-foreground/90 rounded-full focus-visible:ring-focus"
                 >
-                  <input
-                    autoFocus
-                    type="text"
-                    value={editValue}
-                    onChange={e => setEditValue(e.target.value)}
-                    onFocus={e => e.currentTarget.select()}
-                    // Enter keeps the rename; Escape and clicking away drop it.
-                    // Blur deliberately does not commit: committing there too
-                    // would run a second time off a stale `terms` closure when
-                    // Enter unmounts the input.
-                    onKeyDown={e => {
-                      if (e.key === "Escape") setEditingTerm(null);
-                      if (e.key === "Enter") commitEdit(term);
-                    }}
-                    onBlur={() => setEditingTerm(null)}
-                    style={{ width: `${Math.max(editValue.length, 3) + 1}ch` }}
-                    className="bg-transparent border-none text-foreground outline-none text-[13px] font-medium"
-                  />
-                </div>
-              ) : (
-                <span
-                  key={term}
-                  className="group inline-flex items-center rounded-full border border-border bg-foreground/[0.02] py-1 pl-3 pr-1 transition-colors hover:border-steelIce/40 hover:bg-accent-subtle"
+                  {term}
+                  {!!settings?.dictionary_aliases?.[term]?.length && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {settings.dictionary_aliases[term].length} correction{settings.dictionary_aliases[term].length === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => removeTerm(term)}
+                  disabled={saving}
+                  aria-label={`Remove ${term}`}
+                  title="Remove"
+                  className="ml-1.5 flex size-4 items-center justify-center rounded-full text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive focus-visible:ring-focus"
                 >
-                  <button
-                    onClick={() => startEditing(term)}
-                    title="Rename"
-                    className="text-[13px] font-medium text-foreground/90 rounded-full focus-visible:ring-focus"
-                  >
-                    {term}
-                  </button>
-                  <button
-                    onClick={() => removeTerm(term)}
-                    aria-label={`Remove ${term}`}
-                    title="Remove"
-                    className="ml-1.5 flex size-4 items-center justify-center rounded-full text-muted-foreground/60 hover:bg-destructive/15 hover:text-destructive focus-visible:ring-focus"
-                  >
-                    <X size={11} strokeWidth={2.5} />
-                  </button>
-                </span>
-              )
+                  <X size={11} strokeWidth={2.5} />
+                </button>
+              </span>
             ))}
           </div>
         )}
@@ -457,18 +473,60 @@ export function DictionaryView() {
         )}
       </div>
 
+      {editingTerm && (
+        <form
+          onSubmit={commitEdit}
+          onKeyDown={event => { if (event.key === "Escape" && !saving) setEditingTerm(null); }}
+          className="edit-shell space-y-4 p-4"
+          aria-label={`Edit dictionary entry ${editingTerm}`}
+        >
+          <div className="space-y-2">
+            <label htmlFor="dictionary-spelling" className="block text-sm font-medium">Preferred spelling</label>
+            <input
+              id="dictionary-spelling"
+              autoFocus
+              value={editValue}
+              onChange={event => setEditValue(event.target.value)}
+              disabled={saving}
+              required
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-focus"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="dictionary-aliases" className="block text-sm font-medium">Correct these mishearings</label>
+            <textarea
+              id="dictionary-aliases"
+              value={editAliases}
+              onChange={event => setEditAliases(event.target.value)}
+              disabled={saving}
+              rows={3}
+              aria-describedby="dictionary-aliases-help"
+              className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-focus"
+            />
+            <p id="dictionary-aliases-help" className="text-xs leading-relaxed text-muted-foreground">
+              One word or phrase per line. Exact matches are replaced with your preferred spelling, ignoring capitalization.
+              Remove a line to stop that correction.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" disabled={saving} onClick={() => setEditingTerm(null)}>Cancel</Button>
+            <Button type="submit" disabled={saving || !editValue.trim()}>{saving ? "Saving…" : "Save changes"}</Button>
+          </div>
+        </form>
+      )}
+
       <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Clear the dictionary?</DialogTitle>
             <DialogDescription>
-              All {terms.length} term{terms.length === 1 ? "" : "s"} will be removed. Patter will
-              stop biasing transcription toward them. This cannot be undone.
+              All {terms.length} term{terms.length === 1 ? "" : "s"} and their saved corrections will be removed.
+              This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmClear(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleClearAll}>Clear all</Button>
+            <Button variant="destructive" disabled={saving} onClick={handleClearAll}>{saving ? "Clearing…" : "Clear all"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -172,6 +172,7 @@ pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
 #[tauri::command]
 pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<(), String> {
     crate::s1::validate_settings(&settings)?;
+    crate::dictionary::validate_aliases(&settings.custom_prompt, &settings.dictionary_aliases)?;
     let state = app.state::<AppState>();
     
     let mut current_settings = state.settings.lock().unwrap();
@@ -321,6 +322,7 @@ pub fn dictionary_suggestions(app: tauri::AppHandle) -> Vec<crate::learn::Sugges
     crate::learn::suggestions(
         &db.get_history(),
         &settings.custom_prompt,
+        &settings.dictionary_aliases,
         &settings.dismissed_suggestions,
     )
 }
@@ -333,8 +335,10 @@ pub fn dismiss_dictionary_suggestion(app: tauri::AppHandle, key: String) -> Resu
     let state = app.state::<AppState>();
     let mut settings = state.settings.lock().unwrap();
     if !settings.dismissed_suggestions.contains(&key) {
-        settings.dismissed_suggestions.push(key);
-        let _ = db::Db::new(&app).save_settings(&settings);
+        let mut next = settings.clone();
+        next.dismissed_suggestions.push(key);
+        db::Db::new(&app).save_settings(&next).map_err(|e| format!("Could not save suggestion: {e}"))?;
+        *settings = next;
     }
     Ok(())
 }
@@ -395,6 +399,7 @@ pub async fn import_data(app: tauri::AppHandle) -> Result<bool, String> {
     let path = file_path.into_path().map_err(|e| e.to_string())?;
     let json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let backup: db::Backup = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    crate::dictionary::validate_aliases(&backup.settings.custom_prompt, &backup.settings.dictionary_aliases)?;
 
     let db = db::Db::new(&app);
     let _ = db.save_settings(&backup.settings);
@@ -737,7 +742,7 @@ pub async fn test_s1_cleanup(app: tauri::AppHandle, text: String, app_name: Opti
     let mut settings = app.state::<AppState>().settings.lock().unwrap().clone();
     settings.cleanup_provider = crate::inference::CleanupProvider::BuiltIn;
     tauri::async_runtime::spawn_blocking(move || {
-        let text = crate::dictionary::apply(&text, &settings.custom_prompt);
+        let text = crate::dictionary::apply(&text, &settings.custom_prompt, &settings.dictionary_aliases);
         crate::inference::cleanup(&settings, &text, None, app_name.as_deref(), |_| {}, || false)
     }).await.map_err(|e| e.to_string())?
 }

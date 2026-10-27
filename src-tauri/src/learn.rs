@@ -58,6 +58,7 @@ pub struct Suggestion {
 pub fn suggestions(
     history: &[TranscriptionRecord],
     dictionary_terms: &str,
+    aliases: &std::collections::BTreeMap<String, Vec<String>>,
     dismissed: &[String],
 ) -> Vec<Suggestion> {
     // (wrong, right) -> count, in first-seen order so the output is stable.
@@ -68,7 +69,7 @@ pub fn suggestions(
             continue;
         };
         for (wrong, right) in substitutions(original, &record.text) {
-            if !is_correction(&wrong, &right, dictionary_terms) {
+            if !is_correction(&wrong, &right, dictionary_terms, aliases) {
                 continue;
             }
             match counts
@@ -111,7 +112,12 @@ pub fn suggestions(
 
 /// Whether a (wrong → right) pair looks like the engine mishearing a term
 /// rather than the user rewriting their own words.
-fn is_correction(wrong: &str, right: &str, dictionary_terms: &str) -> bool {
+fn is_correction(
+    wrong: &str,
+    right: &str,
+    dictionary_terms: &str,
+    aliases: &std::collections::BTreeMap<String, Vec<String>>,
+) -> bool {
     if wrong == right || right.chars().count() < MIN_TERM_LEN {
         return false;
     }
@@ -121,7 +127,7 @@ fn is_correction(wrong: &str, right: &str, dictionary_terms: &str) -> bool {
         return false;
     }
     // Already handled: adding it would change nothing.
-    if dictionary::apply(wrong, dictionary_terms) == right {
+    if dictionary::apply(wrong, dictionary_terms, aliases) == right {
         return false;
     }
     dictionary::phonetic_similarity(wrong, right) >= MIN_PHONETIC_SIMILARITY
@@ -231,7 +237,7 @@ mod tests {
             record("deploy to antropic today", "deploy to Anthropic today"),
             record("antropic shipped it", "Anthropic shipped it"),
         ];
-        let found = suggestions(&history, "", &[]);
+        let found = suggestions(&history, "", &Default::default(), &[]);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].term, "Anthropic");
         assert_eq!(found[0].count, 2);
@@ -242,7 +248,7 @@ mod tests {
     #[test]
     fn proposes_a_single_correction() {
         let history = vec![record("use superbase for auth", "use Supabase for auth")];
-        let found = suggestions(&history, "", &[]);
+        let found = suggestions(&history, "", &Default::default(), &[]);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].term, "Supabase");
         assert_eq!(found[0].count, 1);
@@ -254,7 +260,7 @@ mod tests {
         for _ in 0..3 {
             history.push(record("deploy to antropic", "deploy to Anthropic"));
         }
-        let found = suggestions(&history, "", &[]);
+        let found = suggestions(&history, "", &Default::default(), &[]);
         assert_eq!(found[0].term, "Anthropic");
         assert_eq!(found[0].count, 3);
         assert_eq!(found[1].term, "Supabase");
@@ -270,7 +276,10 @@ mod tests {
             record("the meeting is tuesday", "the meeting is friday"),
             record("the meeting is tuesday", "the meeting is friday"),
         ];
-        assert_eq!(suggestions(&history, "", &[]), Vec::new());
+        assert_eq!(
+            suggestions(&history, "", &Default::default(), &[]),
+            Vec::new()
+        );
     }
 
     #[test]
@@ -279,7 +288,7 @@ mod tests {
             record("use cubernetes here", "use Kubernetes here"),
             record("use kubernettes here", "use Kubernetes here"),
         ];
-        let found = suggestions(&history, "", &[]);
+        let found = suggestions(&history, "", &Default::default(), &[]);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].term, "Kubernetes");
         assert_eq!(found[0].count, 2);
@@ -294,7 +303,21 @@ mod tests {
         ];
         // Already a term: `dictionary::apply` would have made this correction
         // itself, so proposing it again is noise.
-        assert!(suggestions(&history, "Kubernetes", &[]).is_empty());
+        assert!(suggestions(&history, "Kubernetes", &Default::default(), &[]).is_empty());
+    }
+
+    #[test]
+    fn approved_aliases_are_not_suggested_again_but_new_variants_are() {
+        let history = vec![
+            record("use superbase for auth", "use Supabase for auth"),
+            record("use supersbase for auth", "use Supabase for auth"),
+        ];
+        let aliases =
+            std::collections::BTreeMap::from([("Supabase".into(), vec!["superbase".into()])]);
+        let found = suggestions(&history, "Supabase", &aliases, &[]);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].term, "Supabase");
+        assert_eq!(found[0].replaces, vec!["supersbase"]);
     }
 
     #[test]
@@ -304,14 +327,14 @@ mod tests {
             record("antropic shipped", "Anthropic shipped"),
         ];
         let dismissed = vec!["antropic→Anthropic".to_string()];
-        assert!(suggestions(&history, "", &dismissed).is_empty());
+        assert!(suggestions(&history, "", &Default::default(), &dismissed).is_empty());
     }
 
     #[test]
     fn records_never_edited_carry_no_signal() {
         let mut untouched = record("a", "a");
         untouched.original_text = None;
-        assert!(suggestions(&[untouched], "", &[]).is_empty());
+        assert!(suggestions(&[untouched], "", &Default::default(), &[]).is_empty());
     }
 
     #[test]
@@ -327,7 +350,10 @@ mod tests {
             vec![("antropic".to_string(), "Anthropic".to_string())]
         );
         // Identical text yields nothing at all.
-        assert_eq!(substitutions("same words here", "same words here"), Vec::new());
+        assert_eq!(
+            substitutions("same words here", "same words here"),
+            Vec::new()
+        );
     }
 
     #[test]
@@ -336,7 +362,7 @@ mod tests {
             record("openai released it", "OpenAI released it"),
             record("openai released it", "OpenAI released it"),
         ];
-        let found = suggestions(&history, "", &[]);
+        let found = suggestions(&history, "", &Default::default(), &[]);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].term, "OpenAI");
     }

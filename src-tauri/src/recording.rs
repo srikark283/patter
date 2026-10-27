@@ -464,7 +464,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         // the initial prompt) and with cleanup off. Runs before cleanup, not
         // instead of it: the LLM still gets the terms, and fixing the spelling
         // first gives it a transcript it can reason about.
-        let text = crate::dictionary::apply(&text, &settings.custom_prompt);
+        let text = crate::dictionary::apply(&text, &settings.custom_prompt, &settings.dictionary_aliases);
 
         if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
 

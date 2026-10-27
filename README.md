@@ -21,8 +21,8 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 
 ### Personalization
 - **Personal memory** — teach Patter facts about you, your projects, and your jargon; it uses them (via local embeddings) to get names and terms right.
-- **Dictionary** — a custom vocabulary list for words the model should recognize (names, acronyms, slang). Applied three ways so it works on every engine: as the speech model's prompt, as a phonetic correction pass over the transcript, and as context for the cleanup model.
-- **Learns from your edits** — correct a transcript in History twice and Patter offers the term for your dictionary, with the misheard spellings it saw. It proposes, never adds on its own.
+- **Dictionary** — a custom vocabulary list for names, acronyms, and slang. Spelling corrections run before cleanup and again on the final result with either S1-mini or Ollama. Whisper also receives vocabulary hints, and Ollama receives the terms as cleanup context. Corrections still work with cleanup off.
+- **Learns from your edits** — correct a transcript in History and Patter offers to remember the preferred spelling and the misheard variants. Approved variants become exact word or phrase replacements across speech models, with or without cleanup. Click a Dictionary term to edit its spelling and corrections. It proposes, never adds on its own.
 - **Voice macros** — say a short trigger phrase, get a whole block of text expanded automatically (addresses, sign-offs, boilerplate).
 
 ### Interface

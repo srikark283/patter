@@ -15,6 +15,7 @@ export interface Settings {
   microphone: string | null;
   output_mode: string;
   custom_prompt: string;
+  dictionary_aliases: Record<string, string[]>;
   autostart: boolean;
   language: string;
   silence_timeout_ms: number;

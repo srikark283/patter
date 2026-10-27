@@ -26,7 +26,7 @@ pub fn cleanup(
     on_partial: impl FnMut(&str),
     cancelled: impl Fn() -> bool,
 ) -> Result<String, String> {
-    match settings.cleanup_provider {
+    let cleaned = match settings.cleanup_provider {
         CleanupProvider::Ollama => crate::ollama::cleanup(
             settings
                 .ollama_model
@@ -41,7 +41,13 @@ pub fn cleanup(
         CleanupProvider::BuiltIn => {
             crate::s1::cleanup(settings, text, extra, app_name, on_partial, cancelled)
         }
-    }
+    }?;
+    // Cleanup may change a dictionary term's spelling or capitalization again.
+    Ok(crate::dictionary::apply(
+        &cleaned,
+        &settings.custom_prompt,
+        &settings.dictionary_aliases,
+    ))
 }
 
 impl BuiltInModel {
@@ -118,6 +124,52 @@ pub fn local_memory_context<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    #[test]
+    fn built_in_results_restore_dictionary_spellings() {
+        let settings = Settings {
+            cleanup_provider: CleanupProvider::BuiltIn,
+            custom_prompt: "OpenAI, Kubernetes, Anthropic, Srikar".into(),
+            dictionary_aliases: std::collections::BTreeMap::from([(
+                "OpenAI".into(),
+                vec!["o pen aye eye".into()],
+            )]),
+            ..Settings::default()
+        };
+        // The verbatim app path exercises shared finalization without loading a model.
+        for (text, expected) in [
+            ("Ask Open AI, then antropic.", "Ask OpenAI, then Anthropic."),
+            ("Ask o pen aye eye.", "Ask OpenAI."),
+            ("(cubernetes) is up.", "(Kubernetes) is up."),
+            ("OpenAI is down.", "OpenAI is down."),
+            (
+                "Open the door; post the results.",
+                "Open the door; post the results.",
+            ),
+            ("a sri lankan recipe", "a sri lankan recipe"),
+            ("", ""),
+        ] {
+            assert_eq!(
+                cleanup(&settings, text, None, Some("Terminal"), |_| {}, || false).unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn cleanup_configuration_errors_still_propagate() {
+        let settings = Settings {
+            cleanup_provider: CleanupProvider::Ollama,
+            ollama_model: None,
+            custom_prompt: "OpenAI".into(),
+            ..Settings::default()
+        };
+        assert_eq!(
+            cleanup(&settings, "Open AI", None, None, |_| {}, || false),
+            Err("Select an Ollama cleanup model".into())
+        );
+    }
 
     #[test]
     fn saved_providers_migrate_without_changing_ollama_selection() {
@@ -202,5 +254,30 @@ mod tests {
         value.as_object_mut().unwrap().remove("cleanup_provider");
         let settings: Settings = serde_json::from_value(value).unwrap();
         assert_eq!(settings.cleanup_provider, CleanupProvider::Ollama);
+    }
+
+    #[test]
+    fn dictionary_aliases_survive_settings_round_trips_and_default_for_old_files() {
+        let mut settings = Settings::default();
+        settings.custom_prompt = "Srikar".into();
+        settings
+            .dictionary_aliases
+            .insert("Srikar".into(), vec!["shree car".into()]);
+        let mut value = serde_json::to_value(&settings).unwrap();
+        let restored = load_settings(&value.to_string()).unwrap();
+        assert_eq!(restored.dictionary_aliases, settings.dictionary_aliases);
+        assert_eq!(
+            crate::dictionary::apply(
+                "ask shree car",
+                &restored.custom_prompt,
+                &restored.dictionary_aliases
+            ),
+            "ask Srikar"
+        );
+
+        value.as_object_mut().unwrap().remove("dictionary_aliases");
+        let legacy = load_settings(&value.to_string()).unwrap();
+        assert!(legacy.dictionary_aliases.is_empty());
+        assert_eq!(legacy.custom_prompt, "Srikar");
     }
 }

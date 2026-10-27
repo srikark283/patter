@@ -46,6 +46,9 @@ pub struct Settings {
     pub microphone: Option<String>,
     pub output_mode: String,
     pub custom_prompt: String,
+    /// User-approved mishearings, keyed by the preferred dictionary spelling.
+    #[serde(default)]
+    pub dictionary_aliases: std::collections::BTreeMap<String, Vec<String>>,
     pub autostart: bool,
     pub language: String,
     pub silence_timeout_ms: u32,
@@ -146,6 +149,7 @@ impl Default for Settings {
             microphone: None,
             output_mode: "type".to_string(),
             custom_prompt: "".to_string(),
+            dictionary_aliases: Default::default(),
             autostart: true, // Default to true for system tray utilities
             language: "auto".to_string(),
             silence_timeout_ms: 1000,

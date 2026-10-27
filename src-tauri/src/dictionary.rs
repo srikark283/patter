@@ -1,15 +1,17 @@
 //! Engine-independent dictionary correction.
 //!
-//! The dictionary reaches Whisper as an initial prompt and the LLM as a cleanup
+//! The dictionary reaches Whisper as an initial prompt and Ollama as a cleanup
 //! instruction, but Parakeet ignores the prompt argument and cleanup is
 //! optional — so with cleanup off on Parakeet the feature did nothing at all.
 //! This pass closes that hole: it runs on the raw transcript, for every engine,
-//! with no model involved.
+//! with no model involved. It also runs on successful cleanup output so either
+//! provider's spelling and capitalization changes can be corrected again.
 //!
-//! It corrects near misses — wrong spacing, a swapped consonant, a dropped
-//! letter, the wrong casing. It is deliberately NOT a homophone engine: "eye
-//! phone" → "iPhone" is a leap only a language model should make, and the
-//! threshold that would catch it also rewrites words the user meant.
+//! Explicit, user-approved aliases match whole words before phonetic candidates.
+//! It also corrects near misses — wrong spacing, a swapped consonant, a dropped
+//! letter, the wrong casing. Larger phonetic leaps such as "eye phone" →
+//! "iPhone" need an explicit alias or a language model; loosening the fuzzy
+//! threshold would also rewrite words the user meant.
 
 /// Minimum letters in a dictionary term before it is allowed to match
 /// approximately. Short terms are mostly ordinary words, where one edit is the
@@ -23,10 +25,67 @@ const MIN_SIMILARITY: f32 = 0.82;
 /// engine split across words ("post gres") is still found. Bounds the scan.
 const MAX_WINDOW: usize = 3;
 
+use std::collections::BTreeMap;
+
+fn normalize_alias(text: &str) -> String {
+    text.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+fn alias_targets<'a>(
+    terms: &[&'a str],
+    aliases: &BTreeMap<String, Vec<String>>,
+) -> Result<BTreeMap<String, &'a str>, String> {
+    let mut targets = BTreeMap::new();
+    for (preferred, variants) in aliases {
+        let term = terms
+            .iter()
+            .copied()
+            .find(|term| term.to_lowercase() == preferred.to_lowercase())
+            .ok_or_else(|| {
+                format!("Add \"{preferred}\" to the dictionary before saving its corrections.")
+            })?;
+        for variant in variants {
+            let alias = normalize_alias(variant);
+            if alias.is_empty() || !alias.chars().any(char::is_alphanumeric) {
+                return Err("Each dictionary correction must contain a word.".into());
+            }
+            if normalize_alias(term) == alias {
+                continue;
+            }
+            if let Some(other) = terms.iter().find(|other| normalize_alias(other) == alias) {
+                return Err(format!(
+                    "\"{variant}\" is already a dictionary word ({other})."
+                ));
+            }
+            if let Some(other) = targets.insert(alias, term) {
+                if other != term {
+                    return Err(format!("\"{variant}\" is assigned to both \"{other}\" and \"{term}\". Remove one correction."));
+                }
+            }
+        }
+    }
+    Ok(targets)
+}
+
+pub fn validate_aliases(
+    dictionary: &str,
+    aliases: &BTreeMap<String, Vec<String>>,
+) -> Result<(), String> {
+    let terms: Vec<_> = dictionary
+        .split(',')
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .collect();
+    alias_targets(&terms, aliases).map(|_| ())
+}
+
 /// Rewrite near-misses of `dictionary`'s terms in `text` to the terms as the
 /// user spelled them. `dictionary` is the comma-separated list the Dictionary
 /// page stores.
-pub fn apply(text: &str, dictionary: &str) -> String {
+pub fn apply(text: &str, dictionary: &str, aliases: &BTreeMap<String, Vec<String>>) -> String {
     let terms: Vec<&str> = dictionary
         .split(',')
         .map(str::trim)
@@ -43,6 +102,22 @@ pub fn apply(text: &str, dictionary: &str) -> String {
 
     // Every (span, term) rewrite worth making, best first.
     let mut candidates: Vec<(usize, usize, &str, f32)> = Vec::new();
+    // Invalid imported rules must never choose an arbitrary replacement.
+    for (alias, term) in alias_targets(&terms, aliases).unwrap_or_default() {
+        let size = word_spans(&alias).len();
+        if size == 0 || size > words.len() {
+            continue;
+        }
+        for start in 0..=words.len() - size {
+            let (from, _) = words[start];
+            let (_, to) = words[start + size - 1];
+            if normalize_alias(&text[from..to]) == alias {
+                // Approved aliases outrank fuzzy matches; all matches use the
+                // original text so one replacement cannot trigger another.
+                candidates.push((from, to, term, 2.0));
+            }
+        }
+    }
     for term in &terms {
         let folded_term = fold(term);
         let letters = term.chars().filter(|c| c.is_alphanumeric()).count();
@@ -71,7 +146,7 @@ pub fn apply(text: &str, dictionary: &str) -> String {
                 let similarity = if folded_window == folded_term {
                     1.0
                 } else if letters < MIN_FUZZY_LEN {
-                    continue
+                    continue;
                 } else {
                     similarity(&folded_window, &folded_term)
                 };
@@ -259,12 +334,80 @@ fn levenshtein(a: &str, b: &str) -> usize {
 mod tests {
     use super::*;
 
+    fn apply(text: &str, dictionary: &str) -> String {
+        super::apply(text, dictionary, &BTreeMap::new())
+    }
+
     const DICT: &str = "PostgreSQL, Kubernetes, OpenAI, Anthropic, sherpa-onnx, Srikar";
+
+    #[test]
+    fn approved_aliases_match_whole_phrases_and_preserve_surrounding_text() {
+        let aliases = BTreeMap::from([
+            ("Srikar".into(), vec!["shree car".into()]),
+            ("Kubernetes".into(), vec!["cube er net ease".into()]),
+            ("DéjàVu".into(), vec!["day jah voo".into()]),
+        ]);
+        let dictionary = "Srikar, Kubernetes, DéjàVu";
+        assert_eq!(
+            super::apply(
+                "Ask (SHREE   CAR) about cube er net ease, then day jah voo.",
+                dictionary,
+                &aliases
+            ),
+            "Ask (Srikar) about Kubernetes, then DéjàVu."
+        );
+        let ordinary = "The car is red. A shree carpet and cube er net easement.";
+        assert_eq!(super::apply(ordinary, dictionary, &aliases), ordinary);
+        assert_eq!(super::apply("", dictionary, &aliases), "");
+        let corrected = super::apply("shree car uses Kubernetes", dictionary, &aliases);
+        assert_eq!(super::apply(&corrected, dictionary, &aliases), corrected);
+    }
+
+    #[test]
+    fn longer_approved_aliases_win_without_rewriting_dictionary_words() {
+        let aliases = BTreeMap::from([
+            ("Atlas".into(), vec!["orbit".into()]),
+            ("Nebula".into(), vec!["orbit service".into()]),
+        ]);
+        assert_eq!(
+            super::apply("orbit service, then orbit", "Atlas, Nebula", &aliases),
+            "Nebula, then Atlas"
+        );
+        assert_eq!(
+            super::apply("Atlas uses Nebula", "Atlas, Nebula", &aliases),
+            "Atlas uses Nebula"
+        );
+    }
+
+    #[test]
+    fn aliases_reject_conflicts_and_dangling_targets() {
+        let aliases = BTreeMap::from([
+            ("Atlas".into(), vec!["orbit service".into()]),
+            ("Nebula".into(), vec!["ORBIT  SERVICE".into()]),
+        ]);
+        assert!(validate_aliases("Atlas, Nebula", &aliases)
+            .unwrap_err()
+            .contains("assigned to both"));
+        assert_eq!(
+            super::apply("orbit service", "Atlas, Nebula", &aliases),
+            "orbit service"
+        );
+        assert!(validate_aliases("Atlas", &aliases).is_err());
+        assert!(validate_aliases(
+            "Atlas, Nebula",
+            &BTreeMap::from([("Atlas".into(), vec!["Nebula".into()]),])
+        )
+        .unwrap_err()
+        .contains("already a dictionary word"));
+    }
 
     #[test]
     fn fixes_spacing_and_casing_exactly() {
         // The folded forms match exactly — no length floor applies.
-        assert_eq!(apply("we use open ai for this", DICT), "we use OpenAI for this");
+        assert_eq!(
+            apply("we use open ai for this", DICT),
+            "we use OpenAI for this"
+        );
         assert_eq!(apply("openai is down", DICT), "OpenAI is down");
         // Already right: left completely alone. A correct term followed by a
         // short word used to be swallowed whole — "OpenAI is" scores well
@@ -277,8 +420,30 @@ mod tests {
     #[test]
     fn fixes_near_misses_in_spelling() {
         assert_eq!(apply("deploy to cubernetes", DICT), "deploy to Kubernetes");
-        assert_eq!(apply("the postgres ql database", DICT), "the PostgreSQL database");
+        assert_eq!(
+            apply("the postgres ql database", DICT),
+            "the PostgreSQL database"
+        );
         assert_eq!(apply("antropic released it", DICT), "Anthropic released it");
+    }
+
+    #[test]
+    fn dictionary_corrections_survive_a_cleanup_round_trip() {
+        let dictionary = "OpenAI, Kubernetes, DéjàVu";
+        let prepared = apply("ask open ai about cubernetes and déjà vu", dictionary);
+        assert_eq!(prepared, "ask OpenAI about Kubernetes and DéjàVu");
+
+        // Simulate cleanup changing names while adding punctuation and layout.
+        let cleaned = "Ask Open AI about:\n- cubernetes\n- déjà vu.";
+        let finalized = apply(cleaned, dictionary);
+        assert_eq!(finalized, "Ask OpenAI about:\n- Kubernetes\n- DéjàVu.");
+        assert_eq!(apply(&finalized, dictionary), finalized);
+
+        // Cleanup off or failed: the already-corrected transcript stays intact.
+        assert_eq!(apply(&prepared, dictionary), prepared);
+        // Cleanup may legitimately remove all content or a self-corrected name.
+        assert_eq!(apply("", dictionary), "");
+        assert_eq!(apply("Ask Maya instead.", dictionary), "Ask Maya instead.");
     }
 
     #[test]
@@ -321,7 +486,10 @@ mod tests {
     fn one_span_is_claimed_once_by_the_best_term() {
         // Both terms are close; the exact folded match has to win.
         let dict = "Postgres, PostgreSQL";
-        assert_eq!(apply("we run postgresql here", dict), "we run PostgreSQL here");
+        assert_eq!(
+            apply("we run postgresql here", dict),
+            "we run PostgreSQL here"
+        );
         assert_eq!(apply("we run postgres here", dict), "we run Postgres here");
     }
 
