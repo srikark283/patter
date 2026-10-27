@@ -46,9 +46,9 @@ static DOWNLOADING: AtomicU32 = AtomicU32::new(0);
 static PROGRESS: AtomicU32 = AtomicU32::new(0);
 
 pub fn initialize(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let bundled = app.path().resource_dir()?.join("s1-runtime/patter-s1");
+    let bundled = app.path().resource_dir()?.join("s1-runtime/patter-intelligence");
     let executable = if cfg!(debug_assertions) && !bundled.is_file() {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../native/s1-mini/dist/patter-s1")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../native/s1-mini/dist/patter-intelligence")
     } else {
         bundled
     };
@@ -550,7 +550,7 @@ mod tests {
             .all(|f| f.sha256.len() == 64 && !f.name.contains('/')));
         assert!(!installed_at(
             BuiltInModel::S1Mini,
-            Path::new("/nonexistent/patter-s1-test")
+            Path::new("/nonexistent/patter-intelligence-test")
         ));
     }
     #[test]
@@ -605,7 +605,7 @@ mod tests {
     fn bundled_runtime_smoke() {
         let _serial = WORKER.lock().unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir()
-            .join("patter-s1-smoke")
+            .join("patter-intelligence-smoke")
             .join(manifest(BuiltInModel::S1Mini).revision);
         install_into(BuiltInModel::S1Mini, &dir).unwrap();
         assert!(installed_at(BuiltInModel::S1Mini, &dir));
@@ -613,7 +613,7 @@ mod tests {
             kind: BuiltInModel::S1Mini,
             model: dir,
             executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../native/s1-mini/dist/patter-s1"),
+                .join("../native/s1-mini/dist/patter-intelligence"),
         };
         let mut worker = Worker::start(&p).unwrap();
         let deadline = Instant::now() + Duration::from_secs(90);

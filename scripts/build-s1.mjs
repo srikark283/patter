@@ -14,7 +14,7 @@ const bin = join(root, ".build/xcode/Build/Products/Release");
 const dist = join(root, "dist");
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
-copyFileSync(join(bin, "patter-s1"), join(dist, "patter-s1"));
+copyFileSync(join(bin, "patter-intelligence"), join(dist, "patter-intelligence"));
 const metal = [join(bin, "mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib"), join(bin, "mlx-swift_Cmlx.bundle/default.metallib")].find(existsSync);
 if (!metal) throw new Error("MLX Metal library missing. Install the Xcode Metal toolchain.");
 copyFileSync(metal, join(dist, "mlx.metallib"));
@@ -28,8 +28,8 @@ for (const name of readdirSync(join(root, ".build/xcode/SourcePackages/checkouts
 }
 for (const file of readdirSync(join(dist, "licenses"))) chmodSync(join(dist, "licenses", file), 0o644);
 // Newer toolchains may link Swift compatibility libraries absent on older macOS.
-execFileSync("xcrun", ["swift-stdlib-tool", "--copy", "--scan-executable", join(dist, "patter-s1"), "--destination", dist, "--platform", "macosx", "--sign", process.env.APPLE_SIGNING_IDENTITY || "-"], { stdio: "inherit" });
+execFileSync("xcrun", ["swift-stdlib-tool", "--copy", "--scan-executable", join(dist, "patter-intelligence"), "--destination", dist, "--platform", "macosx", "--sign", process.env.APPLE_SIGNING_IDENTITY || "-"], { stdio: "inherit" });
 for (const file of readdirSync(dist).filter(f => f.endsWith(".original"))) rmSync(join(dist, file));
-execFileSync("install_name_tool", ["-add_rpath", "@executable_path", join(dist, "patter-s1")]);
-execFileSync("codesign", ["--force", "--sign", process.env.APPLE_SIGNING_IDENTITY || "-", join(dist, "patter-s1")], { stdio: "inherit" });
+execFileSync("install_name_tool", ["-add_rpath", "@executable_path", join(dist, "patter-intelligence")]);
+execFileSync("codesign", ["--force", "--sign", process.env.APPLE_SIGNING_IDENTITY || "-", join(dist, "patter-intelligence")], { stdio: "inherit" });
 console.log("Bundled S1-mini runtime:", dist);
