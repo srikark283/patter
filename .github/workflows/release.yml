@@ -63,6 +63,10 @@ jobs:
           PATTER_FLASH_SOURCE: ${{ runner.temp }}/patter-flash
         run: cargo test --manifest-path src-tauri/Cargo.toml s1::tests::flash_bundled_runtime_smoke -- --ignored --nocapture
 
+      - name: Verify Flash channel activation and rollback
+        if: matrix.platform == 'macos-latest'
+        run: cargo test --manifest-path src-tauri/Cargo.toml s1::updates::tests::channel_install_probe_failure_and_rollback_smoke -- --ignored --nocapture
+
       # Self-signed (not Apple Developer ID) codesigning, macOS only. Without
       # this, every release is signed ad-hoc with a fresh identity each build,
       # so macOS TCC treats each update as a "new app" and drops the user's

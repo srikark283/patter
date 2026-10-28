@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, WandSparkles } from "lucide-react";
-import { testS1Cleanup, builtInModelName, type Settings, type S1Status } from "@/lib/ipc";
+import { testS1Cleanup, builtInModelName, checkFlashUpdate, installFlashUpdate, rollbackFlashUpdate, type FlashUpdate, type Settings, type S1Status } from "@/lib/ipc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Props {
@@ -18,6 +18,29 @@ interface Props {
 export function S1Settings({ settings, model, status, error, busy, onEnable, onRefresh }: Props) {
   const name = builtInModelName(model);
   const flash = model === "patter_flash";
+  const [update, setUpdate] = useState<FlashUpdate | null>(null);
+  const [updateError, setUpdateError] = useState("");
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const checkUpdate = async () => {
+    setUpdateBusy(true); setUpdateError("");
+    try { setUpdate(await checkFlashUpdate()); } catch (error) { setUpdateError(String(error)); }
+    finally { setUpdateBusy(false); }
+  };
+  useEffect(() => { if (flash) void checkUpdate(); }, [flash]);
+  useEffect(() => {
+    if (!updateBusy) return;
+    const timer = window.setInterval(onRefresh, 1000);
+    return () => window.clearInterval(timer);
+  }, [updateBusy, onRefresh]);
+  const changeVersion = async (rollback = false) => {
+    if (!rollback && !update) return;
+    setUpdateBusy(true); setUpdateError("");
+    try {
+      if (rollback) await rollbackFlashUpdate(); else await installFlashUpdate(update!.latest_version);
+      setUpdate(null); onRefresh();
+    } catch (error) { setUpdateError(String(error)); }
+    finally { setUpdateBusy(false); }
+  };
   const [profile, setProfile] = useState("none");
   const [testing, setTesting] = useState(false);
   const [sample, setSample] = useState("so um send the report by friday no wait thursday");
@@ -25,7 +48,7 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
   const [result, setResult] = useState<string | null>(null);
   const ready = !!status?.supported && status.installed && status.runtime_ready;
   const active = settings.cleanup_provider === "built_in" && settings.built_in_model === model && settings.llm_cleanup_enabled;
-  const downloading = busy || !!status?.downloading;
+  const downloading = busy || updateBusy || !!status?.downloading;
   const test = async () => {
     setTesting(true); setResult(null); setTestError("");
     try { setResult(await testS1Cleanup(sample, profile === "none" ? null : profile, model)); }
@@ -53,6 +76,16 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
         {downloading ? `Setting up ${name}…` : !status.installed ? `Download & enable ${name}` : settings.language !== "en" ? `Use English & enable ${name}` : `Enable ${name}`}
       </Button>
     </>}
+    {flash && <div className="space-y-2 border-t border-border pt-3">
+      <p className="text-xs text-muted-foreground">Model version: {status?.version ?? "Checking…"}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={checkUpdate} disabled={downloading || testing}>{updateBusy ? "Checking / preparing…" : "Check model updates"}</Button>
+        {update?.update_available && <Button size="sm" disabled={downloading || testing} onClick={() => changeVersion()}>Update to {update.latest_version} · {Math.ceil(update.download_bytes / 1_000_000)} MB</Button>}
+        {status?.previous_version && <Button variant="outline" size="sm" disabled={downloading || testing} onClick={() => changeVersion(true)}>Restore {status.previous_version}</Button>}
+      </div>
+      {update && !update.update_available && <p role="status" className="text-xs text-muted-foreground">No newer model release is available.</p>}
+      {updateError && <p role="alert" className="break-words text-xs text-destructive">{updateError} Your current model is kept.</p>}
+    </div>}
     {status?.downloading && <Progress aria-label={`${name} installation`} value={status.progress} />}
     {error && <div role="alert" className="space-y-2 text-sm text-destructive break-words">
       <p>{error}</p>
@@ -76,7 +109,7 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
           <label htmlFor="s1-sample" className="text-xs text-muted-foreground">Original transcript<textarea id="s1-sample" disabled={testing} value={sample} onChange={event => { setSample(event.target.value); setResult(null); setTestError(""); }} maxLength={128000} rows={5} className="mt-2 block w-full resize-y rounded-lg border border-input bg-background p-3 text-sm leading-relaxed text-foreground focus-visible:outline-2 focus-visible:outline-ring" /></label>
           <div><p className="text-xs text-muted-foreground">Cleaned result</p><div role="status" className="mt-2 min-h-36 whitespace-pre-wrap break-words rounded-lg bg-accent-subtle p-3 text-sm leading-relaxed">{testing ? <span className="inline-flex items-center gap-2 text-muted-foreground"><Loader2 size={14} className="animate-spin" />Cleaning up…</span> : result !== null ? result || "No text remaining after filler removal." : <span className="text-muted-foreground">Run a preview to see the result here.</span>}</div></div>
         </div>
-        <Button variant="outline" onClick={test} disabled={testing || busy || !sample.trim() || settings.language !== "en"}>{testing ? <Loader2 size={14} className="animate-spin" /> : <WandSparkles size={14} />}{testing ? "Cleaning up…" : "Test cleanup"}</Button>
+        <Button variant="outline" onClick={test} disabled={testing || downloading || !sample.trim() || settings.language !== "en"}>{testing ? <Loader2 size={14} className="animate-spin" /> : <WandSparkles size={14} />}{testing ? "Cleaning up…" : "Test cleanup"}</Button>
         {testError && <p role="alert" className="break-words text-sm text-destructive">Preview failed. {testError} Try again when the model is available.</p>}
         {settings.language !== "en" && <p className="text-xs text-warning">Enable {name} above to use English before testing cleanup.</p>}
       </div>

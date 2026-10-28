@@ -299,7 +299,14 @@ export function dismissDictionarySuggestion(key: string) {
 export const onCleanupError = (callback: (message: string) => void) =>
   listen<string>("patter://error", event => callback(event.payload));
 
+export interface FlashUpdate { current_version: string; latest_version: string; update_available: boolean; download_bytes: number; }
+export const checkFlashUpdate = () => invoke<FlashUpdate>("check_flash_update");
+export const installFlashUpdate = (version: string) => invoke<void>("install_flash_update", { version });
+export const rollbackFlashUpdate = () => invoke<void>("rollback_flash_update");
+
 export interface S1Status {
+  version: string | null;
+  previous_version: string | null;
   supported: boolean;
   installed: boolean;
   runtime_ready: boolean;

@@ -14,8 +14,9 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::Manager;
+pub mod updates;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct Manifest {
     repo: String,
     #[serde(default)]
@@ -23,13 +24,18 @@ struct Manifest {
     revision: String,
     files: Vec<ModelFile>,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct ModelFile {
     name: String,
     size: u64,
     sha256: String,
 }
 fn manifest(model: BuiltInModel) -> Manifest {
+    if model == BuiltInModel::PatterFlash {
+        if let Some(active) = updates::active_channel() {
+            return active.desktop;
+        }
+    }
     let json = match model {
         BuiltInModel::S1Mini => include_str!("../../native/s1-mini/model.json"),
         BuiltInModel::PatterFlash => include_str!("../../native/s1-mini/patter-flash.json"),
@@ -75,15 +81,15 @@ pub fn initialize(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 fn paths(model: BuiltInModel) -> Result<Paths, String> {
+    paths_for_manifest(model, &manifest(model))
+}
+fn paths_for_manifest(model: BuiltInModel, manifest: &Manifest) -> Result<Paths, String> {
     let mut p = PATHS
         .get()
         .ok_or("Built-in runtime is not initialized")?
         .clone();
     p.kind = model;
-    p.model = p
-        .model
-        .join(model.directory())
-        .join(manifest(model).revision);
+    p.model = p.model.join(model.directory()).join(&manifest.revision);
     Ok(p)
 }
 fn supported() -> bool {
@@ -102,8 +108,11 @@ fn supported() -> bool {
     })
 }
 fn installed_at(model: BuiltInModel, dir: &Path) -> bool {
+    installed_manifest(&manifest(model), dir)
+}
+fn installed_manifest(manifest: &Manifest, dir: &Path) -> bool {
     dir.join(".complete").is_file()
-        && manifest(model)
+        && manifest
             .files
             .iter()
             .all(|f| fs::metadata(dir.join(&f.name)).is_ok_and(|m| m.len() == f.size))
@@ -117,10 +126,18 @@ pub struct Status {
     pub progress: u32,
     pub download_bytes: u64,
     pub downloading_model: Option<BuiltInModel>,
+    pub version: Option<String>,
+    pub previous_version: Option<String>,
 }
 pub fn status(model: BuiltInModel) -> Result<Status, String> {
     let p = paths(model)?;
     Ok(Status {
+        version: (model == BuiltInModel::PatterFlash).then(|| updates::current_channel().version),
+        previous_version: if model == BuiltInModel::PatterFlash {
+            updates::previous_version()
+        } else {
+            None
+        },
         supported: supported(),
         installed: installed_at(model, &p.model),
         runtime_ready: p.executable.is_file()
@@ -195,6 +212,9 @@ pub fn install(model: BuiltInModel) -> Result<(), String> {
     install_from(model, None)
 }
 pub fn install_from(model: BuiltInModel, source: Option<&Path>) -> Result<(), String> {
+    if model == BuiltInModel::PatterFlash && source.is_none() {
+        return updates::install(None);
+    }
     require_supported()?;
     if DOWNLOADING
         .compare_exchange(
@@ -228,7 +248,14 @@ fn install_into_from(
     dir: &Path,
     source: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let m = manifest(model);
+    download_manifest(model, dir, source, &manifest(model))
+}
+fn download_manifest(
+    model: BuiltInModel,
+    dir: &Path,
+    source: Option<&Path>,
+    m: &Manifest,
+) -> Result<(), Box<dyn std::error::Error>> {
     if m.repo.is_empty() && m.base_url.is_none() && source.is_none() {
         return Err("No download source configured for this model".into());
     }
@@ -314,12 +341,13 @@ fn install_into_from(
         result?;
         completed += f.size;
     }
-    fs::write(dir.join(".complete"), m.revision)?;
+    fs::write(dir.join(".complete"), &m.revision)?;
     Ok(())
 }
 
 struct Worker {
     kind: BuiltInModel,
+    model: PathBuf,
     child: Arc<Mutex<Child>>,
     stdin: ChildStdin,
     events: mpsc::Receiver<Result<serde_json::Value, String>>,
@@ -331,7 +359,12 @@ impl Drop for Worker {
             let _ = child.wait();
         }
         if let Ok(mut active) = CHILD.lock() {
-            *active = None;
+            if active
+                .as_ref()
+                .is_some_and(|child| Arc::ptr_eq(child, &self.child))
+            {
+                *active = None;
+            }
         }
     }
 }
@@ -362,6 +395,7 @@ impl Worker {
         *CHILD.lock().map_err(|e| e.to_string())? = Some(child.clone());
         Ok(Self {
             kind: p.kind,
+            model: p.model.clone(),
             child,
             stdin,
             events,
@@ -507,13 +541,6 @@ pub fn cleanup(
     if text.len() > 128000 {
         return Err("Transcript exceeds the 128 KB built-in cleanup input limit".into());
     }
-    let p = paths(model)?;
-    if !installed_at(model, &p.model) {
-        return Err(format!(
-            "Download {} from Intelligence before using cleanup",
-            model.name()
-        ));
-    }
     let deadline = Instant::now() + Duration::from_secs(900);
     let mut slot = loop {
         check_wait(deadline, &cancelled)?;
@@ -526,7 +553,17 @@ pub fn cleanup(
         }
     };
     let result = (|| {
-        if slot.as_ref().is_some_and(|worker| worker.kind != model) {
+        let p = paths(model)?;
+        if !installed_at(model, &p.model) {
+            return Err(format!(
+                "Download {} from Intelligence before using cleanup",
+                model.name()
+            ));
+        }
+        if slot
+            .as_ref()
+            .is_some_and(|worker| worker.kind != model || worker.model != p.model)
+        {
             *slot = None;
         }
         if slot.is_none() {
@@ -693,6 +730,8 @@ mod tests {
             progress: 0,
             download_bytes: 0,
             downloading_model: None,
+            version: None,
+            previous_version: None,
         };
         assert!(activation_ready(&settings, &status)
             .unwrap_err()

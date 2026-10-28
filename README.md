@@ -190,24 +190,35 @@ stays verbatim. Flash uses 256-token transcript chunks; S1-mini keeps its
 transcript. Flash is currently best suited to short dictation: the longer native
 regression sample still reaches the generation limit and retains its original text.
 
-The Flash manifest pins this specific export by SHA-256. Model releases use their
-own `patter-flash-v*` tags (marked prerelease), so publishing weights does not
-change the stable app updater. Weights remain outside Git and the app installers.
-Manual downloads can use the `.tar.gz` archive on the model release.
+Flash can receive compatible weights-only updates through a shared channel at
+`https://raw.githubusercontent.com/srikark283/patter/model-channel/stable.json`.
+Opening Flash settings checks for an update. **Update** downloads the advertised
+immutable release, verifies every file, probes the model, and atomically changes
+the active manifest. The previous version remains available through **Restore**,
+including offline. A failed download or probe keeps the working version. In-flight
+cleanup and model activation are serialized, and the worker reloads when the model
+path changes. The bundled v1 manifest remains an offline/bootstrap fallback.
 
-To prepare a future model release, update `native/s1-mini/patter-flash.json` with
-the new version's URL, revision, file sizes, and hashes; retain the required
-notices in `native/s1-mini/flash-notices/`. Then prepare and verify its assets:
+Deploy from the sibling `patter-model` project with one command:
 
 ```bash
-python3 scripts/prepare-flash-release.py --source /path/to/patter-flash --output /tmp/patter-flash-release
-python3 scripts/test-prepare-flash-release.py
+uv run patter deploy --name YOUR_TRAINED_MODEL_NAME
 ```
 
-Upload the prepared files to the matching GitHub model release. After publishing,
-verify anonymous downloads with `python3 scripts/prepare-flash-release.py
---download --output /tmp/patter-flash-download`. App release CI repeats this
-verification and runs Flash inference on Apple Silicon before packaging the app.
+This fuses the checkpoint, builds matching MLX/GGUF exports, verifies both
+runtimes, publishes immutable content-versioned assets and promotes the shared
+channel. `uv run patter deploy` selects and exports the newest completed Flash
+checkpoint automatically; `--source`/`--bf16` select explicit existing exports,
+and `--prepare-only` verifies without publishing. To roll the server channel back,
+run `uv run patter promote-model patter-flash-v1`. See `patter-model/README.md`
+for prerequisites and protocol details. No per-app manifest edits are needed for
+subsequent compatible weight updates. Devices need the channel-capable app once;
+architecture or prompt-contract changes still require a new runtime/app release.
+
+The legacy `scripts/prepare-flash-release.py` remains available for verifying the
+bundled v1 fallback. Model weights stay outside Git and app installers. GitHub
+model prereleases do not change the stable app updater. The current smoke checks
+verify loadability and basic preservation, not broad cleanup quality.
 
 `tauri dev` builds the helper automatically (`npm run build:s1` builds it alone).
 `tauri build` packages the helper, Metal library, Swift compatibility libraries,
