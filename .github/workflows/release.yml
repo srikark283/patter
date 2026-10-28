@@ -1,6 +1,12 @@
 name: Build and release
 
 on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to rebuild and publish (for example v0.4.25)
+        required: true
+        type: string
   push:
     # Tags can restore default-branch caches, but not caches from other tags.
     branches: [main]
@@ -18,13 +24,28 @@ jobs:
         platform: [macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
       # Use the same native compiler settings for tests and release builds.
       # M1 baseline avoids ggml i8mm errors and supports every Apple Silicon Mac.
       CFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
       CXXFLAGS: ${{ matrix.platform == 'macos-latest' && '-mcpu=apple-m1' || '' }}
       RUSTFLAGS: ${{ matrix.platform == 'windows-latest' && '-C target-feature=+crt-static' || '' }}
     steps:
+      - name: Validate a manual release retry
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          if [[ "$WORKFLOW_REF" != refs/heads/main || ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Run this workflow from main with an existing version tag, such as v0.4.25."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
+        with:
+          # Retry the exact tagged source using the workflow fixes on main.
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -88,7 +109,7 @@ jobs:
         run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml s1::updates::tests::channel_install_probe_failure_and_rollback_smoke -- --ignored --exact --nocapture
 
       - name: Build the app and warm release dependencies on main
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: npm run tauri -- build --no-bundle
 
       - name: Save the Swift and Metal build cache on main
@@ -106,7 +127,7 @@ jobs:
       # "unidentified developer" warning is unaffected; that needs a paid
       # Apple Developer ID + notarization, which this is not.
       - name: Import macOS signing certificate
-        if: matrix.platform == 'macos-latest' && startsWith(github.ref, 'refs/tags/v')
+        if: matrix.platform == 'macos-latest' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -128,19 +149,31 @@ jobs:
       # latest.json (createUpdaterArtifacts). Self-signed on macOS (see above)
       # — still not notarized, so Gatekeeper still flags it as unidentified.
       - uses: tauri-apps/tauri-action@v0
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && 'Patter Local Signing' || '' }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Patter ${{ github.ref_name }}"
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: "Patter ${{ env.RELEASE_TAG }}"
+          # The tag already exists and pins the source. GitHub still checks
+          # target_commitish permissions; an older SHA can need workflows:write.
+          releaseCommitish: main
           # Publish immediately: pushing a v* tag IS the release decision.
           # Installed apps see the update as soon as the build finishes.
           releaseDraft: false
           # Beta/RC tags stay opt-in; the stable updater points at releases/latest.
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           # ponytail: Apple Silicon only — universal needs x86_64 cross-compile
           # of sherpa-onnx/whisper.cpp native libs; add when Intel users ask.
+
+      - name: Preserve installers if release publishing fails
+        if: failure() && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}
+          path: src-tauri/target/release/bundle/
+          if-no-files-found: ignore
+          retention-days: 7
