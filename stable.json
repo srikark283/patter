@@ -1,11 +1,12 @@
 {
   "schema_version": 1,
   "runtime": "flash-gemma3-v1",
-  "version": "patter-flash-v1",
-  "source_weights_sha256": "99d8c9b765e1d66f4ba9937494d8e274386605bed9ebe712541df94ee2d5b784",
+  "version": "patter-flash-23af0c8e6f07",
+  "source_weights_sha256": "483a680579446af648786ef44e0268f7538f7fc1ddf5ad4578f06bde81bb38f2",
   "desktop": {
     "repo": "",
-    "revision": "fb0fe02c29aedc221597c7a3b4156e7aa1cb090c",
+    "revision": "23af0c8e6f078aa81739ebe17d2b685648d6af2d",
+    "base_url": "https://github.com/srikark283/patter/releases/download/patter-flash-23af0c8e6f07",
     "files": [
       {
         "name": "README.md",
@@ -30,7 +31,7 @@
       {
         "name": "model.safetensors",
         "size": 150939130,
-        "sha256": "1c295c058844707be50c583e0a53ad49064ecd28124532012b2215b85ebc8570"
+        "sha256": "941f8d9afcee1db158d91eff9dd20e303bc99d6ae6190a921f8e726f5485c35d"
       },
       {
         "name": "model.safetensors.index.json",
@@ -59,24 +60,23 @@
       },
       {
         "name": "MODEL_CARD.md",
-        "size": 1355,
-        "sha256": "f882cdda27d8123454949858ffd05b46190bb6a742ccd7e19e31a75b8640d493"
+        "size": 1378,
+        "sha256": "68d25b1d133a075c68acd7b727dffb0ce0d9e63f79d26a36967b8c73099def11"
       },
       {
         "name": "NOTICE.txt",
         "size": 894,
         "sha256": "622356874178d0209f69cd9ceadec552cf09dcb4cae32406996e7fe4637c097e"
       }
-    ],
-    "base_url": "https://github.com/srikark283/patter/releases/download/patter-flash-v1"
+    ]
   },
   "android": {
     "filename": "patter-flash-q4_k_m.gguf",
-    "url": "https://github.com/srikark283/patter/releases/download/patter-flash-v1/patter-flash-q4_k_m.gguf",
+    "url": "https://github.com/srikark283/patter/releases/download/patter-flash-23af0c8e6f07/patter-flash-q4_k_m.gguf",
     "expectedSize": 253116064,
-    "sha256": "95d642759fffd09cab5598b4ae2daad0d6d17868a1e68eb6bb3ef384ea879a75",
+    "sha256": "4c5bd2d7bb738fdc5284246f476a919c937929618a3ea56ab6e79388761abf9f",
     "converterCommit": "8ca4060b7e30e76baaa5670ee1ec1b760b7f8552",
-    "sourceWeightsSha256": "99d8c9b765e1d66f4ba9937494d8e274386605bed9ebe712541df94ee2d5b784",
-    "revision": "fb0fe02c29aedc221597c7a3b4156e7aa1cb090c"
+    "sourceWeightsSha256": "483a680579446af648786ef44e0268f7538f7fc1ddf5ad4578f06bde81bb38f2",
+    "revision": "23af0c8e6f078aa81739ebe17d2b685648d6af2d"
   }
 }
