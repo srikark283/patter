@@ -666,6 +666,7 @@ fn main() {
             commands::get_microphones,
             commands::get_stats,
             commands::get_history,
+            commands::set_history_flags,
             commands::clear_history,
             commands::delete_history_record,
             commands::dictionary_suggestions,

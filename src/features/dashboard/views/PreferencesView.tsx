@@ -29,7 +29,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { formatHotkey, IS_MAC } from "@/lib/hotkey";
-import { getTheme, setTheme, type Theme } from "@/lib/theme";
+import { useTheme, setTheme, type Theme } from "@/lib/theme";
 
 const MODES = [
   {
@@ -278,7 +278,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   /// derived value would snap the picker straight back to Off.
   const [commandMode, setCommandMode] = useState<CommandMode>("off");
   const [query, setQuery] = useState("");
-  const [theme, setThemeState] = useState<Theme>(getTheme);
+  const theme = useTheme();
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [permissions, setPermissions] = useState<PermissionStatus | null>(null);
@@ -729,7 +729,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
               {(["system", "light", "dark"] as Theme[]).map((t) => (
                 <button
                   key={t}
-                  onClick={() => { setTheme(t); setThemeState(t); }}
+                  onClick={() => setTheme(t)}
                   className={cn(
                     "px-3 py-1 text-[11px] font-medium rounded-md capitalize transition-colors",
                     theme === t

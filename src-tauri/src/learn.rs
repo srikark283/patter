@@ -228,6 +228,9 @@ mod tests {
             total_ms: 0,
             app_name: None,
             original_text: Some(original.to_string()),
+            favorite: false,
+            output_status: None,
+            recovery_dismissed: false,
         }
     }
 

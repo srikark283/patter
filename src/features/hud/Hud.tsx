@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { X, AudioLines, WandSparkles, Square } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording, cancelMeetingRecording } from "../../lib/ipc";
 import RecordingVisualizer from "./RecordingVisualizer";
 
@@ -28,6 +28,7 @@ function fmtElapsed(seconds: number): string {
 }
 
 export default function Hud() {
+  const reducedMotion = useReducedMotion();
   const [status, setStatus] = useState("Idle");
   const [phase, setPhase] = useState<Phase>("idle");
   const [elapsed, setElapsed] = useState(0);
@@ -161,15 +162,13 @@ export default function Hud() {
       <AnimatePresence onExitComplete={handleExitComplete}>
         {phase !== "idle" && (
           <motion.div
-            initial={{ opacity: 0, y: 15, scale: 0.95, filter: "blur(6px)" }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 8, scale: 0.96, filter: "blur(4px)" }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 30,
-              mass: 1.5,
-            }}
+            initial={{ opacity: 0, y: reducedMotion ? 0 : 8, scale: reducedMotion ? 1 : 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: reducedMotion ? 0 : 4, scale: reducedMotion ? 1 : 0.98 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+            role="status"
+            aria-live="polite"
+            aria-label={phase === "meeting" ? `Meeting recording ${fmtElapsed(elapsed)}` : status}
             className={`hud-pill ${phase}`}
           >
             <div
@@ -191,10 +190,10 @@ export default function Hud() {
               )}
 
               {phase === "processing" && (
-                <AudioLines size={15} className="hud-icon-anim hud-icon-scan" strokeWidth={2} />
+                <><AudioLines size={15} className="hud-icon-anim hud-icon-scan" strokeWidth={2} /><span className="hud-label">Transcribing</span></>
               )}
               {phase === "cleanup" && (
-                <WandSparkles size={15} className="hud-icon-anim hud-icon-sweep" strokeWidth={2} />
+                <><WandSparkles size={15} className="hud-icon-anim hud-icon-sweep" strokeWidth={2} /><span className="hud-label">Refining</span></>
               )}
               {phase === "notice" && <span className="hud-label">{status}</span>}
             </div>
@@ -218,7 +217,7 @@ export default function Hud() {
                     <X size={12} strokeWidth={2.5} />
                   </button>
                 ) : (
-                  <button className="hud-cancel-btn text-white/40 hover:text-white/80" onClick={() => cancelDictation().catch(console.error)}>
+                  <button aria-label="Cancel dictation" title="Cancel dictation" className="hud-cancel-btn text-white/40 hover:text-white/80" onClick={() => cancelDictation().catch(console.error)}>
                     <X size={12} strokeWidth={2.5} />
                   </button>
                 )}

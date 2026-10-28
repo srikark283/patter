@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, WandSparkles } from "lucide-react";
 import { testS1Cleanup, type Settings, type S1Status } from "@/lib/ipc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -16,28 +18,19 @@ export function S1Settings({ settings, status, error, busy, onEnable, onRefresh 
   const [profile, setProfile] = useState("none");
   const [testing, setTesting] = useState(false);
   const [sample, setSample] = useState("so um send the report by friday no wait thursday");
+  const [testError, setTestError] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const ready = !!status?.supported && status.installed && status.runtime_ready;
   const active = settings.cleanup_provider === "built_in" && settings.llm_cleanup_enabled;
   const downloading = busy || !!status?.downloading;
   const test = async () => {
-    setTesting(true); setResult(null);
+    setTesting(true); setResult(null); setTestError("");
     try { setResult(await testS1Cleanup(sample, profile === "none" ? null : profile)); }
-    catch (e) { toast.error(String(e)); }
+    catch (error) { setTestError(String(error)); }
     finally { setTesting(false); }
   };
   return <div className="space-y-4 p-4">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <p id="built-in-model-label" className="text-[13px] font-medium">Cleanup Model</p>
-        <p className="text-xs text-muted-foreground mt-1">English dictation cleanup. Download once, then use offline.</p>
-      </div>
-      <Select value="s1_mini" disabled={downloading}>
-        <SelectTrigger aria-labelledby="built-in-model-label" className="w-48 bg-background border-foreground/10 text-[13px]"><SelectValue /></SelectTrigger>
-        <SelectContent><SelectItem value="s1_mini">S1-mini</SelectItem></SelectContent>
-      </Select>
-    </div>
-    <p className="text-xs text-muted-foreground">S1-mini by Superwhisper · beta</p>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-medium">S1-mini</h3><p className="mt-1 text-xs text-muted-foreground">By Superwhisper · Beta · English dictation</p></div><span className="rounded-md bg-accent px-2 py-1 text-xs text-accent-foreground">On-device</span></div>
     <p role="status" className="text-sm">
       {!status ? "Checking availability…" : !status.supported ? "Requires Apple Silicon and macOS 14 or newer. Use Ollama on this device."
         : !status.runtime_ready ? "S1-mini runtime missing. Reinstall Patter, then retry."
@@ -51,39 +44,36 @@ export function S1Settings({ settings, status, error, busy, onEnable, onRefresh 
         Enabling S1-mini sets the transcription language to English and turns on dictation cleanup.
         Your current cleanup stays unchanged until setup succeeds.
       </p>
-      <button onClick={onEnable} disabled={downloading || testing}
-        className="rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background hover:bg-foreground/90 disabled:opacity-50 focus-visible:ring-focus">
+      <Button onClick={onEnable} disabled={downloading || testing}>
+        {downloading && <Loader2 size={14} className="animate-spin" />}
         {downloading ? "Setting up S1-mini…" : !status.installed ? "Download & enable S1-mini" : settings.language !== "en" ? "Use English & enable S1-mini" : "Enable S1-mini"}
-      </button>
+      </Button>
     </>}
-    {status?.downloading && <progress aria-label="S1-mini model download" value={status.progress} max={100} className="w-full" />}
+    {status?.downloading && <Progress aria-label="S1-mini model download" value={status.progress} />}
     {error && <div role="alert" className="space-y-2 text-sm text-destructive break-words">
       <p>{error}</p>
-      <button onClick={onRefresh} disabled={busy} className="rounded-md underline underline-offset-4 focus-visible:ring-focus">Check again</button>
+      <Button variant="outline" size="sm" onClick={onRefresh} disabled={busy}>Check again</Button>
     </div>}
     <p className="text-xs text-muted-foreground">
       App Profiles set supported tone, list, and email formatting hints. Code and terminal dictation stays verbatim.
       Free-form instructions and personal memory require Ollama cleanup. Long transcripts are cleaned in chunks.
     </p>
-    {ready && <details className="text-sm">
-      <summary className="cursor-pointer rounded-md py-1 focus-visible:ring-focus">Try a transcript</summary>
+    {ready && <details open className="border-t border-border pt-4 text-sm">
+      <summary className="cursor-pointer rounded-md py-1 font-medium text-accent-foreground">Preview cleanup</summary>
       <div className="space-y-3 pt-3">
-        <label id="cleanup-preview-profile" className="block text-xs text-muted-foreground">Preview app profile</label>
-        <Select value={profile} onValueChange={value => { setProfile(value); setResult(null); }} disabled={testing}>
+        <p className="text-xs leading-relaxed text-muted-foreground">Compare your transcript with the cleaned result. This preview does not paste into another app.</p>
+        <label id="cleanup-preview-profile" className="block text-xs text-muted-foreground">App profile</label>
+        <Select value={profile} onValueChange={value => { setProfile(value); setResult(null); setTestError(""); }} disabled={testing}>
           <SelectTrigger aria-labelledby="cleanup-preview-profile"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="none">General dictation</SelectItem>
-            {[...new Set(settings.app_profiles.map(p => p.app).filter(Boolean))].map(app => <SelectItem key={app} value={app}>{app}</SelectItem>)}
-          </SelectContent>
+          <SelectContent><SelectItem value="none">General dictation</SelectItem>{[...new Set(settings.app_profiles.map(item => item.app).filter(Boolean))].map(app => <SelectItem key={app} value={app}>{app}</SelectItem>)}</SelectContent>
         </Select>
-        <label htmlFor="s1-sample" className="block text-xs text-muted-foreground">Transcript</label>
-        <textarea id="s1-sample" value={sample} onChange={e => setSample(e.target.value)} maxLength={128000} rows={3}
-          className="w-full rounded-md border border-foreground/10 bg-background p-3 text-sm focus-visible:ring-focus" />
-        <button onClick={test} disabled={testing || busy || !sample.trim() || settings.language !== "en"}
-          className="rounded-md bg-foreground/10 px-3 py-2 text-sm hover:bg-foreground/15 disabled:opacity-50 focus-visible:ring-focus">
-          {testing ? "Cleaning up…" : "Test S1-mini cleanup"}
-        </button>
-        {settings.language !== "en" && <p className="text-xs text-muted-foreground">Enable S1-mini above to use English and try this transcript.</p>}
-        {result !== null && <div role="status" className="text-sm whitespace-pre-wrap break-words"><span className="block text-xs text-muted-foreground mb-1">Result</span>{result || "Empty transcript (filler removed)"}</div>}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label htmlFor="s1-sample" className="text-xs text-muted-foreground">Original transcript<textarea id="s1-sample" disabled={testing} value={sample} onChange={event => { setSample(event.target.value); setResult(null); setTestError(""); }} maxLength={128000} rows={5} className="mt-2 block w-full resize-y rounded-lg border border-input bg-background p-3 text-sm leading-relaxed text-foreground focus-visible:outline-2 focus-visible:outline-ring" /></label>
+          <div><p className="text-xs text-muted-foreground">Cleaned result</p><div role="status" className="mt-2 min-h-36 whitespace-pre-wrap break-words rounded-lg bg-accent-subtle p-3 text-sm leading-relaxed">{testing ? <span className="inline-flex items-center gap-2 text-muted-foreground"><Loader2 size={14} className="animate-spin" />Cleaning up…</span> : result !== null ? result || "No text remaining after filler removal." : <span className="text-muted-foreground">Run a preview to see the result here.</span>}</div></div>
+        </div>
+        <Button variant="outline" onClick={test} disabled={testing || busy || !sample.trim() || settings.language !== "en"}>{testing ? <Loader2 size={14} className="animate-spin" /> : <WandSparkles size={14} />}{testing ? "Cleaning up…" : "Test cleanup"}</Button>
+        {testError && <p role="alert" className="break-words text-sm text-destructive">Preview failed. {testError} Try again when the model is available.</p>}
+        {settings.language !== "en" && <p className="text-xs text-warning">Enable S1-mini above to use English before testing cleanup.</p>}
       </div>
     </details>}
   </div>;

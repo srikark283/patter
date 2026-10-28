@@ -1,0 +1,30 @@
+const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
+const { mkdtempSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { join, resolve } = require('node:path');
+const output = mkdtempSync(join(tmpdir(), 'patter-filter-test-'));
+try {
+  execFileSync(process.execPath, [resolve('node_modules/typescript/bin/tsc'), 'src/lib/transcript-filters.ts', 'src/lib/activity.ts', '--outDir', output, '--module', 'commonjs', '--target', 'ES2020', '--skipLibCheck'], { stdio: 'inherit' });
+  const { filterTranscripts, needsRecovery } = require(join(output, 'lib/transcript-filters.js'));
+  const record = (id, date, extra = {}) => ({ id, timestamp_ms: new Date(date).getTime(), text: 'Hello Patter', duration_seconds: 1, words: 2, transcribe_ms: 0, cleanup_ms: 0, total_ms: 0, ...extra });
+  const rows = [record('before', '2026-10-26T23:59:59'), record('start', '2026-10-27T00:00:00', { favorite: true, output_status: 'failed', app_name: 'Mail' }), record('late', '2026-10-27T23:59:59.999', { output_status: 'copied' }), record('after', '2026-10-28T00:00:00')];
+  const defaults = { query: '', app: null, favorites: false, recovery: false, from: '', through: '' };
+  assert.deepEqual(filterTranscripts(rows, { ...defaults, from: '2026-10-27', through: '2026-10-27' }).map(row => row.id), ['start', 'late']);
+  assert.deepEqual(filterTranscripts(rows, { ...defaults, query: ' PATTER ', app: 'Mail', favorites: true, recovery: true }).map(row => row.id), ['start']);
+  assert.equal(needsRecovery(rows[0]), false);
+  assert.equal(needsRecovery({ ...rows[1], recovery_dismissed: true }), false);
+  assert.equal(needsRecovery({ ...rows[1], output_status: 'dispatched' }), false);
+  assert.equal(filterTranscripts(rows, { ...defaults, from: '2026-10-28', through: '2026-10-27' }).length, 0);
+  assert.equal(filterTranscripts(rows, defaults).length, rows.length);
+  const { dailyActivity } = require(join(output, 'lib/activity.js'));
+  const now = new Date('2026-10-27T12:00:00');
+  const activity = dailyActivity(rows, 7, now);
+  assert.equal(activity.length, 7);
+  assert.deepEqual(activity.map(day => day.words), [0, 0, 0, 0, 0, 2, 4]);
+  assert.equal(dailyActivity([], 30, now).length, 30);
+  assert.ok(dailyActivity([], 7, now).every(day => day.words === 0));
+  const leapDay = record('leap', '2024-02-29T23:59:59');
+  assert.equal(dailyActivity([leapDay], 7, new Date('2024-03-01T12:00:00'))[5].words, 2);
+  console.log('Transcript filters and daily activity: date boundaries, combined filters, zero days, leap day and recovery passed.');
+} finally { rmSync(output, { recursive: true, force: true }); }

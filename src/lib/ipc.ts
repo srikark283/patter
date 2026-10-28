@@ -61,6 +61,10 @@ export function getHistory() {
   return invoke<TranscriptionRecord[]>("get_history");
 }
 
+export function setHistoryFlags(id: string, flags: { favorite?: boolean; recoveryDismissed?: boolean }) {
+  return invoke<void>("set_history_flags", { id, favorite: flags.favorite ?? null, recoveryDismissed: flags.recoveryDismissed ?? null });
+}
+
 export async function clearHistory(): Promise<void> {
   return invoke("clear_history");
 }
@@ -146,8 +150,14 @@ export function getSettings() {
   return invoke<Settings>("get_settings");
 }
 
-export function updateSettings(settings: Settings) {
-  return invoke<void>("update_settings", { settings });
+export async function updateSettings(settings: Settings) {
+  await invoke<void>("update_settings", { settings });
+  window.dispatchEvent(new Event("patter:settings-changed"));
+}
+
+export function onSettingsChanged(callback: () => void) {
+  window.addEventListener("patter:settings-changed", callback);
+  return () => window.removeEventListener("patter:settings-changed", callback);
 }
 
 export function getMicrophones() {
@@ -302,4 +312,8 @@ export const getS1Status = (model: Settings["built_in_model"]) => invoke<S1Statu
 export const installS1 = (model: Settings["built_in_model"]) => invoke<void>("install_s1", { model });
 export const testS1Cleanup = (text: string, appName: string | null = null) => invoke<string>("test_s1_cleanup", { text, appName });
 
-export const enableS1 = () => invoke<Settings>("enable_s1");
+export const enableS1 = async () => {
+  const settings = await invoke<Settings>("enable_s1");
+  window.dispatchEvent(new Event("patter:settings-changed"));
+  return settings;
+};

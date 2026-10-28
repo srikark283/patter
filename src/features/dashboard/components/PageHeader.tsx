@@ -27,14 +27,14 @@ export function PageHeader({ title, description, action }: Props) {
       className={cn(
         // Negative margins span the main area's px-10/py-9 gutters so the
         // backdrop covers edge-to-edge while content keeps its max-width.
-        "sticky top-0 z-20 -mx-10 -mt-9 px-10 pt-9 pb-3 transition-colors duration-200",
+        "sticky top-0 z-20 -mx-5 -mt-9 px-5 lg:-mx-10 lg:px-10 pt-9 pb-3 transition-colors duration-200",
         stuck && "bg-background/75 backdrop-blur-xl shadow-[0_1px_0_0_var(--border)]"
       )}
     >
-      <div className="flex items-end justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.01em] leading-none">{title}</h2>
-          {description && <p className="mt-1.5 text-[14px] text-muted-foreground">{description}</p>}
+          {description && <p className="mt-1.5 max-w-[70ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
         </div>
         {action}
       </div>

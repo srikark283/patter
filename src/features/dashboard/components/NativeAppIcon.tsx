@@ -5,7 +5,8 @@ import { AppWindow, Code2, Mail, MessageSquare, TerminalSquare, FileText, Sparkl
 import { AppLogos } from "../components/AppLogos";
 
 // Local cache to avoid re-fetching the same icon across component unmounts
-const iconCache: Record<string, string | null> = {};
+const iconCache = new Map<string, number[] | null>();
+const MAX_CACHED_ICONS = 32;
 
 function getBrandedStaticIcon(appStr: string) {
   const s = appStr.toLowerCase();
@@ -40,6 +41,7 @@ export function NativeAppIcon({ appName }: { appName: string }) {
 
   useEffect(() => {
     let isMounted = true;
+    const objectUrls: string[] = [];
     const apps = (appName || "")
       .split(",")
       .map(s => s.trim())
@@ -57,19 +59,21 @@ export function NativeAppIcon({ appName }: { appName: string }) {
     Promise.allSettled(
       apps.map(async (app) => {
         try {
-          let url: string;
-          if (iconCache[app] !== undefined) {
-            if (iconCache[app] === null) throw new Error("Cached failure");
-            url = iconCache[app] as string;
-          } else {
-            const bytes = await invoke<number[]>("get_app_icon", { appName: app });
-            const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
-            url = URL.createObjectURL(blob);
-            iconCache[app] = url;
+          let bytes = iconCache.get(app);
+          if (bytes === null) throw new Error("Cached failure");
+          if (bytes === undefined) {
+            bytes = await invoke<number[]>("get_app_icon", { appName: app });
+            iconCache.set(app, bytes);
+            if (iconCache.size > MAX_CACHED_ICONS) iconCache.delete(iconCache.keys().next().value!);
           }
+          if (!isMounted) return null;
+          const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
+          const url = URL.createObjectURL(blob);
+          objectUrls.push(url);
           return <img src={url} alt="Icon" className="w-full h-full object-contain" />;
         } catch (e) {
-          iconCache[app] = null;
+          iconCache.set(app, null);
+          if (iconCache.size > MAX_CACHED_ICONS) iconCache.delete(iconCache.keys().next().value!);
           const branded = getBrandedStaticIcon(app);
           if (branded) return branded;
           throw e; // Neither native nor branded static icon found
@@ -89,6 +93,7 @@ export function NativeAppIcon({ appName }: { appName: string }) {
 
     return () => {
       isMounted = false;
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
     };
   }, [appName]);
 

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, Download, Loader2, Trash2, Globe, Type } from "lucide-react";
+import { Check, Download, Loader2, Trash2, Globe, Type, RefreshCw } from "lucide-react";
 import { downloadModel, setEngine, deleteModel, ModelState } from "../../../lib/ipc";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "../components/PageHeader";
@@ -40,14 +42,14 @@ const MODELS: ModelSpec[] = [
 
 function RatingDots({ value, label }: { value: number; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1" title={`${label}: ${value}/5`}>
-      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</span>
+    <span className="inline-flex items-center gap-1" aria-label={`${label}: ${value} out of 5, relative rating`}>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
       <span className="flex gap-[2.5px]">
         {[1, 2, 3, 4, 5].map((i) => (
           <span
             key={i}
             className={cn(
-              "w-[3.5px] h-[3.5px] rounded-full",
+              "w-1.5 h-1.5 rounded-full",
               i <= value ? "bg-steelIce/80" : "bg-foreground/15"
             )}
           />
@@ -84,217 +86,82 @@ interface Props {
   setDownloadingId: (id: string | null) => void;
   downloadProgress: number;
   onModelDeleted?: () => void;
+  statusError?: string;
+  onRetry?: () => void;
 }
 
-export function ModelsView({
-  activeEngine,
-  setActiveEngine,
-  modelStatus,
-  modelStray,
-  modelStatusLoading,
-  downloadingId,
-  setDownloadingId,
-  downloadProgress,
-  onModelDeleted,
-}: Props) {
-  const [settingEngineId, setSettingEngineId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelStray, modelStatusLoading, downloadingId, setDownloadingId, downloadProgress, onModelDeleted, statusError, onRetry }: Props) {
+  const [operation, setOperation] = useState<{ id: string; kind: "download" | "select" | "delete" } | null>(null);
+  const operationLock = useRef(false);
+  const [error, setError] = useState<{ id: string; message: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ModelSpec | null>(null);
+  const busy = !!operation || !!downloadingId;
 
-  const handleDownload = async (id: string, name: string) => {
-    setDownloadingId(id);
+  const run = async (model: ModelSpec, kind: "download" | "select" | "delete") => {
+    if (operationLock.current || downloadingId) return;
+    operationLock.current = true;
+    setOperation({ id: model.id, kind }); setError(null);
     try {
-      await downloadModel(id);
-      toast.success(`${name} downloaded`);
-      setDownloadingId(null);
-      onModelDeleted?.(); // Reuse this callback to trigger refreshModelStatus in Dashboard
-    } catch (e) {
-      console.error(e);
-      toast.error(`Failed to download ${name}: ${e}`);
-      setDownloadingId(null);
-    }
-  };
-
-  const handleSetEngine = async (id: string, name: string) => {
-    setSettingEngineId(id);
-    try {
-      await setEngine(id);
-      setActiveEngine(id);
-      toast.success(`${name} is now active`);
-    } catch (e) {
-      console.error(e);
-      toast.error(`Failed to set ${name} active: ${e}`);
+      if (kind === "download") {
+        setDownloadingId(model.id);
+        await downloadModel(model.id);
+        onModelDeleted?.();
+        toast.success(`${model.fullName} downloaded. Select Use model to activate it.`);
+      } else if (kind === "select") {
+        await setEngine(model.id); setActiveEngine(model.id);
+        toast.success(`${model.fullName} selected for dictation`);
+      } else {
+        await deleteModel(model.id); onModelDeleted?.(); setDeleteTarget(null);
+        toast.success(`${model.fullName} removed from this device`);
+      }
+    } catch (failure) {
+      const message = String(failure);
+      setError({ id: model.id, message });
+      toast.error(`Could not ${kind === "select" ? "load" : kind} ${model.fullName}`);
     } finally {
-      setSettingEngineId(null);
-    }
-  };
-
-  const handleDelete = async (id: string, name: string) => {
-    setDeletingId(id);
-    try {
-      await deleteModel(id);
-      toast.success(`${name} deleted`);
-      onModelDeleted?.();
-    } catch (e) {
-      console.error(e);
-      toast.error(`Failed to delete ${name}: ${e}`);
-    } finally {
-      setDeletingId(null);
+      if (kind === "download") { setDownloadingId(null); onModelDeleted?.(); }
+      operationLock.current = false; setOperation(null);
     }
   };
 
   const renderCard = (model: ModelSpec) => {
-    const isDownloaded = modelStatus[model.id] === "complete";
-    // Bytes on disk that don't add up — an interrupted download. Without this
-    // the row is indistinguishable from "never downloaded" while still holding
-    // the space, which is how a 338MB fragment of a 1.6GB model goes unnoticed.
-    const isPartial = modelStatus[model.id] === "partial";
-    const strayMb = Math.round((modelStray[model.id] ?? 0) / 1_048_576);
-    const isActive = activeEngine === model.id;
-    const isDownloading = downloadingId === model.id;
-    const isSettingActive = settingEngineId === model.id;
-    const isDeleting = deletingId === model.id;
-    const clickable = !isActive && !isDownloading && !isSettingActive && !isDeleting;
-
-    return (
-      <div
-        key={model.id}
-        role="button"
-        title={model.description}
-        onClick={() => {
-          if (!clickable) return;
-          if (isDownloaded) handleSetEngine(model.id, model.fullName);
-          else handleDownload(model.id, model.fullName);
-        }}
-        className={cn(
-          "group relative flex items-center gap-3 p-3.5 rounded-xl ring-1 transition-all duration-200",
-          isActive
-            ? "bg-steel/[0.06] ring-steel/40 shadow-[0_0_20px_rgba(91,155,209,0.08)]"
-            : "bg-card ring-border",
-          clickable && "cursor-pointer hover:bg-foreground/[0.04] hover:ring-foreground/20"
-        )}
-      >
-        <div className="w-9 h-9 shrink-0 rounded-lg bg-foreground/[0.04] ring-1 ring-foreground/5 flex items-center justify-center overflow-hidden">
-          {/* Both marks are white-on-transparent, which is invisible on a light
-              surface. They are monochrome, so inverting flips them to near-black
-              for light mode rather than needing a second set of assets. */}
-          <img
-            src={VENDOR_LOGOS[model.vendor]}
-            alt={model.vendor}
-            className={cn(
-              "invert dark:invert-0 opacity-80",
-              model.vendor === "nvidia" ? "w-7" : "w-5"
-            )}
-          />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className={cn("text-[13px] font-medium truncate", isActive ? "text-steelIce" : "text-foreground/90")}>
-            {model.name}
-          </p>
-          {isDownloading ? (
-            <div className="mt-1.5 flex items-center gap-2">
-              <Progress value={downloadProgress} className="h-1 flex-1 bg-foreground/10" />
-              <span className="font-sans text-[10px] text-steelIce tabular-nums shrink-0">
-                {downloadProgress.toFixed(0)}%
-              </span>
-            </div>
-          ) : (
-            <p className="font-sans text-[11px] text-muted-foreground flex items-center gap-2.5">
-              <span>{model.size}</span>
-              <RatingDots value={model.speed} label="Speed" />
-              <RatingDots value={model.accuracy} label="Accuracy" />
-            </p>
-          )}
-        </div>
-
-        <div className="shrink-0 flex items-center gap-1.5">
-          {isPartial && !isDownloading && !isDeleting && (
-            <span
-              className="text-[11px] px-2 py-0.5 rounded-full bg-warning/10 text-warning ring-1 ring-warning/25"
-              title={`An interrupted download left ${strayMb} MB on disk. Click the model to download it again, or delete to reclaim the space.`}
-            >
-              Incomplete · {strayMb} MB
-            </span>
-          )}
-          {(isDownloaded || isPartial) && !isActive && !isDeleting && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(model.id, model.fullName);
-              }}
-              className="opacity-0 group-hover:opacity-100 text-muted-foreground/60 hover:text-destructive transition-all p-1"
-              title="Delete model"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-          {isActive ? (
-            <span className="w-6 h-6 rounded-full bg-success/15 ring-1 ring-success/30 flex items-center justify-center">
-              <Check size={13} strokeWidth={3} className="text-success" />
-            </span>
-          ) : isSettingActive || isDeleting ? (
-            <Loader2 size={15} className="animate-spin text-steelIce" />
-          ) : isDownloaded ? (
-            <span className="text-[11px] text-muted-foreground group-hover:text-steelIce transition-colors">
-              Use
-            </span>
-          ) : !isDownloading ? (
-            <Download size={15} className="text-muted-foreground/50 group-hover:text-steelIce transition-colors" />
-          ) : null}
+    const complete = modelStatus[model.id] === "complete";
+    const partial = modelStatus[model.id] === "partial";
+    const selected = activeEngine === model.id;
+    const currentOperation = operation?.id === model.id ? operation.kind : null;
+    const downloading = downloadingId === model.id || currentOperation === "download";
+    const status = downloading ? "Downloading" : currentOperation === "select" ? "Loading model" : currentOperation === "delete" ? "Removing" : selected ? "Selected" : complete ? "Downloaded" : partial ? "Incomplete download" : "Not downloaded";
+    return <article key={model.id} className={cn("rounded-xl p-4 space-y-4 ring-1", selected ? "bg-accent-subtle ring-primary/35" : "bg-card ring-border")} aria-label={model.fullName}>
+      <div className="flex items-start gap-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.04]"><img src={VENDOR_LOGOS[model.vendor]} alt={model.vendor === "nvidia" ? "NVIDIA" : "OpenAI"} className={cn("invert dark:invert-0 opacity-80", model.vendor === "nvidia" ? "w-7" : "w-5")} /></div>
+        <div className="min-w-0 flex-1"><h3 className="text-sm font-medium leading-snug">{model.fullName}</h3><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{model.description}</p></div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground"><span>{model.size} download</span><RatingDots value={model.speed} label="Speed" /><RatingDots value={model.accuracy} label="Accuracy" /></div>
+      {partial && !downloading && <p className="text-xs leading-relaxed text-warning">Interrupted download · {Math.round((modelStray[model.id] ?? 0) / 1_048_576)} MB on disk. Retry the download or remove these files.</p>}
+      {downloading && <div className="space-y-2"><div className="flex justify-between text-xs text-muted-foreground"><span>{downloadProgress >= 100 ? "Verifying download…" : "Downloading model…"}</span><span className="tabular-nums">{Math.min(100, Math.max(0, downloadProgress)).toFixed(0)}%</span></div><Progress aria-label={`Downloading ${model.fullName}`} value={downloadProgress} /></div>}
+      {error?.id === model.id && <p role="alert" className="break-words text-xs leading-relaxed text-destructive">{error.message}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+        <span role="status" className={cn("inline-flex items-center gap-1.5 text-xs", selected ? "text-success" : partial ? "text-warning" : "text-muted-foreground")}>{selected && <Check size={13} />}{status}</span>
+        <div className="flex items-center gap-1">
+          {(complete || partial) && !selected && <Button variant="ghost" size="icon-sm" disabled={busy} title={`Remove ${model.fullName}`} aria-label={`Remove ${model.fullName}`} onClick={() => setDeleteTarget(model)}><Trash2 size={14} /></Button>}
+          <Button variant={selected ? "secondary" : complete ? "default" : "outline"} size="sm" disabled={busy || selected} onClick={() => void run(model, complete ? "select" : "download")}>
+            {currentOperation || downloading ? <Loader2 size={14} className="animate-spin" /> : selected ? <Check size={14} /> : !complete ? <Download size={14} /> : null}
+            {downloading ? "Downloading…" : currentOperation === "select" ? "Loading…" : currentOperation === "delete" ? "Removing…" : selected ? "Selected" : complete ? "Use model" : partial ? "Retry download" : "Download"}
+          </Button>
         </div>
       </div>
-    );
+    </article>;
   };
 
-  const englishModels = MODELS.filter((m) => !m.multilingual);
-  const multilingualModels = MODELS.filter((m) => m.multilingual);
-
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <PageHeader
-        title="Speech Models"
-        description="Everything runs on-device. Download once, use offline."
-      />
-
-      <div className="surface-raised rounded-xl p-5">
-        <h3 className="text-[15px] font-semibold text-foreground/90">
-          Choose your transcription engine.
-        </h3>
-        <p className="mt-1 text-[12px] text-muted-foreground">
-          Smaller models are faster. Larger models are more accurate. Click a model to download it,
-          click a downloaded model to make it active.
-        </p>
-      </div>
-
-      {modelStatusLoading ? (
-        <div className="grid grid-cols-2 gap-3">
-          {MODELS.map((m) => (
-            <Skeleton key={m.id} className="h-16 w-full rounded-xl bg-foreground/5" />
-          ))}
-        </div>
-      ) : (
-        <>
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 px-1">
-              <Type size={12} className="text-muted-foreground/60" />
-              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
-                English only
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">{englishModels.map(renderCard)}</div>
-          </section>
-
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 px-1">
-              <Globe size={12} className="text-muted-foreground/60" />
-              <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
-                Multilingual
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">{multilingualModels.map(renderCard)}</div>
-          </section>
-        </>
-      )}
+  return <div className="space-y-5 workspace-enter pb-6">
+    <PageHeader title="Speech Models" description="Choose how Patter hears you. Download once, transcribe on your device." />
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-accent-subtle px-4 py-3">
+      <div><p className="text-xs text-muted-foreground">Selected for dictation</p><p className="mt-1 text-sm font-medium text-accent-foreground">{activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "No model selected"}</p></div>
+      <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">Download a model, then choose Use model. Ratings are relative; performance depends on your device. Download size is storage, not RAM.</p>
     </div>
-  );
+    {statusError ? <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4"><p className="text-sm text-destructive">Could not check downloaded models. {statusError}</p><Button variant="outline" onClick={onRetry}><RefreshCw size={14} />Retry</Button></div> : modelStatusLoading ? <div role="status" aria-label="Loading speech models" className="grid grid-cols-1 gap-3 xl:grid-cols-2">{MODELS.map(model => <Skeleton key={model.id} className="h-52 rounded-xl" />)}</div> : <>
+      {[{ label: "English only", icon: Type, multilingual: false }, { label: "Multilingual", icon: Globe, multilingual: true }].map(section => <section key={section.label} className="space-y-3"><h2 className="flex items-center gap-2 text-sm font-medium text-accent-foreground"><section.icon size={15} />{section.label}</h2><div className="grid grid-cols-1 gap-3 xl:grid-cols-2">{MODELS.filter(model => model.multilingual === section.multilingual).map(renderCard)}</div></section>)}
+    </>}
+    <Dialog open={!!deleteTarget} onOpenChange={open => { if (!open && !operation) setDeleteTarget(null); }}><DialogContent><DialogHeader><DialogTitle>Remove {deleteTarget?.fullName}?</DialogTitle><DialogDescription>This removes the downloaded files from your device. You can download the model again later. Your transcripts are kept.</DialogDescription></DialogHeader>{deleteTarget && error?.id === deleteTarget.id && <p role="alert" className="text-sm text-destructive">{error.message}</p>}<DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleteTarget(null)}>Keep model</Button><Button variant="destructive" disabled={busy} onClick={() => deleteTarget && void run(deleteTarget, "delete")}>{operation?.kind === "delete" && <Loader2 size={14} className="animate-spin" />}Remove model</Button></DialogFooter></DialogContent></Dialog>
+  </div>;
 }

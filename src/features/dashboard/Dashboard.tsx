@@ -1,29 +1,5 @@
-import { useState, useEffect } from "react";
-import {
-  // LayoutDashboard as HomeIcon,
-  // ScrollText as HistoryIcon,
-  CaseSensitive as DictionaryIcon,
-  Cog as SettingsIcon,
-  // Scissors as SnippetsIcon,
-  Brain as MemoryIcon,
-  // BrainCircuit as ModelsIcon,
-  // Sparkles as AIIcon,
-  // UsersRound as MeetingsIcon,
-} from "lucide-react";
-import { 
-  HomeIcon as HomeIcon,
-  UsersIcon as MeetingsIcon,
-  // SparklesIcon as AIIcon
-} from '@heroicons/react/24/outline'
-
-import {
-  WaveformIcon as ModelsIcon, 
-  SparkleIcon as AIIcon,
-  ClockCounterClockwiseIcon as HistoryIcon,
-  LightningIcon as SnippetsIcon,
-} from '@phosphor-icons/react'
-
-
+import { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef } from "react";
+import { Home as HomeIcon, UsersRound as MeetingsIcon, CaseSensitive as DictionaryIcon, Cog as SettingsIcon, Brain as MemoryIcon, AudioLines as ModelsIcon, Sparkles as AIIcon, History as HistoryIcon, Zap as SnippetsIcon, ChevronRight } from "lucide-react";
 
 import { AppStats, TranscriptionRecord } from "../../types";
 import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, getModelStates, ModelState, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate, onCleanupError } from "../../lib/ipc";
@@ -34,14 +10,16 @@ import { toast } from "sonner";
 import { Onboarding } from "../onboarding/Onboarding";
 import { cn } from "@/lib/utils";
 import { DashboardView } from "./views/DashboardView";
-import { MeetingsView } from "./views/MeetingsView";
-import { HistoryView } from "./views/HistoryView";
-import { DictionaryView } from "./views/DictionaryView";
-import { SnippetsView } from "./views/SnippetsView";
-import { MemoryView } from "./views/MemoryView";
+const MeetingsView = lazy(() => import("./views/MeetingsView").then(module => ({ default: module.MeetingsView })));
+const HistoryView = lazy(() => import("./views/HistoryView").then(module => ({ default: module.HistoryView })));
+const DictionaryView = lazy(() => import("./views/DictionaryView").then(module => ({ default: module.DictionaryView })));
+const SnippetsView = lazy(() => import("./views/SnippetsView").then(module => ({ default: module.SnippetsView })));
+const MemoryView = lazy(() => import("./views/MemoryView").then(module => ({ default: module.MemoryView })));
 import { ModelsView, MODEL_NAMES } from "./views/ModelsView";
-import { AIView } from "./views/AIView";
-import { PreferencesView } from "./views/PreferencesView";
+const AIView = lazy(() => import("./views/AIView").then(module => ({ default: module.AIView })));
+const PreferencesView = lazy(() => import("./views/PreferencesView").then(module => ({ default: module.PreferencesView })));
+import { CleanupStatus } from "./components/CleanupStatus";
+import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import icon from "@/assets/logohq.png";
 import {
   SidebarProvider,
@@ -55,11 +33,16 @@ import {
 } from "@/components/ui/sidebar";
 
 export default function Dashboard() {
+  const mainRef = useRef<HTMLElement>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [stats, setStats] = useState<AppStats | null>(null);
   const [history, setHistory] = useState<TranscriptionRecord[] | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [appVersion, setAppVersion] = useState("");
+
+  useLayoutEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
 
   // Settings State
   const [activeEngine, setActiveEngine] = useState<string | null>(null);
@@ -69,24 +52,28 @@ export default function Dashboard() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [modelStatus, setModelStatus] = useState<Record<string, ModelState>>({});
   const [modelStray, setModelStray] = useState<Record<string, number>>({});
+  const [modelStatusError, setModelStatusError] = useState("");
   const [modelStatusLoading, setModelStatusLoading] = useState(true);
 
   // One call for the whole catalog, and a three-state answer: a boolean could
   // not distinguish "not downloaded" from "half a model sitting on your disk".
   const refreshModelStatus = () => {
+    setModelStatusLoading(true);
+    setModelStatusError("");
     getModelStates()
       .then((rows) => {
         setModelStatus(Object.fromEntries(rows.map(([id, state]) => [id, state])));
         setModelStray(Object.fromEntries(rows.map(([id, , stray]) => [id, stray])));
         setModelStatusLoading(false);
       })
-      .catch(console.error);
+      .catch(error => { setModelStatusError(String(error)); setModelStatusLoading(false); });
   };
 
   useEffect(() => {
     // Load data
     const refreshData = () => {
       getStats().then(setStats).catch(console.error);
+      getActiveEngine().then(setActiveEngine).catch(console.error);
       getHistory().then(setHistory).catch(console.error);
     };
 
@@ -162,12 +149,6 @@ export default function Dashboard() {
           className="absolute top-0 left-20 right-0 h-12 z-50 cursor-default" 
         />
 
-        {/* Atmosphere: single cold top-glow + film grain */}
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-240 h-128 rounded-full bg-steel/[0.07] blur-[140px]" />
-          <div className="absolute inset-0 bg-noise opacity-[0.025]" />
-        </div>
-
         {/* Sidebar — instrument rail */}
         <Sidebar className="border-r border-border bg-foreground/[0.015] text-foreground">
           {/* Traffic Lights spacing */}
@@ -198,7 +179,7 @@ export default function Dashboard() {
                       onClick={() => setActiveTab(tab.id)}
                       isActive={isActive}
                       className={cn(
-                        "group w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-all duration-150 cursor-pointer h-auto",
+                        "group w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-colors duration-150 cursor-pointer h-auto",
                         isActive
                           // accent-foreground, not white: --accent is a pale blue
                           // tint, so white ink on it disappears in light mode.
@@ -217,33 +198,37 @@ export default function Dashboard() {
           </SidebarContent>
 
           <SidebarFooter>
-            {/* Status footer: live engine readout */}
-            <div className="px-3 py-4 border-t border-border">
-              <span className="t-label">Engine</span>
-              <div className="mt-2 flex items-center gap-2">
-                <span
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full flex-none",
-                    activeEngine ? "bg-success shadow-[0_0_6px_var(--color-success)]" : "bg-muted-foreground/40"
-                  )}
-                />
-                <span className="font-sans text-[11px] text-foreground/80 truncate">
-                  {activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "No model loaded"}
+            <div className="px-3 pt-2 pb-1"><ThemeSwitcher /></div>
+            <div className="space-y-2 px-3 pt-2 pb-2">
+              <div className="flex items-center justify-between px-1 text-[11px]">
+                <span className="text-muted-foreground">Speech model</span>
+                <span className={cn("inline-flex items-center gap-1.5 text-[10px]", activeEngine ? "text-success" : "text-muted-foreground")}>
+                  <span aria-hidden="true" className={cn("size-1.5 rounded-full", activeEngine ? "bg-success" : "bg-muted-foreground/50")} />
+                  {activeEngine ? "Active" : "Not selected"}
                 </span>
               </div>
-              {appVersion && (
-                <p className="mt-2 font-sans text-[10px] text-muted-foreground tabular-nums">
-                  Patter v{appVersion}
-                </p>
-              )}
+              <button
+                type="button"
+                onClick={() => setActiveTab("models")}
+                aria-label={activeEngine ? `Change speech model: ${MODEL_NAMES[activeEngine] ?? activeEngine}` : "Choose a speech model"}
+                title={activeEngine ? `Change model · ${MODEL_NAMES[activeEngine] ?? activeEngine}` : "Choose a speech model"}
+                className="group flex min-h-11 w-full items-center gap-2 rounded-lg bg-foreground/[0.025] px-2.5 py-2.5 text-left ring-1 ring-inset ring-border transition-colors hover:bg-accent hover:ring-primary/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <ModelsIcon size={16} strokeWidth={1.7} className="shrink-0 text-accent-foreground" />
+                <span className="min-w-0 flex-1 text-xs font-medium leading-snug text-foreground break-words">{activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "Choose a model"}</span>
+                <ChevronRight size={13} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent-foreground" />
+              </button>
+              <CleanupStatus page={activeTab} onClick={() => setActiveTab("ai")} />
+              {appVersion && <p className="mt-2 text-center text-[10px] tabular-nums text-muted-foreground">Patter v{appVersion}</p>}
             </div>
           </SidebarFooter>
         </Sidebar>
 
         {/* Main Content */}
-      <main className="relative z-10 flex-1 overflow-y-auto">
-        <div className="px-10 py-9 max-w-5xl mx-auto">
-          {activeTab === "dashboard" && <DashboardView stats={stats} history={history} onViewAll={() => setActiveTab("history")} />}
+      <main ref={mainRef} className="relative z-10 min-w-0 flex-1 overflow-y-auto">
+        <div className="px-5 py-9 lg:px-10 max-w-5xl mx-auto">
+          <Suspense fallback={<div role="status" className="py-12 text-sm text-muted-foreground">Opening workspace…</div>}>
+          {activeTab === "dashboard" && <DashboardView stats={stats} history={history} onViewAll={() => setActiveTab("history")} onPreferences={() => setActiveTab("preferences")} activeEngine={activeEngine} onModels={() => setActiveTab("models")} onIntelligence={() => setActiveTab("ai")} onHistoryChange={setHistory} />}
           {activeTab === "meetings" && <MeetingsView modelStatus={modelStatus} />}
           {activeTab === "history" && <HistoryView history={history} setHistory={setHistory} />}
           {activeTab === "memory" && <MemoryView />}
@@ -260,10 +245,13 @@ export default function Dashboard() {
               setDownloadingId={setDownloadingId}
               downloadProgress={downloadProgress}
               onModelDeleted={refreshModelStatus}
+              statusError={modelStatusError}
+              onRetry={refreshModelStatus}
             />
           )}
           {activeTab === "ai" && <AIView />}
           {activeTab === "preferences" && <PreferencesView activeEngine={activeEngine} />}
+          </Suspense>
         </div>
       </main>
 

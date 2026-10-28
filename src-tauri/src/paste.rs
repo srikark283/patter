@@ -91,6 +91,15 @@ fn synth_on_main(app: &tauri::AppHandle, f: impl FnOnce(&mut Enigo) + Send + 'st
     });
 }
 
+fn dispatch_checked(app: &tauri::AppHandle, action: impl FnOnce(&mut Enigo) -> Result<(), String> + Send + 'static) -> Result<(), String> {
+    let (send, receive) = std::sync::mpsc::sync_channel(1);
+    app.run_on_main_thread(move || {
+        let result = Enigo::new(&Settings::default()).map_err(|e| e.to_string()).and_then(|mut enigo| action(&mut enigo));
+        let _ = send.send(result);
+    }).map_err(|e| e.to_string())?;
+    receive.recv_timeout(std::time::Duration::from_secs(2)).map_err(|e| e.to_string())?
+}
+
 /// The platform's copy/paste modifier.
 fn chord_modifier() -> Key {
     #[cfg(target_os = "macos")]
@@ -167,11 +176,16 @@ pub fn read_selection(app: &tauri::AppHandle) -> Option<String> {
 const CLIPBOARD_RESTORE_DELAY_MS: u64 = 150;
 
 pub fn paste_text(app: &tauri::AppHandle, mode: &str, text: &str) {
+    if let Err(error) = dispatch_text(app, mode, text) {
+        eprintln!("Output failed: {error}");
+    }
+}
+
+/// Called on a worker: confirms OS dispatch, not insertion in the target app.
+pub fn dispatch_text(app: &tauri::AppHandle, mode: &str, text: &str) -> Result<(), String> {
     if mode == "type" {
         let text = text.to_string();
-        synth_on_main(app, move |enigo| {
-            let _ = enigo.text(&text);
-        });
+        dispatch_checked(app, move |enigo| enigo.text(&text).map_err(|e| e.to_string()))?;
     } else {
         // Whatever the user had copied, so dictating doesn't cost them their
         // clipboard. `get_text` fails when the clipboard holds an image or
@@ -181,10 +195,14 @@ pub fn paste_text(app: &tauri::AppHandle, mode: &str, text: &str) {
         // per-platform APIs arboard doesn't expose.
         let previous = Clipboard::new().ok().and_then(|mut c| c.get_text().ok());
 
-        if let Ok(mut clipboard) = Clipboard::new() {
-            let _ = clipboard.set_text(text);
-            synth_on_main(app, |enigo| chord(enigo, 'v'));
-        }
+        Clipboard::new().map_err(|e| e.to_string())?.set_text(text).map_err(|e| e.to_string())?;
+        dispatch_checked(app, |enigo| {
+            let modifier = chord_modifier();
+            enigo.key(modifier, Direction::Press).map_err(|e| e.to_string())?;
+            let paste = enigo.key(Key::Unicode('v'), Direction::Click).map_err(|e| e.to_string());
+            let release = enigo.key(modifier, Direction::Release).map_err(|e| e.to_string());
+            paste.and(release)
+        })?;
 
         if let Some(previous) = previous {
             // The restore has to outlast the paste, which is queued on the main
@@ -204,6 +222,7 @@ pub fn paste_text(app: &tauri::AppHandle, mode: &str, text: &str) {
             });
         }
     }
+    Ok(())
 }
 
 pub fn undo(app: &tauri::AppHandle) {

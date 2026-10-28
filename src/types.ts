@@ -16,6 +16,9 @@ export interface TranscriptionRecord {
   /** Hotkey release to text-in-app. 0 on records predating the field. */
   total_ms: number;
   app_name?: string | null;
+  favorite?: boolean;
+  output_status?: "dispatched" | "copied" | "failed" | null;
+  recovery_dismissed?: boolean;
 }
 
 export interface MeetingRecord {

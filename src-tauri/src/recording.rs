@@ -725,21 +725,29 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         let duration_seconds = audio.len() as f32 / WHISPER_SAMPLE_RATE as f32;
 
         // Output first, then persist. Nothing below can change the text,
-        // and the sqlite write plus the tray refresh were milliseconds the
+        // and the history write plus the tray refresh were milliseconds the
         // user spent watching an empty cursor.
         let mode = settings.output_mode;
 
         let output_started = std::time::Instant::now();
-        if paste::accessibility_trusted() {
-            let _ = app_handle.emit("patter://state", format!("✓ Pasted · {} words", word_count));
-            paste::paste_text(&app_handle, &mode, &text);
+        let output_status = if paste::accessibility_trusted() {
+            match paste::dispatch_text(&app_handle, &mode, &text) {
+                Ok(()) => {
+                    let _ = app_handle.emit("patter://state", format!("Output sent · {} words", word_count));
+                    "dispatched"
+                }
+                Err(error) => {
+                    eprintln!("Dictation output failed: {error}");
+                    let _ = app_handle.emit("patter://state", "Output needs attention — recover in Transcripts");
+                    "failed"
+                }
+            }
         } else {
-            // Can't synthesize keystrokes without the Accessibility permission;
-            // land the text on the clipboard so it isn't lost and tell the UI.
-            paste::copy_text(&text);
+            let copied = arboard::Clipboard::new().and_then(|mut clipboard| clipboard.set_text(&text)).is_ok();
             let _ = app_handle.emit("patter://accessibility_missing", ());
-            let _ = app_handle.emit("patter://state", "⚠ Copied — needs Accessibility");
-        }
+            let _ = app_handle.emit("patter://state", if copied { "Copied — needs Accessibility" } else { "Output failed — recover in Transcripts" });
+            if copied { "copied" } else { "failed" }
+        };
 
         let output_dispatch_ms = output_started.elapsed().as_millis();
         let total_ms = pipeline_started.elapsed().as_millis() as u32;
@@ -766,6 +774,9 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
             app_name: frontmost,
             // Only an edit creates one; a fresh record has nothing to preserve.
             original_text: None,
+            favorite: false,
+            output_status: Some(output_status.to_string()),
+            recovery_dismissed: false,
         });
         let _ = app_handle.emit("patter://db_updated", ());
         tray::refresh(&app_handle);

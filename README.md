@@ -27,7 +27,9 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 
 ### Interface
 - **HUD** — a small floating pill shows live status (listening, transcribing, cleaning up) with a waveform visualizer, and appears on whichever monitor your cursor is on.
-- **History** — every dictation is saved, searchable, and editable.
+- **History** — every dictation is saved, searchable, and editable. Favorite transcripts, filter by app or date, and use arrow keys to browse, Enter to edit, and Command/Ctrl+Enter to save.
+- **Readiness** — Home shows your microphone, speech model, cleanup availability, shortcut, and permission issues with direct setup actions.
+- **Transcript recovery** — known output failures and clipboard fallbacks remain available on Home and in the Transcripts recovery filter until marked handled. Copy saved text into the intended app. Output dispatch confirms that the OS accepted the action, not that the target app inserted the text.
 - **Dashboard** — words dictated, time saved, and other stats, all computed and stored locally.
 - **Permissions tracker** — a Preferences page showing the live status of Accessibility, Input Monitoring, and Microphone access, with one-click links to the right System Settings pane.
 

@@ -311,6 +311,13 @@ pub fn clear_history(app: tauri::AppHandle) {
     db::Db::new(&app).clear_history()
 }
 
+#[tauri::command]
+pub fn set_history_flags(app: tauri::AppHandle, id: String, favorite: Option<bool>, recovery_dismissed: Option<bool>) -> Result<(), String> {
+    db::Db::new(&app).set_record_flags(&id, favorite, recovery_dismissed)?;
+    let _ = app.emit("patter://db_updated", ());
+    Ok(())
+}
+
 /// Dictionary terms mined from History edits, for the user to accept or reject.
 /// Recomputed on demand rather than stored: history and the dictionary both
 /// change underneath it, and a stale cache would keep proposing terms the user

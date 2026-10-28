@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
+
+static HISTORY_WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 use tauri::Manager;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -226,6 +228,13 @@ pub struct TranscriptionRecord {
     /// edited (or edited before this field existed).
     #[serde(default)]
     pub original_text: Option<String>,
+    #[serde(default)]
+    pub favorite: bool,
+    /// None for legacy records; dispatched never claims target-app insertion.
+    #[serde(default)]
+    pub output_status: Option<String>,
+    #[serde(default)]
+    pub recovery_dismissed: bool,
     }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -290,14 +299,24 @@ impl Db {
         }
     }
 
-    pub fn save_history(&self, history: &[TranscriptionRecord]) {
-        let path = self.data_dir.join("history.json");
-        if let Ok(content) = serde_json::to_string_pretty(history) {
-            let _ = fs::write(path, content);
+    fn write_history(&self, history: &[TranscriptionRecord]) -> Result<(), String> {
+        let content = serde_json::to_vec_pretty(history).map_err(|e| e.to_string())?;
+        let suffix = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+        let temporary = self.data_dir.join(format!(".history-{}-{suffix}.tmp", std::process::id()));
+        fs::write(&temporary, content).map_err(|e| e.to_string())?;
+        if let Err(error) = fs::rename(&temporary, self.data_dir.join("history.json")) {
+            let _ = fs::remove_file(temporary);
+            return Err(error.to_string());
         }
+        Ok(())
+    }
+
+    pub fn save_history(&self, history: &[TranscriptionRecord]) {
+        if let Err(error) = self.write_history(history) { eprintln!("Could not save history: {error}"); }
     }
 
     pub fn add_record(&self, mut record: TranscriptionRecord) {
+        let _guard = HISTORY_WRITE.lock().unwrap();
         // ID if none
         if record.id.is_empty() {
             record.id = SystemTime::now()
@@ -328,12 +347,23 @@ impl Db {
         self.save_stats(&stats);
     }
     
+    pub fn set_record_flags(&self, id: &str, favorite: Option<bool>, recovery_dismissed: Option<bool>) -> Result<(), String> {
+        let _guard = HISTORY_WRITE.lock().map_err(|e| e.to_string())?;
+        let mut history = self.get_history();
+        let record = history.iter_mut().find(|record| record.id == id).ok_or("Transcript no longer exists")?;
+        if let Some(value) = favorite { record.favorite = value; }
+        if let Some(value) = recovery_dismissed { record.recovery_dismissed = value; }
+        self.write_history(&history)
+    }
+
     pub fn clear_history(&self) {
+        let _guard = HISTORY_WRITE.lock().unwrap();
         self.save_history(&[]);
         // Keep stats untouched, just clear history log
     }
 
     pub fn delete_record(&self, id: &str) -> bool {
+        let _guard = HISTORY_WRITE.lock().unwrap();
         let mut history = self.get_history();
         let initial_len = history.len();
         history.retain(|r| r.id != id);
@@ -422,6 +452,7 @@ impl Db {
     }
 
     pub fn update_record_text(&self, id: &str, new_text: &str) -> bool {
+        let _guard = HISTORY_WRITE.lock().unwrap();
         let mut history = self.get_history();
         if let Some(record) = history.iter_mut().find(|r| r.id == id) {
             // Set once, on the first edit only. A second edit must not overwrite
@@ -438,5 +469,41 @@ impl Db {
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod history_metadata_tests {
+    use super::*;
+
+    fn legacy_record() -> TranscriptionRecord {
+        serde_json::from_str(r#"{"id":"old","timestamp_ms":1,"text":"Keep my words","duration_seconds":1.0,"words":3}"#).unwrap()
+    }
+
+    #[test]
+    fn old_transcripts_keep_unknown_output_status() {
+        let record = legacy_record();
+        assert!(!record.favorite);
+        assert_eq!(record.output_status, None);
+        assert!(!record.recovery_dismissed);
+    }
+
+    #[test]
+    fn flags_round_trip_without_changing_text_or_output_evidence() {
+        let dir = std::env::temp_dir().join(format!("patter-history-test-{}-{}", std::process::id(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(&dir).unwrap();
+        let db = Db { data_dir: dir.clone() };
+        let mut record = legacy_record();
+        record.output_status = Some("failed".into());
+        db.save_history(&[record]);
+        db.set_record_flags("old", Some(true), Some(true)).unwrap();
+        let saved = db.get_history().remove(0);
+        assert!(saved.favorite);
+        assert!(saved.recovery_dismissed);
+        assert_eq!(saved.text, "Keep my words");
+        assert_eq!(saved.output_status.as_deref(), Some("failed"));
+        assert!(db.set_record_flags("missing", Some(true), None).is_err());
+        assert_eq!(db.get_history().len(), 1);
+        fs::remove_dir_all(dir).unwrap();
     }
 }
