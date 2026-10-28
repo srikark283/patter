@@ -1,7 +1,9 @@
-name: Release
+name: Build and release
 
 on:
   push:
+    # Tags can restore default-branch caches, but not caches from other tags.
+    branches: [main]
     tags:
       - "v*"
 
@@ -34,6 +36,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - run: npm ci
 
@@ -41,31 +44,59 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: xcodebuild -downloadComponent MetalToolchain
 
+      - name: Identify the native toolchain
+        if: matrix.platform == 'macos-latest'
+        id: native-toolchain
+        run: |
+          {
+            xcodebuild -version
+            xcrun --show-sdk-build-version
+            xcrun metal --version | sed -n '1,2p'
+            sw_vers -productVersion
+          } > "$RUNNER_TEMP/patter-toolchain.txt"
+          echo "fingerprint=$(shasum -a 256 "$RUNNER_TEMP/patter-toolchain.txt" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Swift and Metal build cache
+        if: matrix.platform == 'macos-latest'
+        id: native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: native/s1-mini/.build/xcode
+          key: mlx-${{ runner.os }}-${{ runner.arch }}-${{ steps.native-toolchain.outputs.fingerprint }}-${{ hashFiles('native/s1-mini/Package.resolved') }}-${{ hashFiles('native/s1-mini/Package.swift', 'native/s1-mini/Sources/**', 'native/s1-mini/licenses/**', 'scripts/build-s1.mjs') }}
+          restore-keys: |
+            mlx-${{ runner.os }}-${{ runner.arch }}-${{ steps.native-toolchain.outputs.fingerprint }}-${{ hashFiles('native/s1-mini/Package.resolved') }}-
+
       # Tauri validates bundled resource paths even when compiling unit tests.
+      # Always run Xcode's dependency checks, including after a cache restore.
       - name: Build the bundled S1-mini runtime
         if: matrix.platform == 'macos-latest'
         run: npm run build:s1
 
       - name: Run regression tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml
 
       - name: Verify the built-in model on Apple Silicon
         if: matrix.platform == 'macos-latest'
-        run: cargo test --manifest-path src-tauri/Cargo.toml s1::tests::bundled_runtime_smoke -- --ignored --nocapture
+        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml s1::tests::bundled_runtime_smoke -- --ignored --exact --nocapture
 
-      - name: Download and verify the pinned Patter Flash release
+      - name: Verify the pinned Nano model on Apple Silicon
         if: matrix.platform == 'macos-latest'
-        run: python3 scripts/prepare-flash-release.py --download --output "$RUNNER_TEMP/patter-flash"
+        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml s1::tests::nano_bundled_runtime_smoke -- --ignored --exact --nocapture
 
-      - name: Verify Patter Flash on Apple Silicon
+      - name: Verify Nano channel activation and rollback
         if: matrix.platform == 'macos-latest'
-        env:
-          PATTER_FLASH_SOURCE: ${{ runner.temp }}/patter-flash
-        run: cargo test --manifest-path src-tauri/Cargo.toml s1::tests::flash_bundled_runtime_smoke -- --ignored --nocapture
+        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml s1::updates::tests::channel_install_probe_failure_and_rollback_smoke -- --ignored --exact --nocapture
 
-      - name: Verify Flash channel activation and rollback
-        if: matrix.platform == 'macos-latest'
-        run: cargo test --manifest-path src-tauri/Cargo.toml s1::updates::tests::channel_install_probe_failure_and_rollback_smoke -- --ignored --nocapture
+      - name: Build the app and warm release dependencies on main
+        if: github.ref == 'refs/heads/main'
+        run: npm run tauri -- build --no-bundle
+
+      - name: Save the Swift and Metal build cache on main
+        if: matrix.platform == 'macos-latest' && github.ref == 'refs/heads/main' && steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: native/s1-mini/.build/xcode
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
       # Self-signed (not Apple Developer ID) codesigning, macOS only. Without
       # this, every release is signed ad-hoc with a fresh identity each build,
@@ -75,7 +106,7 @@ jobs:
       # "unidentified developer" warning is unaffected; that needs a paid
       # Apple Developer ID + notarization, which this is not.
       - name: Import macOS signing certificate
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-latest' && startsWith(github.ref, 'refs/tags/v')
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -97,6 +128,7 @@ jobs:
       # latest.json (createUpdaterArtifacts). Self-signed on macOS (see above)
       # — still not notarized, so Gatekeeper still flags it as unidentified.
       - uses: tauri-apps/tauri-action@v0
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
