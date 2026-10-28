@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, WandSparkles } from "lucide-react";
-import { testS1Cleanup, builtInModelName, checkFlashUpdate, installFlashUpdate, rollbackFlashUpdate, type FlashUpdate, type Settings, type S1Status } from "@/lib/ipc";
+import { testS1Cleanup, builtInModelName, checkNanoUpdate, installNanoUpdate, rollbackNanoUpdate, type NanoUpdate, type Settings, type S1Status } from "@/lib/ipc";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Props {
@@ -17,16 +17,16 @@ interface Props {
 
 export function S1Settings({ settings, model, status, error, busy, onEnable, onRefresh }: Props) {
   const name = builtInModelName(model);
-  const flash = model === "patter_flash";
-  const [update, setUpdate] = useState<FlashUpdate | null>(null);
+  const nano = model === "patter-1-nano";
+  const [update, setUpdate] = useState<NanoUpdate | null>(null);
   const [updateError, setUpdateError] = useState("");
   const [updateBusy, setUpdateBusy] = useState(false);
   const checkUpdate = async () => {
     setUpdateBusy(true); setUpdateError("");
-    try { setUpdate(await checkFlashUpdate()); } catch (error) { setUpdateError(String(error)); }
+    try { setUpdate(await checkNanoUpdate()); } catch (error) { setUpdateError(String(error)); }
     finally { setUpdateBusy(false); }
   };
-  useEffect(() => { if (flash) void checkUpdate(); }, [flash]);
+  useEffect(() => { if (nano) void checkUpdate(); }, [nano]);
   useEffect(() => {
     if (!updateBusy) return;
     const timer = window.setInterval(onRefresh, 1000);
@@ -36,7 +36,7 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
     if (!rollback && !update) return;
     setUpdateBusy(true); setUpdateError("");
     try {
-      if (rollback) await rollbackFlashUpdate(); else await installFlashUpdate(update!.latest_version);
+      if (rollback) await rollbackNanoUpdate(); else await installNanoUpdate(update!.latest_version);
       setUpdate(null); onRefresh();
     } catch (error) { setUpdateError(String(error)); }
     finally { setUpdateBusy(false); }
@@ -56,7 +56,7 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
     finally { setTesting(false); }
   };
   return <div className="space-y-4 p-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-medium">{name}</h3><p className="mt-1 text-xs text-muted-foreground">{flash ? "By Patter · Beta · English dictation" : "By Superwhisper · Beta · English dictation"}</p></div><span className="rounded-md bg-accent px-2 py-1 text-xs text-accent-foreground">On-device</span></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-medium">{name}</h3><p className="mt-1 text-xs text-muted-foreground">{nano ? "By Patter · Beta · English dictation" : "By Superwhisper · Beta · English dictation"}</p></div><span className="rounded-md bg-accent px-2 py-1 text-xs text-accent-foreground">On-device</span></div>
     <p role="status" className="text-sm">
       {!status ? "Checking availability…" : !status.supported ? "Requires Apple Silicon and macOS 14 or newer. Use Ollama on this device."
         : !status.runtime_ready ? "Built-in runtime missing. Reinstall Patter, then retry."
@@ -70,18 +70,18 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
         Enabling {name} sets the transcription language to English and turns on dictation cleanup.
         Your current cleanup stays unchanged until setup succeeds.
       </p>
-      {flash && <p className="text-xs text-muted-foreground">By downloading and enabling Patter Flash, you agree to the <a href="https://ai.google.dev/gemma/terms" target="_blank" rel="noreferrer" className="underline">Gemma Terms of Use</a>, including the <a href="https://ai.google.dev/gemma/prohibited_use_policy" target="_blank" rel="noreferrer" className="underline">use restrictions</a>.</p>}
+      {nano && <p className="text-xs text-muted-foreground">By downloading and enabling patter-1-nano, you agree to the <a href="https://ai.google.dev/gemma/terms" target="_blank" rel="noreferrer" className="underline">Gemma Terms of Use</a>, including the <a href="https://ai.google.dev/gemma/prohibited_use_policy" target="_blank" rel="noreferrer" className="underline">use restrictions</a>.</p>}
       <Button onClick={() => onEnable()} disabled={downloading || testing}>
         {downloading && <Loader2 size={14} className="animate-spin" />}
         {downloading ? `Setting up ${name}…` : !status.installed ? `Download & enable ${name}` : settings.language !== "en" ? `Use English & enable ${name}` : `Enable ${name}`}
       </Button>
     </>}
-    {flash && <div className="space-y-2 border-t border-border pt-3">
-      <p className="text-xs text-muted-foreground">Model version: {status?.version ?? "Checking…"}</p>
+    {nano && <div className="space-y-2 border-t border-border pt-3">
+      <p className="text-xs text-muted-foreground">Model version: {status?.version?.replace(/^patter-nano-/, "") ?? "Checking…"}</p>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={checkUpdate} disabled={downloading || testing}>{updateBusy ? "Checking / preparing…" : "Check model updates"}</Button>
-        {update?.update_available && <Button size="sm" disabled={downloading || testing} onClick={() => changeVersion()}>Update to {update.latest_version} · {Math.ceil(update.download_bytes / 1_000_000)} MB</Button>}
-        {status?.previous_version && <Button variant="outline" size="sm" disabled={downloading || testing} onClick={() => changeVersion(true)}>Restore {status.previous_version}</Button>}
+        {update?.update_available && <Button size="sm" disabled={downloading || testing} onClick={() => changeVersion()}>Update to {update.latest_version.replace(/^patter-nano-/, "")} · {Math.ceil(update.download_bytes / 1_000_000)} MB</Button>}
+        {status?.previous_version && <Button variant="outline" size="sm" disabled={downloading || testing} onClick={() => changeVersion(true)}>Restore {status.previous_version.replace(/^patter-nano-/, "")}</Button>}
       </div>
       {update && !update.update_available && <p role="status" className="text-xs text-muted-foreground">No newer model release is available.</p>}
       {updateError && <p role="alert" className="break-words text-xs text-destructive">{updateError} Your current model is kept.</p>}
@@ -92,9 +92,9 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
       <Button variant="outline" size="sm" onClick={onRefresh} disabled={busy}>Check again</Button>
     </div>}
     <p className="text-xs text-muted-foreground">
-      {flash ? "App Profiles supply cleanup instructions. Formatting results may vary with this beta model." : "App Profiles set supported tone, list, and email formatting hints."} Code and terminal dictation stays verbatim.
+      {nano ? "App Profiles supply cleanup instructions. Formatting results may vary with this beta model." : "App Profiles set supported tone, list, and email formatting hints."} Code and terminal dictation stays verbatim.
       Personal memory requires Ollama cleanup. Long transcripts are cleaned in chunks.
-      {flash && " This beta works best with short dictation. If generation is truncated, Patter keeps the original transcript."}
+      {nano && " This beta works best with short dictation. If generation is truncated, Patter keeps the original transcript."}
     </p>
     {ready && <details open className="border-t border-border pt-4 text-sm">
       <summary className="cursor-pointer rounded-md py-1 font-medium text-accent-foreground">Preview cleanup</summary>

@@ -19,6 +19,8 @@ pub mod updates;
 #[derive(Clone, Deserialize, Serialize)]
 struct Manifest {
     repo: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    variant_id: Option<String>,
     #[serde(default)]
     base_url: Option<String>,
     revision: String,
@@ -31,15 +33,10 @@ struct ModelFile {
     sha256: String,
 }
 fn manifest(model: BuiltInModel) -> Manifest {
-    if model == BuiltInModel::PatterFlash {
-        if let Some(active) = updates::active_channel() {
-            return active.desktop;
-        }
+    if model == BuiltInModel::Patter1Nano {
+        return updates::current_channel().desktop;
     }
-    let json = match model {
-        BuiltInModel::S1Mini => include_str!("../../native/s1-mini/model.json"),
-        BuiltInModel::PatterFlash => include_str!("../../native/s1-mini/patter-flash.json"),
-    };
+    let json = include_str!("../../native/s1-mini/model.json");
     serde_json::from_str(json).expect("built-in model manifest")
 }
 fn model_file_url(manifest: &Manifest, name: &str) -> String {
@@ -63,6 +60,22 @@ static CHILD: Mutex<Option<Arc<Mutex<Child>>>> = Mutex::new(None);
 static DOWNLOADING: AtomicU32 = AtomicU32::new(0);
 static PROGRESS: AtomicU32 = AtomicU32::new(0);
 
+// Move the retired cache once; keep immutable release descriptors and revisions intact.
+fn migrate_nano_cache(models: &Path) -> std::io::Result<()> {
+    let old = models.join("patter-flash");
+    let new = models.join("patter-1-nano/mlx-4bit");
+    if old.is_dir() && !new.exists() {
+        fs::create_dir_all(new.parent().unwrap())?;
+        let legacy: serde_json::Value = serde_json::from_str(include_str!("../../native/s1-mini/flash-channel-v1.json")).unwrap();
+        let revision = legacy["desktop"]["revision"].as_str().unwrap();
+        if !old.join("active.json").exists() && old.join(revision).join(".complete").is_file() {
+            fs::write(old.join("active.json"), serde_json::to_vec(&legacy).unwrap())?;
+        }
+        fs::rename(old, new)?;
+    }
+    Ok(())
+}
+
 pub fn initialize(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let bundled = app
         .path()
@@ -73,6 +86,7 @@ pub fn initialize(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Erro
     } else {
         bundled
     };
+    migrate_nano_cache(&app.path().app_data_dir()?.join("models"))?;
     let _ = PATHS.set(Paths {
         kind: BuiltInModel::S1Mini,
         model: app.path().app_data_dir()?.join("models"),
@@ -89,7 +103,11 @@ fn paths_for_manifest(model: BuiltInModel, manifest: &Manifest) -> Result<Paths,
         .ok_or("Built-in runtime is not initialized")?
         .clone();
     p.kind = model;
-    p.model = p.model.join(model.directory()).join(&manifest.revision);
+    p.model = p.model.join(model.directory());
+    if model == BuiltInModel::Patter1Nano {
+        p.model = p.model.join("mlx-4bit");
+    }
+    p.model = p.model.join(&manifest.revision);
     Ok(p)
 }
 fn supported() -> bool {
@@ -132,8 +150,8 @@ pub struct Status {
 pub fn status(model: BuiltInModel) -> Result<Status, String> {
     let p = paths(model)?;
     Ok(Status {
-        version: (model == BuiltInModel::PatterFlash).then(|| updates::current_channel().version),
-        previous_version: if model == BuiltInModel::PatterFlash {
+        version: (model == BuiltInModel::Patter1Nano).then(|| updates::current_channel().version),
+        previous_version: if model == BuiltInModel::Patter1Nano {
             updates::previous_version()
         } else {
             None
@@ -145,7 +163,7 @@ pub fn status(model: BuiltInModel) -> Result<Status, String> {
         downloading: DOWNLOADING.load(Ordering::Relaxed) != 0,
         downloading_model: match DOWNLOADING.load(Ordering::Relaxed) {
             1 => Some(BuiltInModel::S1Mini),
-            2 => Some(BuiltInModel::PatterFlash),
+            2 => Some(BuiltInModel::Patter1Nano),
             _ => None,
         },
         download_bytes: manifest(model).files.iter().map(|f| f.size).sum(),
@@ -212,7 +230,7 @@ pub fn install(model: BuiltInModel) -> Result<(), String> {
     install_from(model, None)
 }
 pub fn install_from(model: BuiltInModel, source: Option<&Path>) -> Result<(), String> {
-    if model == BuiltInModel::PatterFlash && source.is_none() {
+    if model == BuiltInModel::Patter1Nano && source.is_none() {
         return updates::install(None);
     }
     require_supported()?;
@@ -221,7 +239,7 @@ pub fn install_from(model: BuiltInModel, source: Option<&Path>) -> Result<(), St
             0,
             match model {
                 BuiltInModel::S1Mini => 1,
-                BuiltInModel::PatterFlash => 2,
+                BuiltInModel::Patter1Nano => 2,
             },
             Ordering::AcqRel,
             Ordering::Relaxed,
@@ -280,7 +298,8 @@ fn download_manifest(
                 let local = source.join(&f.name);
                 if local.is_file() {
                     Box::new(File::open(local)?)
-                } else if model == BuiltInModel::PatterFlash {
+                } else if model == BuiltInModel::Patter1Nano {
+                    let legacy = m.base_url.as_deref().is_some_and(|url| url.contains("/patter-flash-"));
                     let notice: &'static [u8] = match f.name.as_str() {
                         "GEMMA-TERMS.txt" => {
                             include_bytes!("../../native/s1-mini/flash-notices/GEMMA-TERMS.txt")
@@ -289,10 +308,12 @@ fn download_manifest(
                             "../../native/s1-mini/flash-notices/GEMMA-PROHIBITED-USE-POLICY.txt"
                         ),
                         "NOTICE.txt" => {
-                            include_bytes!("../../native/s1-mini/flash-notices/NOTICE.txt")
+                            if legacy { include_bytes!("../../native/s1-mini/flash-notices/NOTICE.txt") }
+                            else { include_bytes!("../../native/s1-mini/nano-notices/NOTICE.txt") }
                         }
                         "MODEL_CARD.md" => {
-                            include_bytes!("../../native/s1-mini/flash-notices/MODEL_CARD.md")
+                            if legacy { include_bytes!("../../native/s1-mini/flash-notices/MODEL_CARD.md") }
+                            else { include_bytes!("../../native/s1-mini/nano-baseline-MODEL_CARD.md") }
                         }
                         _ => return Err(format!("Missing model file: {}", f.name).into()),
                     };
@@ -513,7 +534,7 @@ fn request(
     app: Option<&str>,
 ) -> serde_json::Value {
     let _ = extra; // Retrieved context is not part of either model's trained cleanup input.
-    if settings.built_in_model == BuiltInModel::PatterFlash {
+    if settings.built_in_model == BuiltInModel::Patter1Nano {
         let instruction = crate::inference::app_profile(settings, app.unwrap_or(""))
             .map(|p| p.prompt.as_str()).filter(|p| !p.trim().is_empty())
             .unwrap_or("Clean the dictation. Format clock times using digits and preserve any stated am or pm. Preserve names and version numbers.");
@@ -617,9 +638,36 @@ pub fn shutdown() {
 mod tests {
     use super::*;
     #[test]
-    fn flash_prompt_and_settings_keep_model_contract_separate() {
+    fn nano_migrates_legacy_selection_and_cache_without_losing_revision() {
+        let mut old = serde_json::to_value(crate::db::Settings::default()).unwrap();
+        old["built_in_model"] = "patter_flash".into();
+        let settings = crate::inference::load_settings(&old.to_string()).unwrap();
+        assert_eq!(settings.built_in_model, BuiltInModel::Patter1Nano);
+        let saved = serde_json::to_value(settings).unwrap();
+        assert_eq!(saved["built_in_model"], "patter-1-nano");
+        old["built_in_model"] = "patter-1-mini".into();
+        assert!(crate::inference::load_settings(&old.to_string()).is_err());
+        let root = std::env::temp_dir().join(format!("nano-migration-{}", std::process::id()));
+        let legacy: serde_json::Value = serde_json::from_str(include_str!("../../native/s1-mini/flash-channel-v1.json")).unwrap();
+        let revision = legacy["desktop"]["revision"].as_str().unwrap();
+        let old = root.join("patter-flash").join(revision);
+        fs::create_dir_all(&old).unwrap();
+        fs::write(old.join(".complete"), b"revision").unwrap();
+        migrate_nano_cache(&root).unwrap();
+        migrate_nano_cache(&root).unwrap();
+        assert!(root
+            .join("patter-1-nano/mlx-4bit").join(revision).join(".complete")
+            .is_file());
+        let pointer: serde_json::Value = serde_json::from_slice(&fs::read(root.join("patter-1-nano/mlx-4bit/active.json")).unwrap()).unwrap();
+        assert_eq!(pointer["version"], legacy["version"]);
+        assert!(!root.join("patter-flash").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn nano_prompt_and_settings_keep_model_contract_separate() {
         let settings = crate::db::Settings {
-            built_in_model: BuiltInModel::PatterFlash,
+            built_in_model: BuiltInModel::Patter1Nano,
             app_profiles: vec![crate::db::AppProfile {
                 app: "Mail".into(),
                 prompt: "Use a formal tone.".into(),
@@ -642,46 +690,47 @@ mod tests {
             .contains("preserve any stated am or pm"));
         let restored =
             crate::inference::load_settings(&serde_json::to_string(&settings).unwrap()).unwrap();
-        assert_eq!(restored.built_in_model, BuiltInModel::PatterFlash);
+        assert_eq!(restored.built_in_model, BuiltInModel::Patter1Nano);
         assert_ne!(
-            BuiltInModel::PatterFlash.directory(),
+            BuiltInModel::Patter1Nano.directory(),
             BuiltInModel::S1Mini.directory()
         );
     }
 
     #[test]
-    fn flash_release_url_notices_and_wrong_export_are_validated() {
-        let dir = std::env::temp_dir().join(format!("patter-flash-invalid-{}", std::process::id()));
+    fn nano_release_url_notices_and_wrong_export_are_validated() {
+        let dir =
+            std::env::temp_dir().join(format!("patter-1-nano-invalid-{}", std::process::id()));
         let source = dir.join("source");
         let target = dir.join("target");
         fs::create_dir_all(&source).unwrap();
-        let m = manifest(BuiltInModel::PatterFlash);
-        assert_eq!(model_file_url(&m, "model.safetensors"), "https://github.com/srikark283/patter/releases/download/patter-flash-v1/model.safetensors");
+        let m = manifest(BuiltInModel::Patter1Nano);
+        assert_eq!(model_file_url(&m, "model.safetensors"), "https://github.com/srikark283/patter/releases/download/patter-1-nano-80f6f5c1b8be/model.safetensors");
         assert!(m.files.iter().any(|f| f.name == "GEMMA-TERMS.txt"));
         let s1 = manifest(BuiltInModel::S1Mini);
         assert!(
             model_file_url(&s1, "config.json").starts_with("https://huggingface.co/mlx-community/")
         );
         fs::write(source.join("README.md"), "wrong export").unwrap();
-        assert!(install_into_from(BuiltInModel::PatterFlash, &target, Some(&source)).is_err());
-        assert!(!installed_at(BuiltInModel::PatterFlash, &target));
+        assert!(install_into_from(BuiltInModel::Patter1Nano, &target, Some(&source)).is_err());
+        assert!(!installed_at(BuiltInModel::Patter1Nano, &target));
         assert!(!target.join("README.part").exists());
         fs::remove_dir_all(dir).unwrap();
     }
 
     /// Downloads or imports the pinned export and runs it without app settings changes.
     #[test]
-    #[ignore = "requires Apple Silicon, npm run build:s1, and network or PATTER_FLASH_SOURCE"]
-    fn flash_bundled_runtime_smoke() {
+    #[ignore = "requires Apple Silicon, npm run build:s1, and network or PATTER_NANO_SOURCE"]
+    fn nano_bundled_runtime_smoke() {
         let _serial = WORKER.lock().unwrap_or_else(|e| e.into_inner());
-        let source = std::env::var_os("PATTER_FLASH_SOURCE").map(PathBuf::from);
+        let source = std::env::var_os("PATTER_NANO_SOURCE").map(PathBuf::from);
         let dir = std::env::temp_dir()
-            .join("patter-flash-smoke")
-            .join(manifest(BuiltInModel::PatterFlash).revision);
-        install_into_from(BuiltInModel::PatterFlash, &dir, source.as_deref()).unwrap();
-        assert!(installed_at(BuiltInModel::PatterFlash, &dir));
+            .join("patter-1-nano-smoke")
+            .join(manifest(BuiltInModel::Patter1Nano).revision);
+        install_into_from(BuiltInModel::Patter1Nano, &dir, source.as_deref()).unwrap();
+        assert!(installed_at(BuiltInModel::Patter1Nano, &dir));
         let p = Paths {
-            kind: BuiltInModel::PatterFlash,
+            kind: BuiltInModel::Patter1Nano,
             model: dir.clone(),
             executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../native/s1-mini/dist/patter-intelligence"),
@@ -690,7 +739,7 @@ mod tests {
         let deadline = Instant::now() + Duration::from_secs(180);
         assert!(worker.event(deadline, &|| false).unwrap()["ready"].is_string());
         let settings = crate::db::Settings {
-            built_in_model: BuiltInModel::PatterFlash,
+            built_in_model: BuiltInModel::Patter1Nano,
             ..Default::default()
         };
         for input in [

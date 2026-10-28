@@ -783,14 +783,14 @@ pub async fn enable_s1(app: tauri::AppHandle, model: Option<crate::inference::Bu
 }
 
 #[tauri::command]
-pub async fn check_flash_update() -> Result<crate::s1::updates::Check, String> {
+pub async fn check_nano_update() -> Result<crate::s1::updates::Check, String> {
     tauri::async_runtime::spawn_blocking(crate::s1::updates::check).await.map_err(|e| e.to_string())?
 }
 #[tauri::command]
-pub async fn install_flash_update(version: String) -> Result<(), String> {
+pub async fn install_nano_update(version: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || crate::s1::updates::install(Some(version))).await.map_err(|e| e.to_string())?
 }
 #[tauri::command]
-pub async fn rollback_flash_update() -> Result<(), String> {
+pub async fn rollback_nano_update() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(crate::s1::updates::rollback).await.map_err(|e| e.to_string())?
 }

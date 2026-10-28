@@ -233,7 +233,7 @@ export function AIView() {
           {builtInSelected && <div className="px-4 pt-4"><label id="built-in-model-label" className="mb-2 block text-xs text-muted-foreground">Built-in model</label>
             <Select value={modelChoice} disabled={setupBusy || !!s1Status?.downloading} onValueChange={(value) => { setS1Status(null); setS1Error(""); setS1StatusError(""); setModelChoice(value as Settings["built_in_model"]); }}>
               <SelectTrigger aria-labelledby="built-in-model-label"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="s1_mini">S1-mini · Superwhisper</SelectItem><SelectItem value="patter_flash">Patter Flash · Patter</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="s1_mini">S1-mini · Superwhisper</SelectItem><SelectItem value="patter-1-nano">patter-1-nano · Patter</SelectItem></SelectContent>
             </Select>
             {modelChoice !== settings.built_in_model && <p role="status" className="mt-2 text-xs text-muted-foreground">Previewing {builtInModelName(modelChoice)}. Enable it below to switch cleanup models.</p>}
           </div>}
@@ -344,7 +344,7 @@ export function AIView() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 px-1"><div><h2 className="text-base font-medium">App profiles</h2><p className="mt-1 text-xs text-muted-foreground">Adjust the tone for each app. Changes apply when you save.</p></div>{profilesDirty && <span role="status" className="text-xs text-warning">Unsaved profile changes</span>}</div>
         <div className="surface-raised rounded-xl p-4 space-y-4">
-          <p className="text-xs leading-relaxed text-muted-foreground">Ollama and Patter Flash accept profile instructions. S1-mini uses supported tone, list, and email hints; code and terminal dictation stays verbatim.{!settings.llm_cleanup_enabled && " Enable dictation cleanup to use profiles."}</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">Ollama and patter-1-nano accept profile instructions. S1-mini uses supported tone, list, and email hints; code and terminal dictation stays verbatim.{!settings.llm_cleanup_enabled && " Enable dictation cleanup to use profiles."}</p>
           {!profiles.length && <p className="py-3 text-sm text-muted-foreground">No app profiles yet. Start with a template or add your own.</p>}
           <div className="space-y-3">{profiles.map((profile, index) => <div key={index} className="flex items-start gap-2 border-t border-border/50 pt-3">
             <div className="mt-6 flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground"><NativeAppIcon appName={profile.app} /></div>

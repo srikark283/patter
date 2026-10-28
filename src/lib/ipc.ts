@@ -21,7 +21,7 @@ export interface Settings {
   silence_timeout_ms: number;
   llm_cleanup_enabled: boolean;
   cleanup_provider: "ollama" | "built_in";
-  built_in_model: "s1_mini" | "patter_flash";
+  built_in_model: "s1_mini" | "patter-1-nano";
   ollama_model: string | null;
   meeting_ollama_model: string | null;
   meeting_engine_id: string | null;
@@ -299,10 +299,10 @@ export function dismissDictionarySuggestion(key: string) {
 export const onCleanupError = (callback: (message: string) => void) =>
   listen<string>("patter://error", event => callback(event.payload));
 
-export interface FlashUpdate { current_version: string; latest_version: string; update_available: boolean; download_bytes: number; }
-export const checkFlashUpdate = () => invoke<FlashUpdate>("check_flash_update");
-export const installFlashUpdate = (version: string) => invoke<void>("install_flash_update", { version });
-export const rollbackFlashUpdate = () => invoke<void>("rollback_flash_update");
+export interface NanoUpdate { current_version: string; latest_version: string; update_available: boolean; download_bytes: number; }
+export const checkNanoUpdate = () => invoke<NanoUpdate>("check_nano_update");
+export const installNanoUpdate = (version: string) => invoke<void>("install_nano_update", { version });
+export const rollbackNanoUpdate = () => invoke<void>("rollback_nano_update");
 
 export interface S1Status {
   version: string | null;
@@ -317,7 +317,7 @@ export interface S1Status {
 }
 export const getS1Status = (model: Settings["built_in_model"]) => invoke<S1Status>("s1_status", { model });
 export const installS1 = (model: Settings["built_in_model"]) => invoke<void>("install_s1", { model });
-export const builtInModelName = (model: Settings["built_in_model"]) => model === "patter_flash" ? "Patter Flash" : "S1-mini";
+export const builtInModelName = (model: Settings["built_in_model"]) => model === "patter-1-nano" ? "patter-1-nano" : "S1-mini";
 export const testS1Cleanup = (text: string, appName: string | null = null, model?: Settings["built_in_model"]) => invoke<string>("test_s1_cleanup", { text, appName, model });
 
 export const enableS1 = async (model: Settings["built_in_model"], source?: string) => {

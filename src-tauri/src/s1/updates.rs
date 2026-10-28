@@ -1,15 +1,17 @@
-//! A mutable metadata channel points to immutable, checksummed Flash releases.
+//! A mutable metadata channel points to immutable, checksummed patter-1-nano releases.
 use super::*;
 
 pub const CHANNEL_URL: &str =
-    "https://raw.githubusercontent.com/srikark283/patter/model-channel/stable.json";
+    "https://raw.githubusercontent.com/srikark283/patter/model-channel/models/patter-1-nano/stable.json";
 const RELEASE_BASE: &str = "https://github.com/srikark283/patter/releases/download/";
-const RUNTIME: &str = "flash-gemma3-v1";
+const RUNTIME: &str = "gemma3-270m-cleanup-v1";
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Channel {
     schema_version: u32,
     runtime: String,
+    #[serde(default)]
+    model_id: String,
     pub version: String,
     source_weights_sha256: String,
     pub(super) desktop: Manifest,
@@ -31,24 +33,44 @@ fn name(value: &str) -> bool {
 }
 impl Channel {
     fn validate(&self) -> Result<(), String> {
-        if self.schema_version != 1 || self.runtime != RUNTIME {
+        self.validate_contract(false)
+    }
+    // Historical release tags are accepted only for saved/bundled state, never remote updates.
+    fn validate_cached(&self) -> Result<(), String> {
+        self.validate_contract(self.schema_version == 1)
+    }
+    fn validate_contract(&self, legacy: bool) -> Result<(), String> {
+        let runtime = if legacy { "flash-gemma3-v1" } else { RUNTIME };
+        let prefix = if legacy {
+            "patter-flash-"
+        } else {
+            "patter-1-nano-"
+        };
+        if self.schema_version != if legacy { 1 } else { 2 }
+            || self.runtime != runtime
+            || self.model_id != "patter-1-nano"
+            || self.desktop.variant_id.as_deref() != Some("mlx-4bit")
+            || self.android["variant_id"].as_str() != Some("gguf-q4_k_m")
+        {
             return Err("This model release requires a newer Patter app".into());
         }
         if !name(&self.version)
-            || !self.version.starts_with("patter-flash-")
+            || !self.version.starts_with(prefix)
             || !hex(&self.source_weights_sha256, &[64])
             || !hex(&self.desktop.revision, &[40, 64])
         {
-            return Err("Invalid Flash release identity".into());
+            return Err("Invalid patter-1-nano release identity".into());
         }
         let base = format!("{RELEASE_BASE}{}", self.version);
         if self.desktop.base_url.as_deref() != Some(base.as_str()) || !self.desktop.repo.is_empty()
         {
-            return Err("Flash assets must come from the pinned Patter GitHub release".into());
+            return Err(
+                "patter-1-nano assets must come from the pinned Patter GitHub release".into(),
+            );
         }
         let mut names = std::collections::HashSet::new();
         if !(3..=32).contains(&self.desktop.files.len()) {
-            return Err("Invalid Flash file count".into());
+            return Err("Invalid patter-1-nano file count".into());
         }
         let mut total = 0u64;
         for file in &self.desktop.files {
@@ -58,7 +80,7 @@ impl Channel {
                 || file.size == 0
                 || file.size > 1_500_000_000
             {
-                return Err("Invalid Flash asset".into());
+                return Err("Invalid patter-1-nano asset".into());
             }
             total += file.size;
         }
@@ -73,7 +95,7 @@ impl Channel {
             .iter()
             .all(|n| names.contains(n))
         {
-            return Err("Incomplete or oversized Flash release".into());
+            return Err("Incomplete or oversized patter-1-nano release".into());
         }
         let android_name = self.android["filename"]
             .as_str()
@@ -89,24 +111,33 @@ impl Channel {
             || self.android["revision"].as_str() != Some(&self.desktop.revision)
             || self.android["url"].as_str() != Some(format!("{base}/{android_name}").as_str())
         {
-            return Err("Invalid Android Flash release".into());
+            return Err("Invalid Android patter-1-nano release".into());
         }
         Ok(())
     }
 }
+fn decode_cached(bytes: &[u8]) -> Option<Channel> {
+    let mut channel: Channel = serde_json::from_slice(bytes).ok()?;
+    if channel.schema_version == 1 {
+        if !channel.model_id.is_empty() && channel.model_id != "patter-1-nano" {
+            return None;
+        }
+        channel.model_id = "patter-1-nano".into();
+        channel.desktop.variant_id = Some("mlx-4bit".into());
+        channel.android["variant_id"] = "gguf-q4_k_m".into();
+    }
+    channel.validate_cached().ok()?;
+    Some(channel)
+}
 fn baseline() -> Channel {
-    serde_json::from_str(include_str!(
-        "../../../native/s1-mini/flash-channel-v1.json"
-    ))
-    .expect("bundled Flash channel")
+    decode_cached(include_bytes!("../../../native/s1-mini/nano-channel.json"))
+        .expect("bundled Nano channel")
 }
 fn pointer(name: &str) -> Option<PathBuf> {
-    Some(PATHS.get()?.model.join("patter-flash").join(name))
+    Some(PATHS.get()?.model.join("patter-1-nano/mlx-4bit").join(name))
 }
 fn read_pointer(name: &str) -> Option<Channel> {
-    let channel: Channel = serde_json::from_slice(&fs::read(pointer(name)?).ok()?).ok()?;
-    channel.validate().ok()?;
-    Some(channel)
+    decode_cached(&fs::read(pointer(name)?).ok()?)
 }
 pub(super) fn active_channel() -> Option<Channel> {
     read_pointer("active.json")
@@ -116,7 +147,7 @@ pub(super) fn current_channel() -> Channel {
 }
 pub(super) fn previous_version() -> Option<String> {
     let channel = read_pointer("previous.json")?;
-    let p = paths_for_manifest(BuiltInModel::PatterFlash, &channel.desktop).ok()?;
+    let p = paths_for_manifest(BuiltInModel::Patter1Nano, &channel.desktop).ok()?;
     installed_manifest(&channel.desktop, &p.model).then_some(channel.version)
 }
 fn remote() -> Result<Channel, String> {
@@ -134,17 +165,17 @@ fn remote() -> Result<Channel, String> {
         .header("Cache-Control", "no-cache")
         .send()
         .and_then(|r| r.error_for_status())
-        .map_err(|e| format!("Could not check Flash updates: {e}"))?;
+        .map_err(|e| format!("Could not check patter-1-nano updates: {e}"))?;
     let mut bytes = Vec::new();
     response
         .take(65_537)
         .read_to_end(&mut bytes)
         .map_err(|e| e.to_string())?;
     if bytes.len() > 65_536 {
-        return Err("Flash channel is too large".into());
+        return Err("patter-1-nano channel is too large".into());
     }
-    let channel: Channel =
-        serde_json::from_slice(&bytes).map_err(|e| format!("Invalid Flash channel: {e}"))?;
+    let channel: Channel = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("Invalid patter-1-nano channel: {e}"))?;
     channel.validate()?;
     Ok(channel)
 }
@@ -180,7 +211,7 @@ fn probe(p: &Paths) -> Result<(), String> {
     let mut worker = Worker::start(p)?;
     let deadline = Instant::now() + Duration::from_secs(90);
     if !worker.event(deadline, &|| false)?["ready"].is_string() {
-        return Err("Flash did not become ready".into());
+        return Err("patter-1-nano did not become ready".into());
     }
     writeln!(worker.stdin, "{}", serde_json::json!({"text":"Please send the report tomorrow.", "instruction":"Clean this English dictation with minimal edits."}))
         .and_then(|_| worker.stdin.flush()).map_err(|e| e.to_string())?;
@@ -188,7 +219,7 @@ fn probe(p: &Paths) -> Result<(), String> {
         let event = worker.event(deadline, &|| false)?;
         if let Some(done) = event["done"].as_str() {
             return if done.trim().is_empty() {
-                Err("Flash returned an empty readiness probe".into())
+                Err("patter-1-nano returned an empty readiness probe".into())
             } else {
                 Ok(())
             };
@@ -196,10 +227,10 @@ fn probe(p: &Paths) -> Result<(), String> {
     }
 }
 fn activate(channel: Channel) -> Result<(), String> {
-    channel.validate()?;
-    let p = paths_for_manifest(BuiltInModel::PatterFlash, &channel.desktop)?;
+    channel.validate_cached()?;
+    let p = paths_for_manifest(BuiltInModel::Patter1Nano, &channel.desktop)?;
     if !installed_manifest(&channel.desktop, &p.model) {
-        return Err("Flash release has not been downloaded completely".into());
+        return Err("patter-1-nano release has not been downloaded completely".into());
     }
     // Keep inference and activation serialized; failed probes leave the pointer intact.
     let mut slot = WORKER.lock().map_err(|e| e.to_string())?;
@@ -213,7 +244,7 @@ fn activate(channel: Channel) -> Result<(), String> {
     write_pointer("active.json", &channel)?;
     if slot
         .as_ref()
-        .is_some_and(|worker| worker.kind == BuiltInModel::PatterFlash)
+        .is_some_and(|worker| worker.kind == BuiltInModel::Patter1Nano)
     {
         *slot = None;
     }
@@ -236,17 +267,17 @@ pub fn install(expected_version: Option<String>) -> Result<(), String> {
     }
     let _guard = DownloadGuard;
     PROGRESS.store(0, Ordering::Relaxed);
-    let p = paths_for_manifest(BuiltInModel::PatterFlash, &latest.desktop)?;
+    let p = paths_for_manifest(BuiltInModel::Patter1Nano, &latest.desktop)?;
     if !p.executable.is_file() || !p.executable.with_file_name("mlx.metallib").is_file() {
         return Err("The built-in runtime is missing; reinstall Patter".into());
     }
-    download_manifest(BuiltInModel::PatterFlash, &p.model, None, &latest.desktop)
+    download_manifest(BuiltInModel::Patter1Nano, &p.model, None, &latest.desktop)
         .map_err(|e| e.to_string())?;
     activate(latest)
 }
 pub fn rollback() -> Result<(), String> {
     let previous = read_pointer("previous.json")
-        .ok_or("No previous Flash model is available on this device")?;
+        .ok_or("No previous patter-1-nano model is available on this device")?;
     if DOWNLOADING
         .compare_exchange(0, 2, Ordering::AcqRel, Ordering::Relaxed)
         .is_err()
@@ -262,7 +293,20 @@ mod tests {
     use super::*;
     #[test]
     fn channel_validation_rejects_incompatible_and_untrusted_assets() {
-        let original = baseline();
+        let legacy = decode_cached(include_bytes!("../../../native/s1-mini/flash-channel-v1.json")).unwrap();
+        assert!(legacy.validate().is_err());
+        let mut original = baseline();
+        original.validate_cached().unwrap();
+        original.schema_version = 2;
+        original.runtime = RUNTIME.into();
+        original.version = "patter-1-nano-test".into();
+        original.desktop.base_url = Some(format!("{RELEASE_BASE}{}", original.version));
+        original.android["url"] = format!(
+            "{RELEASE_BASE}{}/{}",
+            original.version,
+            original.android["filename"].as_str().unwrap()
+        )
+        .into();
         original.validate().unwrap();
         let mut c = original.clone();
         c.runtime = "new-architecture".into();
@@ -279,6 +323,15 @@ mod tests {
         let mut c = original.clone();
         c.desktop.files.push(c.desktop.files[0].clone());
         assert!(c.validate().is_err());
+        let mut c = original.clone();
+        c.model_id = "patter-1-mini".into();
+        assert!(c.validate().is_err());
+        let mut c = original.clone();
+        c.desktop.variant_id = Some("gguf-q4_k_m".into());
+        assert!(c.validate().is_err());
+        let mut c = original.clone();
+        c.android["variant_id"] = "mlx-4bit".into();
+        assert!(c.validate().is_err());
         let mut c = original;
         c.android["url"] = "https://example.com/weights.gguf".into();
         assert!(c.validate().is_err());
@@ -287,10 +340,11 @@ mod tests {
     #[ignore = "requires Apple Silicon, network and npm run build:s1"]
     fn channel_install_probe_failure_and_rollback_smoke() {
         require_supported().unwrap();
-        let root = std::env::temp_dir().join(format!("patter-flash-update-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("patter-1-nano-update-{}", std::process::id()));
         PATHS
             .set(Paths {
-                kind: BuiltInModel::PatterFlash,
+                kind: BuiltInModel::Patter1Nano,
                 model: root.clone(),
                 executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                     .join("../native/s1-mini/dist/patter-intelligence"),
@@ -301,7 +355,7 @@ mod tests {
         let original = current_channel();
         assert!(pointer("active.json").unwrap().is_file());
         let settings = crate::db::Settings {
-            built_in_model: BuiltInModel::PatterFlash,
+            built_in_model: BuiltInModel::Patter1Nano,
             language: "en".into(),
             ..Default::default()
         };
@@ -317,7 +371,9 @@ mod tests {
         .to_lowercase()
         .contains("tomorrow"));
         let mut candidate = original.clone();
-        candidate.version = "patter-flash-smoke-candidate".into();
+        candidate.version = "patter-1-nano-smoke-candidate".into();
+        candidate.schema_version = 2;
+        candidate.runtime = RUNTIME.into();
         candidate.desktop.revision = "a".repeat(40);
         candidate.desktop.base_url = Some(format!("{RELEASE_BASE}{}", candidate.version));
         candidate.android["revision"] = candidate.desktop.revision.clone().into();
@@ -327,7 +383,7 @@ mod tests {
             candidate.android["filename"].as_str().unwrap()
         )
         .into();
-        let target = paths_for_manifest(BuiltInModel::PatterFlash, &candidate.desktop)
+        let target = paths_for_manifest(BuiltInModel::Patter1Nano, &candidate.desktop)
             .unwrap()
             .model;
         fs::create_dir_all(&target).unwrap();
@@ -340,7 +396,7 @@ mod tests {
         fs::write(target.join(".complete"), &candidate.desktop.revision).unwrap();
         assert!(activate(candidate.clone()).is_err());
         assert_eq!(current_channel().version, original.version);
-        let source = paths_for_manifest(BuiltInModel::PatterFlash, &original.desktop)
+        let source = paths_for_manifest(BuiltInModel::Patter1Nano, &original.desktop)
             .unwrap()
             .model;
         for file in &original.desktop.files {

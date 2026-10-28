@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "model_id": "patter-1-nano",
+  "runtime": "gemma3-270m-cleanup-v1",
+  "version": "patter-1-nano-80f6f5c1b8be",
+  "display_name": "patter-1-nano",
+  "source_weights_sha256": "82cdd670bdb1f94dc838c7ee412bc7d70816247b897c829b7f0eab92f4e6a5e5",
+  "build_fingerprint": "80f6f5c1b8be3d1b872ec46e620d579975b71b7bde2ce7a92a467e9ad18a290b",
+  "desktop": {
+    "variant_id": "mlx-4bit",
+    "repo": "",
+    "revision": "80f6f5c1b8be3d1b872ec46e620d579975b71b7b",
+    "base_url": "https://github.com/srikark283/patter/releases/download/patter-1-nano-80f6f5c1b8be",
+    "files": [
+      {
+        "name": "README.md",
+        "size": 81,
+        "sha256": "748c964f9b7e5f2c3770ce013bbc0153be7c54311d9692c343b6188eefe77ac6"
+      },
+      {
+        "name": "chat_template.jinja",
+        "size": 1532,
+        "sha256": "7de1c58e208eda46e9c7f86397df37ec49883aeece39fb961e0a6b24088dd3c4"
+      },
+      {
+        "name": "config.json",
+        "size": 1727,
+        "sha256": "21511cdd8807c02c1da9a7f41914f198a9487ecc864aacc206aeafa4e6ffb2f1"
+      },
+      {
+        "name": "generation_config.json",
+        "size": 173,
+        "sha256": "f3d7bb125d6b8751b8fc57c7155c10d6716ebe5a64900a27f56ca236c1c0c241"
+      },
+      {
+        "name": "model.safetensors",
+        "size": 150939130,
+        "sha256": "36eb62bf6066e66b9f7c9743656dbea170c59e5d04663e1fac5771e070a7bd30"
+      },
+      {
+        "name": "model.safetensors.index.json",
+        "size": 34944,
+        "sha256": "3ef9f6408eebccbe14976dd8db24d75d848f01c4430aa8b5924d97782a0930fb"
+      },
+      {
+        "name": "tokenizer.json",
+        "size": 33384567,
+        "sha256": "daab2354f8a74e70d70b4d1f804939b68a8c9624dd06cb7858e52dd8970e9726"
+      },
+      {
+        "name": "tokenizer_config.json",
+        "size": 730,
+        "sha256": "0c2eff39d77838f2da416cde4ab20111bae5b4ac6fcb11c627431f1658e1ee4d"
+      },
+      {
+        "name": "GEMMA-PROHIBITED-USE-POLICY.txt",
+        "size": 3661,
+        "sha256": "e63827be5ba189c1ce5571de2c9e6df063c098db8af91e0a4212012f3b214b77"
+      },
+      {
+        "name": "GEMMA-TERMS.txt",
+        "size": 8810,
+        "sha256": "91da7125d2405cd68db114d16bf511ca3502fe68b4870b8728af1f89f39caa64"
+      },
+      {
+        "name": "MODEL_CARD.md",
+        "size": 1238,
+        "sha256": "f119bf5fa6c41492bc03938b25ad216407bf5a92cb36996f948b40d11e5d20e0"
+      },
+      {
+        "name": "NOTICE.txt",
+        "size": 904,
+        "sha256": "ddd9a6155291286304a02fd6c0b6b3c39407fae04d91451172d7d262dbf0ecb7"
+      }
+    ]
+  },
+  "android": {
+    "filename": "patter-1-nano-q4_k_m.gguf",
+    "url": "https://github.com/srikark283/patter/releases/download/patter-1-nano-80f6f5c1b8be/patter-1-nano-q4_k_m.gguf",
+    "expectedSize": 253115072,
+    "sha256": "6350afb00c6494ecef71ebc6cfa520b545f4bea47df269cbe411e4d992e2755b",
+    "converterCommit": "8ca4060b7e30e76baaa5670ee1ec1b760b7f8552",
+    "sourceWeightsSha256": "82cdd670bdb1f94dc838c7ee412bc7d70816247b897c829b7f0eab92f4e6a5e5",
+    "variant_id": "gguf-q4_k_m",
+    "revision": "80f6f5c1b8be3d1b872ec46e620d579975b71b7b"
+  }
+}

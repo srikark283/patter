@@ -1,0 +1,15 @@
+Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms
+
+patter-1-nano is a modified derivative of Google's Gemma 3 270M instruction model.
+Google does not endorse patter-1-nano.
+
+Modifications by Patter: fine-tuned weights for English dictation cleanup,
+exported for MLX with 4-bit affine quantization (group size 64). The modified
+model.safetensors and exported configuration are distributed with this notice.
+Original tokenizer and chat-template resources are retained from the base model.
+
+Use and redistribution of this model are governed by GEMMA-TERMS.txt, including
+Section 3.2 and GEMMA-PROHIBITED-USE-POLICY.txt. These restrictions apply to Patter
+patter-1-nano and must be passed on with any redistribution. Using this model constitutes
+acceptance of those terms. Patter's application source license does not replace
+the Gemma terms for these weights.

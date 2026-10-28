@@ -171,9 +171,9 @@ xcodebuild -downloadComponent MetalToolchain
 npm run tauri dev
 ```
 
-Patter Flash is available under **Intelligence → Built-in → Patter Flash**.
-Click **Download & enable Patter Flash** to install the pinned model from the
-[Patter Flash model release](https://github.com/srikark283/patter/releases/tag/patter-flash-v1).
+patter-1-nano is available under **Intelligence → Built-in → patter-1-nano**.
+Click **Download & enable patter-1-nano** to install the pinned model from the
+[patter-1-nano model release](https://github.com/srikark283/patter/releases).
 The app verifies each file's size and SHA-256, resumes verified files on retry,
 and loads the model before changing cleanup settings. S1-mini remains available;
 selecting a model previews setup until you enable it. Both currently require
@@ -181,18 +181,18 @@ English on Apple Silicon with macOS 14 or newer. The download includes the
 Gemma terms, prohibited-use policy, and modification notices; these terms govern
 the model weights separately from Patter's application source license.
 
-Flash uses its fine-tuning contract: the cleanup policy and a JSON payload with
+patter-1-nano uses its fine-tuning contract: the cleanup policy and a JSON payload with
 `trusted_instruction` and `transcript` in a Gemma user turn. App Profiles provide
 the trusted instruction, with the training project's default app policy used
 otherwise. Personal memory remains an Ollama feature. Code and terminal dictation
-stays verbatim. Flash uses 256-token transcript chunks; S1-mini keeps its
+stays verbatim. patter-1-nano uses 256-token transcript chunks; S1-mini keeps its
 384-token chunks. Failed, cancelled, or truncated cleanup retains the original
-transcript. Flash is currently best suited to short dictation: the longer native
+transcript. patter-1-nano is currently best suited to short dictation: the longer native
 regression sample still reaches the generation limit and retains its original text.
 
-Flash can receive compatible weights-only updates through a shared channel at
-`https://raw.githubusercontent.com/srikark283/patter/model-channel/stable.json`.
-Opening Flash settings checks for an update. **Update** downloads the advertised
+patter-1-nano can receive compatible weights-only updates through a shared channel at
+`https://raw.githubusercontent.com/srikark283/patter/model-channel/models/patter-1-nano/stable.json`.
+Opening patter-1-nano settings checks for an update. **Update** downloads the advertised
 immutable release, verifies every file, probes the model, and atomically changes
 the active manifest. The previous version remains available through **Restore**,
 including offline. A failed download or probe keeps the working version. In-flight
@@ -207,10 +207,10 @@ uv run patter deploy --name YOUR_TRAINED_MODEL_NAME
 
 This fuses the checkpoint, builds matching MLX/GGUF exports, verifies both
 runtimes, publishes immutable content-versioned assets and promotes the shared
-channel. `uv run patter deploy` selects and exports the newest completed Flash
+channel. `uv run patter deploy` selects and exports the newest completed patter-1-nano
 checkpoint automatically; `--source`/`--bf16` select explicit existing exports,
 and `--prepare-only` verifies without publishing. To roll the server channel back,
-run `uv run patter promote-model patter-flash-v1`. See `patter-model/README.md`
+run `uv run patter promote-model patter-1-nano-RELEASE_HASH`. See `patter-model/README.md`
 for prerequisites and protocol details. No per-app manifest edits are needed for
 subsequent compatible weight updates. Devices need the channel-capable app once;
 architecture or prompt-contract changes still require a new runtime/app release.
@@ -246,3 +246,12 @@ cargo test --manifest-path src-tauri/Cargo.toml s1::tests -- --include-ignored -
 
 Model license texts are retained in `native/s1-mini/licenses/` and bundled with
 the helper. MLX conversions are provided by mlx-community.
+
+`patter-1-nano` is the canonical model identity in settings, releases, and caches.
+The v2 channel lives at `models/patter-1-nano/stable.json` on `model-channel`.
+Each release has an immutable `patter-1-nano-<hash>` version, with separate
+`mlx-4bit` and `gguf-q4_k_m` variant IDs. A future `patter-1-mini` is a separate
+model, with its own channel, selection, and cache. Runtime support must exist
+before a new model can be offered by an app. Historical Flash descriptors and
+settings are accepted only for migration and offline rollback; new deployments
+use Nano names throughout.

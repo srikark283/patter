@@ -24,13 +24,13 @@ let systemPrompt = "You are a text normalizer for speech-to-text transcripts. Th
 struct PatterS1 {
     static func main() async {
         guard (2...3).contains(CommandLine.arguments.count),
-            CommandLine.arguments.count == 2 || ["s1_mini", "patter_flash"].contains(CommandLine.arguments[2]) else {
+            CommandLine.arguments.count == 2 || ["s1_mini", "patter-1-nano"].contains(CommandLine.arguments[2]) else {
             emit(["error": "Expected a local built-in model directory"]); return
         }
-        let flash = CommandLine.arguments.count == 3 && CommandLine.arguments[2] == "patter_flash"
-        let name = flash ? "Patter Flash" : "S1-mini by Superwhisper"
-        // Flash was fine-tuned with a 1,024-token prompt-and-answer limit.
-        let budget = flash ? 256 : 384
+        let nano = CommandLine.arguments.count == 3 && CommandLine.arguments[2] == "patter-1-nano"
+        let name = nano ? "patter-1-nano" : "S1-mini by Superwhisper"
+        // patter-1-nano was fine-tuned with a 1,024-token prompt-and-answer limit.
+        let budget = nano ? 256 : 384
         do {
             let model = try await LLMModelFactory.shared.loadContainer(
                 configuration: ModelConfiguration(directory: URL(fileURLWithPath: CommandLine.arguments[1])))
@@ -41,10 +41,10 @@ struct PatterS1 {
                     guard request.text.utf8.count <= 128000 else {
                         throw InferenceError(message: "Transcript exceeds the 128 KB input limit")
                     }
-                    if flash {
+                    if nano {
                         guard let instruction = request.instruction, !instruction.isEmpty,
                             instruction.utf8.count <= 16000 else {
-                            throw InferenceError(message: "Invalid Patter Flash instruction")
+                            throw InferenceError(message: "Invalid patter-1-nano instruction")
                         }
                     } else {
                         guard ["casual", "semi-casual", "semi-formal", "formal"].contains(request.styling ?? ""),
@@ -64,8 +64,8 @@ struct PatterS1 {
                             throw InferenceError(message: "A transcript character exceeds the chunk token budget")
                         }
                         let messages: [[String: String]]
-                        if flash {
-                            messages = try flashMessages(text: chunk, instruction: request.instruction!)
+                        if nano {
+                            messages = try nanoMessages(text: chunk, instruction: request.instruction!)
                         } else {
                             let control = "[Styling: \(request.styling!)] [Structure: \(request.structure!)] [Context: \(request.context!)]"
                             messages = [
@@ -75,7 +75,7 @@ struct PatterS1 {
                         }
                         let input = try await model.prepare(input: UserInput(messages: messages,
                             additionalContext: ["enable_thinking": false]))
-                        let limit = flash ? max(128, count * 2 + 128) : max(64, Int(Double(count) * 1.5) + 64)
+                        let limit = nano ? max(128, count * 2 + 128) : max(64, Int(Double(count) * 1.5) + 64)
                         let stream = try await model.generate(input: input,
                             parameters: GenerateParameters(maxTokens: limit, temperature: 0))
                         var output = ""
