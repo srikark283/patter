@@ -94,7 +94,7 @@ export function MemoryView() {
         action={headerAction}
       />
 
-      {settings?.cleanup_provider === "built_in" && <p className="text-sm text-muted-foreground">Personal memory is used by Ollama cleanup. S1-mini applies app formatting hints and dictionary corrections.</p>}
+      {settings?.cleanup_provider === "built_in" && <p className="text-sm text-muted-foreground">Personal memory is used by Ollama cleanup. Built-in models apply app formatting hints and dictionary corrections.</p>}
       <div className="flex items-center justify-between text-muted-foreground text-sm font-medium px-1">
         <span>{memories.length} facts remembered</span>
       </div>

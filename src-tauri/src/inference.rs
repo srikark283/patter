@@ -16,6 +16,7 @@ pub enum BuiltInModel {
     #[default]
     #[serde(alias = "qwen3_4b", alias = "qwen3_1_7b")]
     S1Mini,
+    PatterFlash,
 }
 
 pub fn cleanup(
@@ -51,8 +52,18 @@ pub fn cleanup(
 }
 
 impl BuiltInModel {
+    pub fn directory(self) -> &'static str {
+        match self {
+            Self::S1Mini => "s1-mini",
+            Self::PatterFlash => "patter-flash",
+        }
+    }
+
     pub fn name(self) -> &'static str {
-        "S1-mini"
+        match self {
+            Self::S1Mini => "S1-mini",
+            Self::PatterFlash => "Patter Flash",
+        }
     }
 }
 

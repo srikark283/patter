@@ -53,6 +53,16 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: cargo test --manifest-path src-tauri/Cargo.toml s1::tests::bundled_runtime_smoke -- --ignored --nocapture
 
+      - name: Download and verify the pinned Patter Flash release
+        if: matrix.platform == 'macos-latest'
+        run: python3 scripts/prepare-flash-release.py --download --output "$RUNNER_TEMP/patter-flash"
+
+      - name: Verify Patter Flash on Apple Silicon
+        if: matrix.platform == 'macos-latest'
+        env:
+          PATTER_FLASH_SOURCE: ${{ runner.temp }}/patter-flash
+        run: cargo test --manifest-path src-tauri/Cargo.toml s1::tests::flash_bundled_runtime_smoke -- --ignored --nocapture
+
       # Self-signed (not Apple Developer ID) codesigning, macOS only. Without
       # this, every release is signed ad-hoc with a fresh identity each build,
       # so macOS TCC treats each update as a "new app" and drops the user's

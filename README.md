@@ -171,6 +171,44 @@ xcodebuild -downloadComponent MetalToolchain
 npm run tauri dev
 ```
 
+Patter Flash is available under **Intelligence → Built-in → Patter Flash**.
+Click **Download & enable Patter Flash** to install the pinned model from the
+[Patter Flash model release](https://github.com/srikark283/patter/releases/tag/patter-flash-v1).
+The app verifies each file's size and SHA-256, resumes verified files on retry,
+and loads the model before changing cleanup settings. S1-mini remains available;
+selecting a model previews setup until you enable it. Both currently require
+English on Apple Silicon with macOS 14 or newer. The download includes the
+Gemma terms, prohibited-use policy, and modification notices; these terms govern
+the model weights separately from Patter's application source license.
+
+Flash uses its fine-tuning contract: the cleanup policy and a JSON payload with
+`trusted_instruction` and `transcript` in a Gemma user turn. App Profiles provide
+the trusted instruction, with the training project's default app policy used
+otherwise. Personal memory remains an Ollama feature. Code and terminal dictation
+stays verbatim. Flash uses 256-token transcript chunks; S1-mini keeps its
+384-token chunks. Failed, cancelled, or truncated cleanup retains the original
+transcript. Flash is currently best suited to short dictation: the longer native
+regression sample still reaches the generation limit and retains its original text.
+
+The Flash manifest pins this specific export by SHA-256. Model releases use their
+own `patter-flash-v*` tags (marked prerelease), so publishing weights does not
+change the stable app updater. Weights remain outside Git and the app installers.
+Manual downloads can use the `.tar.gz` archive on the model release.
+
+To prepare a future model release, update `native/s1-mini/patter-flash.json` with
+the new version's URL, revision, file sizes, and hashes; retain the required
+notices in `native/s1-mini/flash-notices/`. Then prepare and verify its assets:
+
+```bash
+python3 scripts/prepare-flash-release.py --source /path/to/patter-flash --output /tmp/patter-flash-release
+python3 scripts/test-prepare-flash-release.py
+```
+
+Upload the prepared files to the matching GitHub model release. After publishing,
+verify anonymous downloads with `python3 scripts/prepare-flash-release.py
+--download --output /tmp/patter-flash-download`. App release CI repeats this
+verification and runs Flash inference on Apple Silicon before packaging the app.
+
 `tauri dev` builds the helper automatically (`npm run build:s1` builds it alone).
 `tauri build` packages the helper, Metal library, Swift compatibility libraries,
 and license notices. Model weights are downloaded inside the app. Revisions and

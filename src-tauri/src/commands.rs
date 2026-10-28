@@ -742,12 +742,13 @@ pub async fn install_s1(model: crate::inference::BuiltInModel) -> Result<(), Str
 }
 
 #[tauri::command]
-pub async fn test_s1_cleanup(app: tauri::AppHandle, text: String, app_name: Option<String>) -> Result<String, String> {
+pub async fn test_s1_cleanup(app: tauri::AppHandle, text: String, app_name: Option<String>, model: Option<crate::inference::BuiltInModel>) -> Result<String, String> {
     if text.trim().is_empty() || text.len() > 128000 {
         return Err("Enter a sample between 1 and 128,000 bytes".into());
     }
     let mut settings = app.state::<AppState>().settings.lock().unwrap().clone();
     settings.cleanup_provider = crate::inference::CleanupProvider::BuiltIn;
+    if let Some(model) = model { settings.built_in_model = model; }
     tauri::async_runtime::spawn_blocking(move || {
         let text = crate::dictionary::apply(&text, &settings.custom_prompt, &settings.dictionary_aliases);
         crate::inference::cleanup(&settings, &text, None, app_name.as_deref(), |_| {}, || false)
@@ -755,16 +756,17 @@ pub async fn test_s1_cleanup(app: tauri::AppHandle, text: String, app_name: Opti
 }
 
 #[tauri::command]
-pub async fn enable_s1(app: tauri::AppHandle) -> Result<db::Settings, String> {
+pub async fn enable_s1(app: tauri::AppHandle, model: Option<crate::inference::BuiltInModel>, source: Option<String>) -> Result<db::Settings, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let model = crate::inference::BuiltInModel::S1Mini;
+        let model = model.unwrap_or_default();
         let status = crate::s1::status(model)?;
-        if !status.supported { return Err("S1-mini requires Apple Silicon and macOS 14 or newer".into()); }
-        if !status.runtime_ready { return Err("The S1-mini runtime is missing. Reinstall Patter and retry.".into()); }
-        if !status.installed { crate::s1::install(model)?; }
+        if !status.supported { return Err("Built-in cleanup requires Apple Silicon and macOS 14 or newer".into()); }
+        if !status.runtime_ready { return Err("The built-in runtime is missing. Reinstall Patter and retry.".into()); }
+        if !status.installed { crate::s1::install_from(model, source.as_deref().map(std::path::Path::new))?; }
         // Load the actual local model before enabling; settings stay unchanged on failure.
         let mut probe = db::Settings::default();
         probe.language = "en".into();
+        probe.built_in_model = model;
         crate::s1::cleanup(&probe, "", None, None, |_| {}, || false)?;
         let state = app.state::<AppState>();
         let mut current = state.settings.lock().map_err(|e| e.to_string())?;
@@ -774,7 +776,7 @@ pub async fn enable_s1(app: tauri::AppHandle) -> Result<db::Settings, String> {
         next.language = "en".into();
         next.llm_cleanup_enabled = true;
         crate::s1::validate_settings(&next)?;
-        db::Db::new(&app).save_settings(&next).map_err(|e| format!("Could not save S1-mini setup: {e}"))?;
+        db::Db::new(&app).save_settings(&next).map_err(|e| format!("Could not save built-in setup: {e}"))?;
         *current = next.clone();
         Ok(next)
     }).await.map_err(|e| e.to_string())?

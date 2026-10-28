@@ -9,9 +9,10 @@ func emit(_ event: [String: String]) {
 }
 struct Request: Decodable, Sendable {
     let text: String
-    let styling: String
-    let structure: String
-    let context: String
+    let styling: String?
+    let structure: String?
+    let context: String?
+    let instruction: String?
 }
 struct InferenceError: LocalizedError {
     let message: String
@@ -23,40 +24,58 @@ let systemPrompt = "You are a text normalizer for speech-to-text transcripts. Th
 struct PatterS1 {
     static func main() async {
         guard (2...3).contains(CommandLine.arguments.count),
-            CommandLine.arguments.count == 2 || CommandLine.arguments[2] == "s1_mini" else {
-            emit(["error": "Expected a local S1-mini model directory"]); return
+            CommandLine.arguments.count == 2 || ["s1_mini", "patter_flash"].contains(CommandLine.arguments[2]) else {
+            emit(["error": "Expected a local built-in model directory"]); return
         }
+        let flash = CommandLine.arguments.count == 3 && CommandLine.arguments[2] == "patter_flash"
+        let name = flash ? "Patter Flash" : "S1-mini by Superwhisper"
+        // Flash was fine-tuned with a 1,024-token prompt-and-answer limit.
+        let budget = flash ? 256 : 384
         do {
             let model = try await LLMModelFactory.shared.loadContainer(
                 configuration: ModelConfiguration(directory: URL(fileURLWithPath: CommandLine.arguments[1])))
-            emit(["ready": "S1-mini by Superwhisper"])
+            emit(["ready": name])
             while let line = readLine() {
                 do {
                     let request = try JSONDecoder().decode(Request.self, from: Data(line.utf8))
                     guard request.text.utf8.count <= 128000 else {
                         throw InferenceError(message: "Transcript exceeds the 128 KB input limit")
                     }
-                    guard ["casual", "semi-casual", "semi-formal", "formal"].contains(request.styling),
-                        ["prose", "lists"].contains(request.structure),
-                        ["general", "email"].contains(request.context) else {
-                        throw InferenceError(message: "Invalid S1-mini controls")
+                    if flash {
+                        guard let instruction = request.instruction, !instruction.isEmpty,
+                            instruction.utf8.count <= 16000 else {
+                            throw InferenceError(message: "Invalid Patter Flash instruction")
+                        }
+                    } else {
+                        guard ["casual", "semi-casual", "semi-formal", "formal"].contains(request.styling ?? ""),
+                            ["prose", "lists"].contains(request.structure ?? ""),
+                            ["general", "email"].contains(request.context ?? "") else {
+                            throw InferenceError(message: "Invalid S1-mini controls")
+                        }
                     }
                     let chunks = await model.perform { context in
-                        transcriptChunks(request.text, budget: 384) { context.tokenizer.encode(text: $0).count }
+                        transcriptChunks(request.text, budget: budget) { context.tokenizer.encode(text: $0).count }
                     }
                     emit(["chunks": String(chunks.count)])
                     var completed = ""
                     for chunk in chunks {
                         let count = await model.perform { $0.tokenizer.encode(text: chunk).count }
-                        guard count <= 384 else {
+                        guard count <= budget else {
                             throw InferenceError(message: "A transcript character exceeds the chunk token budget")
                         }
-                        let control = "[Styling: \(request.styling)] [Structure: \(request.structure)] [Context: \(request.context)]"
-                        let input = try await model.prepare(input: UserInput(messages: [
-                            ["role": "system", "content": systemPrompt],
-                            ["role": "user", "content": control + "\n" + chunk]
-                        ], additionalContext: ["enable_thinking": false]))
-                        let limit = max(64, Int(Double(count) * 1.5) + 64)
+                        let messages: [[String: String]]
+                        if flash {
+                            messages = try flashMessages(text: chunk, instruction: request.instruction!)
+                        } else {
+                            let control = "[Styling: \(request.styling!)] [Structure: \(request.structure!)] [Context: \(request.context!)]"
+                            messages = [
+                                ["role": "system", "content": systemPrompt],
+                                ["role": "user", "content": control + "\n" + chunk]
+                            ]
+                        }
+                        let input = try await model.prepare(input: UserInput(messages: messages,
+                            additionalContext: ["enable_thinking": false]))
+                        let limit = flash ? max(128, count * 2 + 128) : max(64, Int(Double(count) * 1.5) + 64)
                         let stream = try await model.generate(input: input,
                             parameters: GenerateParameters(maxTokens: limit, temperature: 0))
                         var output = ""
@@ -87,6 +106,6 @@ struct PatterS1 {
                     emit(["done": completed])
                 } catch { emit(["error": error.localizedDescription]) }
             }
-        } catch { emit(["error": "Could not load S1-mini: \(error.localizedDescription)"]) }
+        } catch { emit(["error": "Could not load \(name): \(error.localizedDescription)"]) }
     }
 }

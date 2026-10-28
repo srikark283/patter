@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Mic, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatKey } from "@/lib/hotkey";
-import { getSettings, getPermissionStatus, getMicrophones, getActiveEngine, getS1Status, listOllamaModels, onDbUpdated, openMicrophoneSettings, openAccessibilitySettings, openInputMonitoringSettings, type Settings, type PermissionStatus } from "@/lib/ipc";
+import { builtInModelName, getSettings, getPermissionStatus, getMicrophones, getActiveEngine, getS1Status, listOllamaModels, onDbUpdated, openMicrophoneSettings, openAccessibilitySettings, openInputMonitoringSettings, type Settings, type PermissionStatus } from "@/lib/ipc";
 import { MODEL_NAMES } from "../views/ModelsView";
 import { toast } from "sonner";
 
@@ -34,7 +34,7 @@ export function ReadinessPanel({ activity, onPreferences, onModels, onIntelligen
             if (settings.cleanup_provider === "built_in") {
               const status = await getS1Status(settings.built_in_model);
               cleanupIssue = !status.supported || !status.installed || !status.runtime_ready;
-              cleanup = cleanupIssue ? "S1-mini needs setup" : "S1-mini · available";
+              cleanup = `${builtInModelName(settings.built_in_model)} ${cleanupIssue ? "needs setup" : "· available"}`;
             } else {
               const models = await listOllamaModels();
               cleanupIssue = !settings.ollama_model || !models.some(model => model === settings.ollama_model || model === `${settings.ollama_model}:latest`);

@@ -20,7 +20,7 @@ if (!metal) throw new Error("MLX Metal library missing. Install the Xcode Metal 
 copyFileSync(metal, join(dist, "mlx.metallib"));
 cpSync(join(root, "licenses"), join(dist, "licenses"), { recursive: true });
 // Retain license notices for the statically linked Swift dependencies.
-for (const name of readdirSync(join(root, ".build/xcode/SourcePackages/checkouts"))) {
+for (const { name } of readdirSync(join(root, ".build/xcode/SourcePackages/checkouts"), { withFileTypes: true }).filter(entry => entry.isDirectory())) {
   const checkout = join(root, ".build/xcode/SourcePackages/checkouts", name);
   for (const file of readdirSync(checkout).filter(f => /^(LICENSE|COPYING|NOTICE)(\.|$)/i.test(f))) {
     cpSync(join(checkout, file), join(dist, "licenses", `${name}-${file}`), { recursive: true });
