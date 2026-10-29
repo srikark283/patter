@@ -43,13 +43,19 @@ pub fn cleanup(
         CleanupProvider::BuiltIn => {
             crate::built_in::cleanup(settings, text, extra, app_name, on_partial, cancelled)
         }
-    }?;
+    };
+    finalize_cleanup(settings, cleaned)
+}
+
+fn finalize_cleanup(settings: &Settings, result: Result<String, String>) -> Result<String, String> {
     // Cleanup may change a dictionary term's spelling or capitalization again.
-    Ok(crate::dictionary::apply(
-        &cleaned,
-        &settings.custom_prompt,
-        &settings.dictionary_aliases,
-    ))
+    result.map(|cleaned| {
+        crate::dictionary::apply(
+            &cleaned,
+            &settings.custom_prompt,
+            &settings.dictionary_aliases,
+        )
+    })
 }
 
 impl BuiltInModel {
@@ -141,9 +147,8 @@ pub fn local_memory_context<'a>(
 mod tests {
     use super::*;
 
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     #[test]
-    fn built_in_results_restore_dictionary_spellings() {
+    fn cleanup_results_restore_dictionary_spellings() {
         let settings = Settings {
             cleanup_provider: CleanupProvider::BuiltIn,
             custom_prompt: "OpenAI, Kubernetes, Anthropic, Srikar".into(),
@@ -153,7 +158,7 @@ mod tests {
             )]),
             ..Settings::default()
         };
-        // The verbatim app path exercises shared finalization without loading a model.
+        // Supply model output directly: finalization must not depend on app routing or installed weights.
         for (text, expected) in [
             ("Ask Open AI, then antropic.", "Ask OpenAI, then Anthropic."),
             ("Ask o pen aye eye.", "Ask OpenAI."),
@@ -167,8 +172,22 @@ mod tests {
             ("", ""),
         ] {
             assert_eq!(
-                cleanup(&settings, text, None, Some("Terminal"), |_| {}, || false).unwrap(),
+                finalize_cleanup(&settings, Ok(text.to_owned())).unwrap(),
                 expected
+            );
+        }
+    }
+
+    #[test]
+    fn cleanup_failures_are_preserved_without_dictionary_rewriting() {
+        let settings = Settings {
+            custom_prompt: "OpenAI".into(),
+            ..Settings::default()
+        };
+        for error in ["Open AI model unavailable", crate::ollama::CLEANUP_CANCELLED] {
+            assert_eq!(
+                finalize_cleanup(&settings, Err(error.into())),
+                Err(error.into())
             );
         }
     }
