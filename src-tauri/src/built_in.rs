@@ -446,33 +446,6 @@ fn check_wait(deadline: Instant, cancelled: &impl Fn() -> bool) -> Result<(), St
     }
     Ok(())
 }
-fn preserve_verbatim(settings: &crate::db::Settings, app: Option<&str>) -> bool {
-    let app = app.unwrap_or("").to_lowercase();
-    let prompt = crate::inference::app_profile(settings, &app)
-        .map(|p| p.prompt.to_lowercase())
-        .unwrap_or_default();
-    let has_app = |names: &[&str]| names.iter().any(|n| app.contains(n));
-    let skip = has_app(&[
-        "terminal",
-        "iterm",
-        "alacritty",
-        "ghostty",
-        "code",
-        "cursor",
-        "xcode",
-        "intellij",
-        "windsurf",
-        "zed",
-    ]) || [
-        "verbatim",
-        "terminal command",
-        "do not fix grammar inside code",
-    ]
-    .iter()
-    .any(|p| prompt.contains(p));
-    skip
-}
-
 fn request(
     settings: &crate::db::Settings,
     text: &str,
@@ -480,9 +453,9 @@ fn request(
     app: Option<&str>,
 ) -> serde_json::Value {
     let _ = extra; // Retrieved context is not part of either model's trained cleanup input.
-        let instruction = crate::inference::app_profile(settings, app.unwrap_or(""))
+    let instruction = crate::inference::app_profile(settings, app.unwrap_or(""))
             .map(|p| p.prompt.as_str()).filter(|p| !p.trim().is_empty())
-            .unwrap_or("Clean the dictation. Format clock times using digits and preserve any stated am or pm. Preserve names and version numbers.");
+            .unwrap_or("Clean the dictation. Format clock times using digits and preserve any stated am or pm. Preserve code, commands, file paths, identifiers, names, and version numbers.");
     serde_json::json!({"text": text, "instruction": instruction})
 }
 pub fn cleanup(
@@ -495,9 +468,6 @@ pub fn cleanup(
 ) -> Result<String, String> {
     let model = settings.built_in_model;
     require_supported()?;
-    if preserve_verbatim(settings, app_name) {
-        return Ok(text.to_owned());
-    }
     if settings.language != "en" {
         return Err("Built-in cleanup requires English as the transcription language; keeping the original transcript".into());
     }
@@ -813,12 +783,42 @@ mod tests {
     }
 
     #[test]
-    fn code_and_terminal_dictation_remain_verbatim() {
+    fn technical_profiles_are_model_instructions_not_bypass_rules() {
         let mut settings = crate::db::Settings::default();
-        assert!(preserve_verbatim(&settings, Some("Visual Studio Code")));
-        assert!(preserve_verbatim(&settings, Some("Ghostty")));
-        assert!(!preserve_verbatim(&settings, Some("Mail")));
-        settings.app_profiles.push(crate::db::AppProfile { app: "Review Tool".into(), prompt: "Keep output verbatim.".into() });
-        assert!(preserve_verbatim(&settings, Some("Review Tool")));
+        settings.app_profiles.push(crate::db::AppProfile {
+            app: "Visual Studio Code, Ghostty".into(),
+            prompt: "Keep code verbatim. Do not fix grammar inside code. Format terminal commands carefully.".into(),
+        });
+        for model in [BuiltInModel::Patter1Nano, BuiltInModel::Patter1Mini] {
+            settings.built_in_model = model;
+            for app in ["Visual Studio Code", "Ghostty"] {
+                let input = request(&settings, "um update getUserById", None, Some(app));
+                assert_eq!(input["instruction"], settings.app_profiles[0].prompt);
+                assert_eq!(input["text"], "um update getUserById");
+            }
+        }
+        let input = request(&settings, "update getUserById", None, Some("Mail"));
+        assert!(input["instruction"].as_str().unwrap().contains("identifiers"));
+    }
+
+    #[test]
+    fn code_apps_and_verbatim_profiles_do_not_return_before_inference() {
+        let mut settings = crate::db::Settings::default();
+        settings.language = "en".into();
+        settings.app_profiles.push(crate::db::AppProfile {
+            app: "Review Tool".into(), prompt: "Keep output verbatim.".into(),
+        });
+        for model in [BuiltInModel::Patter1Nano, BuiltInModel::Patter1Mini] {
+            settings.built_in_model = model;
+            for app in ["Visual Studio Code", "Codex", "Terminal", "Ghostty", "Review Tool"] {
+                // Cancellation occurs before loading weights, after the former bypass.
+                let result = cleanup(&settings, "um update getUserById", None, Some(app), |_| {}, || true);
+                if supported() {
+                    assert_eq!(result.unwrap_err(), crate::ollama::CLEANUP_CANCELLED);
+                } else {
+                    assert!(result.is_err());
+                }
+            }
+        }
     }
 }

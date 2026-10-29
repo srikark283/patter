@@ -7,7 +7,7 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 ### Dictation
 - **On-device transcription** — Whisper (OpenAI) and Parakeet (Nvidia), Metal/GPU-accelerated. Six models from 78 MB to 1.6 GB; pick fast or accurate per your hardware.
 - **AI cleanup** — Built-in Patter models on Apple Silicon, or a local Ollama model, cleans up dictation before the text is typed. Silence and noise trimmed by on-device VAD (Silero) first.
-- **App-aware profiles** — Patter knows which app is frontmost and applies per-app cleanup rules (casual for Slack, verbatim for code editors, formal for Mail, and so on).
+- **App-aware profiles** — Patter knows which app is frontmost and applies per-app cleanup rules (casual for Slack, technical-content preservation for code editors, formal for Mail, and so on).
 - **Push-to-talk or toggle** — hold the hotkey to record and release to transcribe, or press once to start/stop. Works with modifier-only keys (e.g. right Option) or full combos.
 - **Two output modes** — instant paste (clipboard + simulated paste) or simulated typing (keystroke-by-keystroke, for remote desktops).
 - **Command mode** — select text anywhere, then either press a separate hotkey or just open your normal dictation with a trigger phrase ("Patter, make this formal"), and say what to do with it ("make this formal", "turn this into bullet points", "make this idiomatic"). The local model rewrites the selection in place. With nothing selected, it writes what you asked for instead.
@@ -133,7 +133,7 @@ the difference. Note hardware, selected models, whisper mode, and silence trimmi
 
 Choose **Intelligence → Dictation → patter-1-nano or patter-1-mini**.
 Both accept app-profile instructions for English cleanup on Apple Silicon with
-macOS 14 or newer. Code and terminal dictation stays verbatim. Personal memory,
+macOS 14 or newer. Cleanup also runs in code editors and terminals; app-profile instructions guide formatting and preservation of technical content. Personal memory,
 meeting notes, voice commands, and embeddings continue to use Ollama.
 
 Nano downloads pinned, checksum-verified weights. Mini downloads its pinned 4-bit MLX release from GitHub. See
