@@ -171,11 +171,12 @@ pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
 
 #[tauri::command]
 pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<(), String> {
-    crate::built_in::validate_settings(&settings)?;
     crate::dictionary::validate_aliases(&settings.custom_prompt, &settings.dictionary_aliases)?;
     let state = app.state::<AppState>();
     
     let mut current_settings = state.settings.lock().unwrap();
+    // Keep validation and activation serialized with model removal.
+    crate::built_in::validate_settings(&settings)?;
     let old_hotkey = current_settings.hotkey.clone();
     let old_meeting_hotkey = current_settings.meeting_hotkey.clone();
     let old_command_hotkey = current_settings.command_hotkey.clone();
@@ -739,6 +740,15 @@ pub async fn built_in_status(model: crate::inference::BuiltInModel) -> Result<cr
 #[tauri::command]
 pub async fn install_built_in_model(model: crate::inference::BuiltInModel) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || crate::built_in::install(model)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_built_in_model(app: tauri::AppHandle, model: crate::inference::BuiltInModel) -> Result<u64, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let settings = state.settings.lock().map_err(|e| e.to_string())?;
+        crate::built_in::remove(model, &settings)
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

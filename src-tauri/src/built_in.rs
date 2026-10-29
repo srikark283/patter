@@ -141,6 +141,7 @@ pub struct Status {
     pub downloading: bool,
     pub progress: u32,
     pub download_bytes: u64,
+    pub storage_bytes: u64,
     pub downloading_model: Option<BuiltInModel>,
     pub version: Option<String>,
     pub previous_version: Option<String>,
@@ -165,6 +166,7 @@ pub fn status(model: BuiltInModel) -> Result<Status, String> {
             _ => None,
         },
         download_bytes: manifest(model).files.iter().map(|f| f.size).sum(),
+        storage_bytes: cache_size(&PATHS.get().ok_or("Built-in runtime is not initialized")?.model.join(model.directory()))?,
         progress: PROGRESS.load(Ordering::Relaxed),
     })
 }
@@ -224,6 +226,49 @@ impl Drop for DownloadGuard {
         DOWNLOADING.store(0, Ordering::Release);
     }
 }
+fn cache_size(dir: &Path) -> Result<u64, String> {
+    let metadata = match fs::symlink_metadata(dir) {
+        Ok(value) => value,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(error.to_string()),
+    };
+    if metadata.file_type().is_symlink() { return Ok(0); }
+    if metadata.is_file() { return Ok(metadata.len()); }
+    let mut bytes = 0;
+    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+        bytes += cache_size(&entry.map_err(|e| e.to_string())?.path())?;
+    }
+    Ok(bytes)
+}
+fn ensure_removable(model: BuiltInModel, settings: &crate::db::Settings) -> Result<(), String> {
+    if settings.llm_cleanup_enabled && settings.cleanup_provider == crate::inference::CleanupProvider::BuiltIn && settings.built_in_model == model {
+        return Err("Turn dictation cleanup off or select another model before removing this model".into());
+    }
+    Ok(())
+}
+fn remove_cached_model(root: &Path, model: BuiltInModel) -> Result<u64, String> {
+    let dir = root.join(model.directory());
+    if let Ok(metadata) = fs::symlink_metadata(&dir) {
+        if metadata.file_type().is_symlink() { return Err("The model cache is a symbolic link; removal was refused".into()); }
+    }
+    let bytes = cache_size(&dir)?;
+    match fs::remove_dir_all(&dir) {
+        Ok(()) => Ok(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(0),
+        Err(error) => Err(format!("Could not remove model files: {error}")),
+    }
+}
+pub fn remove(model: BuiltInModel, settings: &crate::db::Settings) -> Result<u64, String> {
+    ensure_removable(model, settings)?;
+    DOWNLOADING.compare_exchange(0, 4, Ordering::AcqRel, Ordering::Relaxed)
+        .map_err(|_| "A model installation or removal is already running")?;
+    let _guard = DownloadGuard;
+    let mut worker = WORKER.try_lock().map_err(|_| "Cleanup is running. Wait for it to finish before removing a model")?;
+    if worker.as_ref().is_some_and(|worker| worker.kind == model) { *worker = None; }
+    let root = &PATHS.get().ok_or("Built-in runtime is not initialized")?.model;
+    remove_cached_model(root, model)
+}
+
 pub fn install(model: BuiltInModel) -> Result<(), String> {
     install_from(model, None)
 }
@@ -544,6 +589,51 @@ pub fn shutdown() {
 mod tests {
     use super::*;
     #[test]
+    fn removing_model_cache_clears_all_revisions_but_preserves_other_data() {
+        let root = std::env::temp_dir().join(format!("patter-remove-model-{}", std::process::id()));
+        for (name, contents) in [("patter-1-nano/mlx-4bit/old/weights", "old"), ("patter-1-nano/mlx-4bit/new/weights.part", "partial"), ("patter-1-nano/mlx-4bit/active.json", "pointer"), ("patter-1-mini/mlx-4bit/weights", "mini"), ("transcripts.json", "history")] {
+            let file = root.join(name);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, contents).unwrap();
+        }
+        let expected = cache_size(&root.join("patter-1-nano")).unwrap();
+        assert_eq!(remove_cached_model(&root, BuiltInModel::Patter1Nano).unwrap(), expected);
+        assert!(!root.join("patter-1-nano").exists());
+        assert!(root.join("patter-1-mini/mlx-4bit/weights").exists());
+        assert_eq!(fs::read_to_string(root.join("transcripts.json")).unwrap(), "history");
+        assert_eq!(remove_cached_model(&root, BuiltInModel::Patter1Nano).unwrap(), 0);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn removing_model_cache_never_follows_symbolic_links() {
+        let root = std::env::temp_dir().join(format!("patter-model-symlink-{}", std::process::id()));
+        let outside = root.join("unrelated");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("keep"), "keep").unwrap();
+        let cache = root.join("patter-1-mini");
+        std::os::unix::fs::symlink(&outside, &cache).unwrap();
+        assert!(remove_cached_model(&root, BuiltInModel::Patter1Mini).is_err());
+        fs::remove_file(&cache).unwrap();
+        fs::create_dir_all(&cache).unwrap();
+        std::os::unix::fs::symlink(&outside, cache.join("linked")).unwrap();
+        assert_eq!(cache_size(&cache).unwrap(), 0);
+        remove_cached_model(&root, BuiltInModel::Patter1Mini).unwrap();
+        assert_eq!(fs::read_to_string(outside.join("keep")).unwrap(), "keep");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn active_cleanup_model_is_protected_until_cleanup_is_disabled() {
+        let mut settings = crate::db::Settings { llm_cleanup_enabled: true, cleanup_provider: crate::inference::CleanupProvider::BuiltIn, built_in_model: BuiltInModel::Patter1Nano, ..Default::default() };
+        assert!(ensure_removable(BuiltInModel::Patter1Nano, &settings).is_err());
+        assert!(ensure_removable(BuiltInModel::Patter1Mini, &settings).is_ok());
+        settings.llm_cleanup_enabled = false;
+        assert!(ensure_removable(BuiltInModel::Patter1Nano, &settings).is_ok());
+    }
+
+    #[test]
     fn mini_identity_manifest_and_instruction_contract() {
         let model: BuiltInModel = serde_json::from_str("\"patter-1-mini\"").unwrap();
         assert_eq!(model, BuiltInModel::Patter1Mini);
@@ -746,6 +836,7 @@ mod tests {
             downloading: false,
             progress: 0,
             download_bytes: 0,
+            storage_bytes: 0,
             downloading_model: None,
             version: None,
             previous_version: None,

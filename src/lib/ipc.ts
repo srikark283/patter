@@ -313,9 +313,11 @@ export interface BuiltInStatus {
   downloading: boolean;
   progress: number;
   download_bytes: number;
+  storage_bytes: number;
   downloading_model: Settings["built_in_model"] | null;
 }
 export const getBuiltInStatus = (model: Settings["built_in_model"]) => invoke<BuiltInStatus>("built_in_status", { model });
+export const deleteBuiltInModel = (model: Settings["built_in_model"]) => invoke<number>("delete_built_in_model", { model });
 export const installBuiltInModel = (model: Settings["built_in_model"]) => invoke<void>("install_built_in_model", { model });
 export const builtInModelName = (model: Settings["built_in_model"]) => model;
 export const testBuiltInCleanup = (text: string, appName: string | null = null, model?: Settings["built_in_model"]) => invoke<string>("test_built_in_cleanup", { text, appName, model });

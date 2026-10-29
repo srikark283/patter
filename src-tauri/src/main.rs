@@ -684,6 +684,7 @@ fn main() {
             commands::install_nano_update,
             commands::rollback_nano_update,
             commands::install_built_in_model,
+            commands::delete_built_in_model,
             commands::test_built_in_cleanup,
             commands::start_meeting_recording,
             commands::stop_meeting_recording,

@@ -3,7 +3,8 @@ import { toast } from "sonner";
 import { RefreshCw, Trash2, Info, Server, Clock, WandSparkles, Zap, Check, Plus, Loader2 } from "lucide-react";
 import { NativeAppIcon } from "../components/NativeAppIcon";
 import { Button } from "@/components/ui/button";
-import { getSettings, updateSettings, listOllamaModels, getBuiltInStatus, enableBuiltInModel, builtInModelName, Settings, BuiltInStatus } from "../../../lib/ipc";
+import { getSettings, updateSettings, listOllamaModels, getBuiltInStatus, enableBuiltInModel, deleteBuiltInModel, builtInModelName, Settings, BuiltInStatus } from "../../../lib/ipc";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "../components/PageHeader";
 import { CleanupPlayground } from "../components/CleanupPlayground";
 import { BuiltInModelSettings } from "../components/BuiltInModelSettings";
@@ -53,6 +54,9 @@ const APP_PROFILE_TEMPLATES = [
 ];
 
 export function AIView() {
+  const [deleteTarget, setDeleteTarget] = useState<{ model: Settings["built_in_model"]; bytes: number } | null>(null);
+  const [removingModel, setRemovingModel] = useState<Settings["built_in_model"] | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const [managedProvider, setManagedProvider] = useState<Settings["cleanup_provider"] | null>(null);
   const [modelStatuses, setModelStatuses] = useState<Partial<Record<Settings["built_in_model"], BuiltInStatus>>>({});
   const [modelSearch, setModelSearch] = useState("");
@@ -144,6 +148,22 @@ export function AIView() {
     } finally { savingRef.current = false; setSaving(false); }
   };
 
+  const removeDownload = async () => {
+    if (!deleteTarget || setupLock.current || savingRef.current) return;
+    setupLock.current = true;
+    const model = deleteTarget.model;
+    setRemovingModel(model); setDeleteError("");
+    try {
+      await deleteBuiltInModel(model);
+      const status = await getBuiltInStatus(model);
+      setModelStatuses(previous => ({ ...previous, [model]: status }));
+      if (model === modelChoiceRef.current) setBuiltInStatus(status);
+      setDeleteTarget(null);
+      toast.success(`${builtInModelName(model)} removed from storage`);
+    } catch (error) { setDeleteError(String(error)); }
+    finally { setupLock.current = false; setRemovingModel(null); }
+  };
+
   // Returning null left the whole pane blank until settings resolved, which
   // read as the app hanging rather than loading.
   if (!settings) {
@@ -177,7 +197,7 @@ export function AIView() {
         action={<span role="status" className={cn("inline-flex items-center gap-1.5 text-xs", saveMessage === "Saved" ? "text-success" : saveMessage.startsWith("Could") ? "text-destructive" : "text-muted-foreground")}>{saving ? <Loader2 size={13} className="animate-spin" /> : saveMessage === "Saved" ? <Check size={13} /> : null}{saveMessage}</span>}
       />
       <nav className="intelligence-sections" aria-label="Intelligence sections">{[{ id: "dictation", label: "Dictation" }, { id: "meetings", label: "Meetings" }, { id: "profiles", label: "App profiles" }].map(item => <button key={item.id} type="button" aria-current={section === item.id ? "page" : undefined} onClick={() => setSection(item.id)}>{item.label}{item.id === "profiles" && profilesDirty ? " · Unsaved" : ""}</button>)}</nav>
-      <fieldset disabled={saving || setupBusy} className="min-w-0 space-y-5">
+      <fieldset disabled={saving || setupBusy || !!removingModel} className="min-w-0 space-y-5">
 
       {/* Ollama status */}
       {section === "meetings" && <div className="surface-raised rounded-xl p-4 flex items-center justify-between">
@@ -222,12 +242,12 @@ export function AIView() {
               const selected = builtInSelected && modelChoice === option.id;
               return <article key={option.id} className={cn("patter-model-card", selected && "is-selected")}>
                 <button type="button" className="patter-model-select" disabled={!!builtInStatus?.downloading} aria-pressed={selected} onClick={() => selectBuiltIn(option.id)}>
-                  <span className="patter-card-state">{isDefault ? <><Check size={13} /> Current default</> : status?.installed ? "Downloaded" : "Available to download"}</span>
+                  <span className="patter-card-state">{isDefault && status?.installed ? <><Check size={13} /> Current default</> : status?.installed ? "Downloaded" : (status?.storage_bytes ?? 0) > 0 ? "Incomplete download" : "Available to download"}</span>
                   <span className="patter-card-title">{option.title}</span><span className="patter-card-lead">{option.lead}</span><span className="patter-card-description">{option.description}</span>
                 </button>
                 <details className="patter-model-info"><summary aria-label={`About ${option.title}`}><Info size={16} /></summary><p>{option.detail}</p></details>
                 <div className="patter-card-specs"><span>{option.family}</span><span>English · On-device</span></div>
-                <footer><div><Button variant={selected ? "default" : "outline"} size="sm" disabled={status?.supported === false || !!builtInStatus?.downloading || isDefault && settings.llm_cleanup_enabled && option.id === "patter-1-mini"} onClick={() => { selectBuiltIn(option.id); if (isDefault && settings.llm_cleanup_enabled) setManagedProvider(managedProvider === "built_in" && modelChoice === option.id ? null : "built_in"); else void setUpBuiltIn(undefined, option.id); }}>{status?.supported === false ? "Unavailable" : setupBusy && modelChoice === option.id ? <><Loader2 size={13} className="animate-spin" />{builtInStatus?.downloading ? `Downloading ${builtInStatus.progress}%` : "Preparing…"}</> : isDefault && settings.llm_cleanup_enabled && option.id === "patter-1-mini" ? "In use" : isDefault && settings.llm_cleanup_enabled ? managedProvider === "built_in" && modelChoice === option.id ? "Close" : "Manage" : status?.installed ? "Use model" : "Download & use"}</Button><span className="patter-download-size">{status ? `${Math.ceil(status.download_bytes / 1_000_000)} MB${status.installed ? " on disk" : " download"}` : "Checking size…"}</span></div><span className="patter-card-footnote">App-aware cleanup<br />Custom instructions</span></footer>
+                <footer><div><Button variant={selected ? "default" : "outline"} size="sm" disabled={status?.supported === false || !!builtInStatus?.downloading || isDefault && settings.llm_cleanup_enabled && option.id === "patter-1-mini"} onClick={() => { selectBuiltIn(option.id); if (isDefault && settings.llm_cleanup_enabled) setManagedProvider(managedProvider === "built_in" && modelChoice === option.id ? null : "built_in"); else void setUpBuiltIn(undefined, option.id); }}>{status?.supported === false ? "Unavailable" : setupBusy && modelChoice === option.id ? <><Loader2 size={13} className="animate-spin" />{builtInStatus?.downloading ? `Downloading ${builtInStatus.progress}%` : "Preparing…"}</> : isDefault && settings.llm_cleanup_enabled && option.id === "patter-1-mini" ? "In use" : isDefault && settings.llm_cleanup_enabled ? managedProvider === "built_in" && modelChoice === option.id ? "Close" : "Manage" : status?.installed ? "Use model" : "Download & use"}</Button><span className="patter-download-size">{status ? `${Math.ceil((status.storage_bytes || status.download_bytes) / 1_000_000)} MB${status.installed ? " on disk" : status.storage_bytes > 0 ? " stored" : " download"}` : "Checking size…"}</span></div><div className="flex items-center gap-2"><span className="patter-card-footnote">App-aware cleanup<br />Custom instructions</span>{(status?.installed || (status?.storage_bytes ?? 0) > 0) && <Button variant="ghost" size="icon-sm" disabled={!!builtInStatus?.downloading || isDefault && settings.llm_cleanup_enabled} title={isDefault && settings.llm_cleanup_enabled ? "Turn cleanup off or choose another model before removing" : "Remove download"} aria-label={`Remove ${option.title} download`} onClick={() => { setDeleteError(""); setDeleteTarget({ model: option.id, bytes: status?.storage_bytes ?? status?.download_bytes ?? 0 }); }}><Trash2 size={14} /></Button>}</div></footer>
                 {option.id === "patter-1-nano" && !status?.installed && <p className="px-6 pb-4 text-[11px] leading-relaxed text-muted-foreground">Downloading accepts the <a href="https://ai.google.dev/gemma/terms" target="_blank" rel="noreferrer" className="underline underline-offset-2">Gemma Terms</a> and <a href="https://ai.google.dev/gemma/prohibited_use_policy" target="_blank" rel="noreferrer" className="underline underline-offset-2">use restrictions</a>.</p>}
               </article>;
             })}
@@ -310,7 +330,7 @@ export function AIView() {
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-xs text-muted-foreground">Memory and meeting notes use Ollama independently of your dictation provider.</p><Button disabled={!ollamaReady || settings.cleanup_provider === "ollama" && settings.llm_cleanup_enabled} onClick={() => update({ cleanup_provider: "ollama", llm_cleanup_enabled: true })}>{settings.cleanup_provider === "ollama" && settings.llm_cleanup_enabled ? "Current default" : "Set as default"}</Button></div>
           </section>}
-          <CleanupPlayground settings={settings} statuses={modelStatuses} busy={setupBusy} />
+          <CleanupPlayground settings={settings} statuses={modelStatuses} busy={setupBusy || !!removingModel} />
         </div>
       </section>
 
@@ -366,6 +386,7 @@ export function AIView() {
         </div>
       </section>
       </fieldset>
+      <Dialog open={!!deleteTarget} onOpenChange={open => { if (!open && !removingModel) setDeleteTarget(null); }}><DialogContent><DialogHeader><DialogTitle>Remove {deleteTarget ? builtInModelName(deleteTarget.model) : "model"}?</DialogTitle><DialogDescription>Remove this model’s downloaded files, previous versions, and incomplete downloads from this device{deleteTarget ? ` (about ${Math.ceil(deleteTarget.bytes / 1_000_000)} MB)` : ""}. Your transcripts and app profiles are kept. You can download the model again later.</DialogDescription></DialogHeader>{deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}<DialogFooter><Button variant="outline" disabled={!!removingModel} onClick={() => setDeleteTarget(null)}>Keep model</Button><Button variant="destructive" disabled={!!removingModel} onClick={() => void removeDownload()}>{removingModel && <Loader2 size={14} className="animate-spin" />}{removingModel ? "Removing…" : "Remove download"}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
