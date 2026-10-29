@@ -12,8 +12,6 @@ on:
         type: boolean
         default: false
   push:
-    # Tags can restore default-branch caches, but not caches from other tags.
-    branches: [main]
     tags:
       - "v*"
 
@@ -61,7 +59,6 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # rust-cache removes non-Cargo files under target when saving. This action
       # must come after it so its post-step saves the native libraries first.
@@ -129,12 +126,8 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml built_in::updates::tests::channel_install_probe_failure_and_rollback_smoke -- --ignored --exact --nocapture
 
-      - name: Build the app and warm release dependencies on main
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: npm run tauri -- build --no-bundle
-
-      - name: Save the Swift and Metal build cache on main
-        if: matrix.platform == 'macos-latest' && github.ref == 'refs/heads/main' && steps.native-cache.outputs.cache-hit != 'true'
+      - name: Save the Swift and Metal build cache
+        if: matrix.platform == 'macos-latest' && steps.native-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: native/patter-intelligence/.build/xcode
