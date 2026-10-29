@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef } from "react";
-import { Home as HomeIcon, UsersRound as MeetingsIcon, CaseSensitive as DictionaryIcon, Cog as SettingsIcon, Brain as MemoryIcon, AudioLines as ModelsIcon, Sparkles as AIIcon, History as HistoryIcon, Zap as SnippetsIcon, ChevronRight } from "lucide-react";
+import { Home as HomeIcon, UsersRound as MeetingsIcon, CaseSensitive as DictionaryIcon, Cog as SettingsIcon, Brain as MemoryIcon, AudioLines as ModelsIcon, WandSparkles as AIIcon, History as HistoryIcon, Zap as SnippetsIcon, ChevronRight } from "lucide-react";
 
 import { AppStats, TranscriptionRecord } from "../../types";
 import { getStats, getHistory, getSettings, onDownloadProgress, onDbUpdated, getModelStates, ModelState, getActiveEngine, accessibilityTrusted, openAccessibilitySettings, onAccessibilityMissing, onUpdateAvailable, onNavigate, onCleanupError } from "../../lib/ipc";
@@ -212,7 +212,7 @@ export default function Dashboard() {
                 onClick={() => setActiveTab("models")}
                 aria-label={activeEngine ? `Change speech model: ${MODEL_NAMES[activeEngine] ?? activeEngine}` : "Choose a speech model"}
                 title={activeEngine ? `Change model · ${MODEL_NAMES[activeEngine] ?? activeEngine}` : "Choose a speech model"}
-                className="group flex min-h-11 w-full items-center gap-2 rounded-lg bg-foreground/[0.025] px-2.5 py-2.5 text-left ring-1 ring-inset ring-border transition-colors hover:bg-accent hover:ring-primary/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="group flex min-h-11 w-full items-center gap-1.5 rounded-lg bg-foreground/[0.025] px-2.5 py-2.5 text-left ring-1 ring-inset ring-border transition-colors hover:bg-accent hover:ring-primary/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <ModelsIcon size={16} strokeWidth={1.7} className="shrink-0 text-accent-foreground" />
                 <span className="min-w-0 flex-1 text-xs font-medium leading-snug text-foreground break-words">{activeEngine ? MODEL_NAMES[activeEngine] ?? activeEngine : "Choose a model"}</span>

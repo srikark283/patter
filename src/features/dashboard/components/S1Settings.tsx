@@ -18,6 +18,7 @@ interface Props {
 export function S1Settings({ settings, model, status, error, busy, onEnable, onRefresh }: Props) {
   const name = builtInModelName(model);
   const nano = model === "patter-1-nano";
+  const restoreVersion = status?.previous_version?.startsWith("patter-1-nano-") ? status.previous_version : null;
   const [update, setUpdate] = useState<NanoUpdate | null>(null);
   const [updateError, setUpdateError] = useState("");
   const [updateBusy, setUpdateBusy] = useState(false);
@@ -26,14 +27,14 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
     try { setUpdate(await checkNanoUpdate()); } catch (error) { setUpdateError(String(error)); }
     finally { setUpdateBusy(false); }
   };
-  useEffect(() => { if (nano) void checkUpdate(); }, [nano]);
+  useEffect(() => { if (nano && status?.installed) void checkUpdate(); }, [nano, status?.installed]);
   useEffect(() => {
     if (!updateBusy) return;
     const timer = window.setInterval(onRefresh, 1000);
     return () => window.clearInterval(timer);
   }, [updateBusy, onRefresh]);
   const changeVersion = async (rollback = false) => {
-    if (!rollback && !update) return;
+    if (rollback ? !restoreVersion : !update) return;
     setUpdateBusy(true); setUpdateError("");
     try {
       if (rollback) await rollbackNanoUpdate(); else await installNanoUpdate(update!.latest_version);
@@ -46,6 +47,13 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
   const [sample, setSample] = useState("so um send the report by friday no wait thursday");
   const [testError, setTestError] = useState("");
   const [result, setResult] = useState<string | null>(null);
+  const highlightedResult = result ? (() => {
+    let start = 0;
+    while (start < sample.length && start < result.length && sample[start] === result[start]) start++;
+    let end = 0;
+    while (end < sample.length - start && end < result.length - start && sample[sample.length - 1 - end] === result[result.length - 1 - end]) end++;
+    return <>{result.slice(0, start)}<mark className="rounded bg-accent-strong text-foreground">{result.slice(start, result.length - end)}</mark>{end > 0 ? result.slice(-end) : ""}</>;
+  })() : null;
   const ready = !!status?.supported && status.installed && status.runtime_ready;
   const active = settings.cleanup_provider === "built_in" && settings.built_in_model === model && settings.llm_cleanup_enabled;
   const downloading = busy || updateBusy || !!status?.downloading;
@@ -56,15 +64,14 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
     finally { setTesting(false); }
   };
   return <div className="space-y-4 p-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-medium">{name}</h3><p className="mt-1 text-xs text-muted-foreground">{nano ? "By Patter · Beta · English dictation" : "By Superwhisper · Beta · English dictation"}</p></div><span className="rounded-md bg-accent px-2 py-1 text-xs text-accent-foreground">On-device</span></div>
-    <p role="status" className="text-sm">
+    {(!active || !ready || downloading) && <p role="status" className="text-sm">
       {!status ? "Checking availability…" : !status.supported ? "Requires Apple Silicon and macOS 14 or newer. Use Ollama on this device."
         : !status.runtime_ready ? "Built-in runtime missing. Reinstall Patter, then retry."
         : status.downloading ? `Installing model… ${status.progress}%`
         : busy ? `Preparing ${name}…`
         : active ? `${name} cleanup is enabled.`
         : status.installed ? "Downloaded · ready to enable" : `One-time download · ${Math.ceil(status.download_bytes / 1_000_000)} MB`}
-    </p>
+    </p>}
     {!active && status?.supported && status.runtime_ready && <>
       <p className="text-xs text-muted-foreground">
         Enabling {name} sets the transcription language to English and turns on dictation cleanup.
@@ -76,30 +83,27 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
         {downloading ? `Setting up ${name}…` : !status.installed ? `Download & enable ${name}` : settings.language !== "en" ? `Use English & enable ${name}` : `Enable ${name}`}
       </Button>
     </>}
-    {nano && <div className="space-y-2 border-t border-border pt-3">
+    {nano && ready && <details className="pt-3"><summary className="cursor-pointer rounded-md py-1 text-sm font-medium">Model maintenance</summary><div className="space-y-3 pt-3">
       <p className="text-xs text-muted-foreground">Model version: {status?.version?.replace(/^patter-nano-/, "") ?? "Checking…"}</p>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={checkUpdate} disabled={downloading || testing}>{updateBusy ? "Checking / preparing…" : "Check model updates"}</Button>
         {update?.update_available && <Button size="sm" disabled={downloading || testing} onClick={() => changeVersion()}>Update to {update.latest_version.replace(/^patter-nano-/, "")} · {Math.ceil(update.download_bytes / 1_000_000)} MB</Button>}
-        {status?.previous_version && <Button variant="outline" size="sm" disabled={downloading || testing} onClick={() => changeVersion(true)}>Restore {status.previous_version.replace(/^patter-nano-/, "")}</Button>}
+        {restoreVersion && <Button variant="outline" size="sm" disabled={downloading || testing} onClick={() => changeVersion(true)}>Restore {restoreVersion.replace(/^patter-1-nano-/, "")}</Button>}
       </div>
       {update && !update.update_available && <p role="status" className="text-xs text-muted-foreground">No newer model release is available.</p>}
       {updateError && <p role="alert" className="break-words text-xs text-destructive">{updateError} Your current model is kept.</p>}
-    </div>}
+    </div></details>}
     {status?.downloading && <Progress aria-label={`${name} installation`} value={status.progress} />}
     {error && <div role="alert" className="space-y-2 text-sm text-destructive break-words">
       <p>{error}</p>
       <Button variant="outline" size="sm" onClick={onRefresh} disabled={busy}>Check again</Button>
     </div>}
-    <p className="text-xs text-muted-foreground">
-      {nano ? "App Profiles supply cleanup instructions. Formatting results may vary with this beta model." : "App Profiles set supported tone, list, and email formatting hints."} Code and terminal dictation stays verbatim.
-      Personal memory requires Ollama cleanup. Long transcripts are cleaned in chunks.
-      {nano && " This beta works best with short dictation. If generation is truncated, Patter keeps the original transcript."}
-    </p>
-    {ready && <details open className="border-t border-border pt-4 text-sm">
-      <summary className="cursor-pointer rounded-md py-1 font-medium text-accent-foreground">Preview cleanup</summary>
+    {ready && <details open className="pt-5 text-sm">
+      <summary className="cursor-pointer rounded-md py-1 font-medium text-accent-foreground">Try your text</summary>
       <div className="space-y-3 pt-3">
+        {nano && <p className="text-xs text-muted-foreground">If generation is truncated, Patter keeps the original transcript.</p>}
         <p className="text-xs leading-relaxed text-muted-foreground">Compare your transcript with the cleaned result. This preview does not paste into another app.</p>
+        <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground">Try a sample</span>{[{ name: "Email", text: "hi alex um can you send the updated proposal by friday thanks" }, { name: "Chat", text: "hey so i will be there in like ten minutes" }, { name: "Correction", text: "send the report by friday no wait thursday" }].map(item => <Button key={item.name} variant="ghost" size="sm" disabled={testing} onClick={() => { setSample(item.text); setResult(null); setTestError(""); }}>{item.name}</Button>)}</div>
         <label id="cleanup-preview-profile" className="block text-xs text-muted-foreground">App profile</label>
         <Select value={profile} onValueChange={value => { setProfile(value); setResult(null); setTestError(""); }} disabled={testing}>
           <SelectTrigger aria-labelledby="cleanup-preview-profile"><SelectValue /></SelectTrigger>
@@ -107,7 +111,7 @@ export function S1Settings({ settings, model, status, error, busy, onEnable, onR
         </Select>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label htmlFor="s1-sample" className="text-xs text-muted-foreground">Original transcript<textarea id="s1-sample" disabled={testing} value={sample} onChange={event => { setSample(event.target.value); setResult(null); setTestError(""); }} maxLength={128000} rows={5} className="mt-2 block w-full resize-y rounded-lg border border-input bg-background p-3 text-sm leading-relaxed text-foreground focus-visible:outline-2 focus-visible:outline-ring" /></label>
-          <div><p className="text-xs text-muted-foreground">Cleaned result</p><div role="status" className="mt-2 min-h-36 whitespace-pre-wrap break-words rounded-lg bg-accent-subtle p-3 text-sm leading-relaxed">{testing ? <span className="inline-flex items-center gap-2 text-muted-foreground"><Loader2 size={14} className="animate-spin" />Cleaning up…</span> : result !== null ? result || "No text remaining after filler removal." : <span className="text-muted-foreground">Run a preview to see the result here.</span>}</div></div>
+          <div><p className="text-xs text-muted-foreground">Cleaned result</p><div role="status" className="mt-2 min-h-36 whitespace-pre-wrap break-words rounded-lg bg-accent-subtle p-3 text-sm leading-relaxed">{testing ? <span className="inline-flex items-center gap-2 text-muted-foreground"><Loader2 size={14} className="animate-spin" />Cleaning up…</span> : result !== null ? highlightedResult || "No text remaining after filler removal." : <span className="text-muted-foreground">Run a preview to see the result here.</span>}</div></div>
         </div>
         <Button variant="outline" onClick={test} disabled={testing || downloading || !sample.trim() || settings.language !== "en"}>{testing ? <Loader2 size={14} className="animate-spin" /> : <WandSparkles size={14} />}{testing ? "Cleaning up…" : "Test cleanup"}</Button>
         {testError && <p role="alert" className="break-words text-sm text-destructive">Preview failed. {testError} Try again when the model is available.</p>}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight, WandSparkles } from "lucide-react";
 import { builtInModelName, getSettings, getS1Status, listOllamaModels, onSettingsChanged, onCleanupError } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
 
@@ -50,8 +50,8 @@ export function CleanupStatus({ page, onClick }: { page: string; onClick: () => 
       <span className="text-muted-foreground">Dictation cleanup</span>
       <span role="status" className={cn("inline-flex items-center gap-1.5 text-[10px]", status.mode === "enabled" ? "text-success" : status.mode === "attention" ? "text-warning" : "text-muted-foreground")}><span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", status.mode === "enabled" ? "bg-success" : status.mode === "attention" ? "bg-warning" : "bg-muted-foreground/50")} />{label}</span>
     </div>
-    <button type="button" onClick={onClick} aria-label={`Dictation cleanup ${label}: ${status.detail}. Open Intelligence settings`} title={`${status.detail} · Open Intelligence settings`} className="group flex min-h-11 w-full items-center gap-2 rounded-lg bg-foreground/[0.025] px-2.5 py-2.5 text-left ring-1 ring-inset ring-border transition-colors hover:bg-accent hover:ring-primary/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-      <Sparkles size={16} strokeWidth={1.7} className={cn("shrink-0", status.mode === "off" ? "text-muted-foreground" : "text-accent-foreground")} />
+    <button type="button" onClick={onClick} aria-label={`Dictation cleanup ${label}: ${status.detail}. Open Intelligence settings`} title={`${status.detail} · Open Intelligence settings`} className="group flex min-h-11 w-full items-center gap-1.5 rounded-lg bg-foreground/[0.025] px-2.5 py-2.5 text-left ring-1 ring-inset ring-border transition-colors hover:bg-accent hover:ring-primary/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+      <WandSparkles size={16} strokeWidth={1.7} className={cn("shrink-0", status.mode === "off" ? "text-muted-foreground" : "text-accent-foreground")} />
       <span className="min-w-0 flex-1 break-words text-xs font-medium leading-snug text-foreground">{status.detail}</span>
       <ChevronRight size={13} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent-foreground" />
     </button>

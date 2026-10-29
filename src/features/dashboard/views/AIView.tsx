@@ -52,6 +52,9 @@ const APP_PROFILE_TEMPLATES = [
 ];
 
 export function AIView() {
+  const [modelSearch, setModelSearch] = useState("");
+  const [section, setSection] = useState("dictation");
+  const [editingProfile, setEditingProfile] = useState<number | null>(null);
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -93,7 +96,7 @@ export function AIView() {
     finally { setSetupBusy(false); }
   };
   const [checkingOllama, setCheckingOllama] = useState(false);
-  
+
   const refreshOllama = () => {
     setCheckingOllama(true);
     listOllamaModels()
@@ -158,16 +161,19 @@ export function AIView() {
   };
 
   return (
-    <div className="space-y-5 workspace-enter pb-6">
+    <div className="intelligence-workspace space-y-6 workspace-enter pb-6">
       <PageHeader
         title="Intelligence"
         description="Choose how Patter refines your words, with everything processed locally."
         action={<span role="status" className={cn("inline-flex items-center gap-1.5 text-xs", saveMessage === "Saved" ? "text-success" : saveMessage.startsWith("Could") ? "text-destructive" : "text-muted-foreground")}>{saving ? <Loader2 size={13} className="animate-spin" /> : saveMessage === "Saved" ? <Check size={13} /> : null}{saveMessage}</span>}
       />
+      {/* <div className="speech-intro intelligence-intro"><div><h2>Your words.<br /><em>A little more considered.</em></h2><p>Remove the fillers. Keep your meaning. Give every app the right tone, with intelligence that stays on your device.</p></div><div className="intelligence-example"><span>Illustrative cleanup</span><p className="example-before">“so um can you send the report by friday no wait thursday”</p><p className="example-after">Can you send the report by Thursday?</p><small>Your model and app instructions shape the result.</small></div></div>
+      <div className="intelligence-active"><span className={cn("readiness-dot", settings.llm_cleanup_enabled && "is-enabled")} /><span>Dictation cleanup</span><strong>{settings.llm_cleanup_enabled ? settings.cleanup_provider === "built_in" ? builtInModelName(settings.built_in_model) : settings.ollama_model || "Model not configured" : "Off · original transcription"}</strong><span className="ml-auto text-xs text-muted-foreground">On-device</span></div> */}
+      <nav className="intelligence-sections" aria-label="Intelligence sections">{[{ id: "dictation", label: "Dictation" }, { id: "meetings", label: "Meetings" }, { id: "profiles", label: "App profiles" }].map(item => <button key={item.id} type="button" aria-current={section === item.id ? "page" : undefined} onClick={() => setSection(item.id)}>{item.label}{item.id === "profiles" && profilesDirty ? " · Unsaved" : ""}</button>)}</nav>
       <fieldset disabled={saving || setupBusy} className="min-w-0 space-y-5">
 
       {/* Ollama status */}
-      {providerChoice === "ollama" && <div className="surface-raised rounded-xl p-4 flex items-center justify-between">
+      {(section === "meetings" || section === "dictation" && providerChoice === "ollama") && <div className="surface-raised rounded-xl p-4 flex items-center justify-between">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span
             className={cn(
@@ -199,16 +205,16 @@ export function AIView() {
       </div>}
 
       {/* Dictation cleanup */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1"><h2 className="text-base font-medium">Dictation cleanup</h2><span role="status" className={cn("rounded-md px-2 py-1 text-xs", settings.llm_cleanup_enabled ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground")}>{settings.llm_cleanup_enabled ? `${settings.cleanup_provider === "built_in" ? builtInModelName(settings.built_in_model) : "Ollama"} · Enabled` : "Off · Original transcription"}</span></div>
-        <div className="surface-raised rounded-xl divide-y divide-foreground/5">
+      <section hidden={section !== "dictation"} className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1"><h2 className="text-lg font-semibold">Make every dictation read naturally</h2><span role="status" className={cn("rounded-md px-2 py-1 text-xs", settings.llm_cleanup_enabled ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground")}>{settings.llm_cleanup_enabled ? `${settings.cleanup_provider === "built_in" ? builtInModelName(settings.built_in_model) : "Ollama"} · Enabled` : "Off · Original transcription"}</span></div>
+        <div className="intelligence-configuration space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-4 p-4">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <SettingIcon icon={SparkleIcon} active={cleanupActive} />
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Clean up dictated text</p>
                 <p className="text-xs text-muted-foreground">
-                  Polish transcripts — fixes grammar, removes filler words
+                  Fix grammar and remove filler words before pasting.
                 </p>
               </div>
             </div>
@@ -220,25 +226,20 @@ export function AIView() {
             />
           </div>
 
-          <div className="space-y-3 p-4">
-            <h3 className="text-sm font-medium">Cleanup provider</h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Cleanup provider">
-              {[{ value: "built_in" as const, name: "Built-in", description: "English cleanup on Apple Silicon. No separate service needed." }, { value: "ollama" as const, name: "Ollama", description: "Your local models, custom instructions, and personal memory." }].map(provider => <button key={provider.value} type="button" aria-pressed={providerChoice === provider.value} disabled={setupBusy || (provider.value === "built_in" && !s1Status?.supported)} onClick={() => void chooseProvider(provider.value)} className={cn("rounded-xl p-4 text-left ring-1 transition-colors disabled:opacity-50", providerChoice === provider.value ? "bg-accent-subtle ring-primary/40" : "ring-border hover:bg-accent-subtle")}><span className="flex items-center justify-between gap-2 text-sm font-medium">{provider.name}{providerChoice === provider.value && <Check size={15} className="text-accent-foreground" />}</span><span className="mt-2 block text-xs leading-relaxed text-muted-foreground">{provider.description}</span></button>)}
+          <div className="inference-selector"><div className="section-heading"><div><h3>Choose your intelligence</h3><p>Compare capabilities, then configure your choice below.</p></div></div>
+            <div className="inference-options" aria-label="Cleanup model and runtime">
+            {[{ id: "s1_mini", name: "S1-mini", by: "Superwhisper", description: "Focused cleanup with simple, built-in setup.", features: ["Grammar & filler removal", "Tone, lists & email hints", "Code stays verbatim"], requirement: "English · Apple Silicon · macOS 14+" }, { id: "patter-1-nano", name: "patter-1-nano", by: "Patter · Beta", description: "More control over short everyday dictation.", features: ["Grammar & filler removal", "Custom app instructions", "Best for short dictation"], requirement: "English · Apple Silicon · macOS 14+" }, { id: "ollama", name: "Ollama", by: "Your local models", description: "Flexible models with deeper personalization.", features: ["Custom app instructions", "Personal memory", "Also powers meeting notes"], requirement: "Requires Ollama & an installed model" }].map(option => {
+              const selected = option.id === "ollama" ? providerChoice === "ollama" : builtInSelected && modelChoice === option.id;
+              return <button key={option.id} type="button" aria-pressed={selected} className={cn("inference-option", selected && "is-selected")} disabled={setupBusy || !!s1Status?.downloading || (option.id !== "ollama" && s1Status?.supported === false)} onClick={() => { if (selected) return; if (option.id !== "ollama") { setModelChoice(option.id as Settings["built_in_model"]); setS1Status(null); setS1Error(""); setS1StatusError(""); } void chooseProvider(option.id === "ollama" ? "ollama" : "built_in"); }}><span className="inference-option-title"><strong>{option.name}</strong><span className="selection-radio">{selected && <Check size={12} />}</span></span><span className="inference-by">{option.by}</span><span className="inference-description">{option.description}</span><span className="inference-features">{option.features.map(feature => <span key={feature}><Check size={13} />{feature}</span>)}</span><span className="inference-requirement">{option.requirement}</span></button>;
+            })}
             </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">Meetings, voice commands, and memory embeddings use Ollama.</p>
-            {providerChoice !== settings.cleanup_provider && <p role="status" className="text-xs leading-relaxed text-warning">Previewing built-in setup. Your current {settings.cleanup_provider === "ollama" ? "Ollama" : "built-in"} cleanup settings stay in use until setup succeeds.</p>}
+            {(providerChoice !== settings.cleanup_provider || builtInSelected && modelChoice !== settings.built_in_model) && <p role="status" className="mt-3 text-sm text-warning">This is a setup preview. Enable the model below to activate it.</p>}
           </div>
           {s1Status && !s1Status.supported && <p className="px-4 pb-4 text-xs text-muted-foreground">Built-in cleanup requires Apple Silicon and macOS 14 or newer. Use Ollama on this device.</p>}
           {s1StatusError && !builtInSelected && <div role="alert" className="p-4 text-sm text-destructive"><p>Could not check built-in availability: {s1StatusError}</p><button onClick={refreshS1} className="rounded-md underline underline-offset-4 focus-visible:ring-focus">Retry</button></div>}
-          {builtInSelected && <div className="px-4 pt-4"><label id="built-in-model-label" className="mb-2 block text-xs text-muted-foreground">Built-in model</label>
-            <Select value={modelChoice} disabled={setupBusy || !!s1Status?.downloading} onValueChange={(value) => { setS1Status(null); setS1Error(""); setS1StatusError(""); setModelChoice(value as Settings["built_in_model"]); }}>
-              <SelectTrigger aria-labelledby="built-in-model-label"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="s1_mini">S1-mini · Superwhisper</SelectItem><SelectItem value="patter-1-nano">patter-1-nano · Patter</SelectItem></SelectContent>
-            </Select>
-            {modelChoice !== settings.built_in_model && <p role="status" className="mt-2 text-xs text-muted-foreground">Previewing {builtInModelName(modelChoice)}. Enable it below to switch cleanup models.</p>}
-          </div>}
           {builtInSelected && <S1Settings key={modelChoice} model={modelChoice} settings={settings} status={s1Status} error={s1Error || s1StatusError} busy={setupBusy} onEnable={setUpS1} onRefresh={() => { setS1Error(""); void refreshS1(); }} />}
 
+          {providerChoice === "ollama" && <label className="block px-4 text-xs text-muted-foreground">Find an installed model<input type="search" value={modelSearch} onChange={event => setModelSearch(event.target.value)} placeholder="Search Ollama models…" className="model-search mt-2" /></label>}
           {providerChoice === "ollama" && (
             <div className="flex flex-wrap items-center justify-between gap-4 p-4">
               <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -265,7 +266,7 @@ export function AIView() {
                 <SelectContent>
                   <SelectItem value="none">Select a model</SelectItem>
                   {settings.ollama_model && !ollamaModels?.includes(settings.ollama_model) && <SelectItem value={settings.ollama_model} disabled>{settings.ollama_model} (unavailable)</SelectItem>}
-                  {(ollamaModels ?? []).map((m) => (
+                  {(ollamaModels ?? []).filter(m => m.toLowerCase().includes(modelSearch.toLowerCase())).map((m) => (
                     <SelectItem key={m} value={m}>{m}</SelectItem>
                   ))}
                 </SelectContent>
@@ -274,7 +275,7 @@ export function AIView() {
           )}
 
           {settings.llm_cleanup_enabled && providerChoice === "ollama" && (
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+            <details className="p-4"><summary className="cursor-pointer text-sm font-medium">Advanced · Memory usage</summary><div className="flex flex-wrap items-center justify-between gap-4 p-4">
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <SettingIcon icon={Clock} active={settings.ollama_keep_alive_minutes !== 0} />
                 <div>
@@ -303,12 +304,13 @@ export function AIView() {
                 </SelectContent>
               </Select>
             </div>
+            </details>
           )}
         </div>
       </section>
 
       {/* Meetings */}
-      <section className="space-y-4">
+      <section hidden={section !== "meetings"} className="space-y-4">
         <h2 className="px-1 text-base font-medium">Meeting intelligence</h2>
         <div className="surface-raised rounded-xl">
           <div className="flex flex-wrap items-center justify-between gap-4 p-4">
@@ -317,7 +319,7 @@ export function AIView() {
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Meeting Notes Model</p>
                 <p className="text-xs text-muted-foreground">
-                  {ollamaUp ? "Generate minutes, decisions, and summaries with a local Ollama model." : "Start Ollama to choose a meeting notes model. Dictation cleanup can use built-in models independently."}
+                  {ollamaUp ? "Generate minutes, decisions, and summaries with Ollama. Built-in dictation models do not generate meeting notes." : "Start Ollama to choose a meeting notes model. Dictation cleanup can use built-in models independently."}
                 </p>
               </div>
             </div>
@@ -327,10 +329,10 @@ export function AIView() {
               onValueChange={(val) => update({ meeting_ollama_model: val === "same" ? null : val })}
             >
               <SelectTrigger aria-label="Meeting notes model" className="w-full sm:w-48 bg-background border-input text-sm truncate disabled:opacity-50">
-                <SelectValue placeholder="Same as cleanup model" />
+                <SelectValue placeholder="Choose an Ollama model" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="same">Same as cleanup model</SelectItem>
+                <SelectItem value="same">{settings.ollama_model ? `Use Ollama default · ${settings.ollama_model}` : "No Ollama default configured"}</SelectItem>
                 {(ollamaModels ?? []).map((m) => (
                   <SelectItem key={m} value={m}>{m}</SelectItem>
                 ))}
@@ -341,20 +343,20 @@ export function AIView() {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section hidden={section !== "profiles"} className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 px-1"><div><h2 className="text-base font-medium">App profiles</h2><p className="mt-1 text-xs text-muted-foreground">Adjust the tone for each app. Changes apply when you save.</p></div>{profilesDirty && <span role="status" className="text-xs text-warning">Unsaved profile changes</span>}</div>
         <div className="surface-raised rounded-xl p-4 space-y-4">
           <p className="text-xs leading-relaxed text-muted-foreground">Ollama and patter-1-nano accept profile instructions. S1-mini uses supported tone, list, and email hints; code and terminal dictation stays verbatim.{!settings.llm_cleanup_enabled && " Enable dictation cleanup to use profiles."}</p>
           {!profiles.length && <p className="py-3 text-sm text-muted-foreground">No app profiles yet. Start with a template or add your own.</p>}
-          <div className="space-y-3">{profiles.map((profile, index) => <div key={index} className="flex items-start gap-2 border-t border-border/50 pt-3">
+          <div className="space-y-3">{profiles.map((profile, index) => <div key={index} className="border-t border-border/50 pt-3"><button type="button" className="flex w-full items-center gap-3 py-2 text-left" aria-expanded={editingProfile === index} onClick={() => setEditingProfile(editingProfile === index ? null : index)}><NativeAppIcon appName={profile.app} /><span className="min-w-0 flex-1"><span className="block text-sm font-medium">{profile.app || "New profile"}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{profile.prompt || "Add cleanup instructions"}</span></span><span className="text-xs text-accent-foreground">{editingProfile === index ? "Close" : "Edit"}</span></button><div className={cn("items-start gap-2", editingProfile === index ? "flex" : "hidden")}>
             <div className="mt-6 flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground"><NativeAppIcon appName={profile.app} /></div>
             <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
               <label className="text-xs text-muted-foreground">App names<input aria-label={`App names for profile ${index + 1}`} value={profile.app} placeholder="Mail, Outlook" onChange={event => setProfileDraft(profiles.map((item, i) => i === index ? { ...item, app: event.target.value } : item))} className="mt-1 block h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring" /></label>
               <label className="text-xs text-muted-foreground">Cleanup instructions<textarea aria-label={`Instructions for profile ${index + 1}`} value={profile.prompt} placeholder="Use a concise, professional tone" rows={2} onChange={event => setProfileDraft(profiles.map((item, i) => i === index ? { ...item, prompt: event.target.value } : item))} className="mt-1 block w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring" /></label>
             </div>
             <Button variant="ghost" size="icon-sm" className="mt-6 text-muted-foreground hover:text-destructive" aria-label={`Remove profile ${index + 1}`} title="Remove profile" onClick={() => setProfileDraft(profiles.filter((_, i) => i !== index))}><Trash2 size={14} /></Button>
-          </div>)}</div>
-          <div className="flex flex-wrap items-center gap-2"><Button variant="outline" size="sm" onClick={() => setProfileDraft([...profiles, { app: "", prompt: "" }])}><Plus size={14} />Add profile</Button><span className="text-xs text-muted-foreground">Templates</span>{APP_PROFILE_TEMPLATES.map(template => <Button key={template.name} variant="ghost" size="sm" onClick={() => setProfileDraft([...profiles, { app: template.app, prompt: template.prompt }])}>{template.name}</Button>)}</div>
+          </div></div>)}</div>
+          <div className="flex flex-wrap items-center gap-2"><Button variant="outline" size="sm" onClick={() => { setProfileDraft([...profiles, { app: "", prompt: "" }]); setEditingProfile(profiles.length); }}><Plus size={14} />Add profile</Button><span className="text-xs text-muted-foreground">Templates</span>{APP_PROFILE_TEMPLATES.map(template => <Button key={template.name} variant="ghost" size="sm" onClick={() => { setProfileDraft([...profiles, { app: template.app, prompt: template.prompt }]); setEditingProfile(profiles.length); }}>{template.name}</Button>)}</div>
           {profilesDirty && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3"><Button variant="ghost" onClick={() => setProfileDraft(null)}>Discard changes</Button>{profiles.some(profile => !profile.app.trim()) && <p className="mr-auto text-xs text-warning">Add an app name to each profile before saving.</p>}<Button disabled={profiles.some(profile => !profile.app.trim())} onClick={async () => { if (await update({ app_profiles: profiles })) setProfileDraft(null); }}>Save profiles</Button></div>}
         </div>
       </section>

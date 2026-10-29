@@ -147,6 +147,8 @@ pub(super) fn current_channel() -> Channel {
 }
 pub(super) fn previous_version() -> Option<String> {
     let channel = read_pointer("previous.json")?;
+    // Legacy Flash state is readable for migration, but is no longer a restore target.
+    channel.validate().ok()?;
     let p = paths_for_manifest(BuiltInModel::Patter1Nano, &channel.desktop).ok()?;
     installed_manifest(&channel.desktop, &p.model).then_some(channel.version)
 }
@@ -278,6 +280,7 @@ pub fn install(expected_version: Option<String>) -> Result<(), String> {
 pub fn rollback() -> Result<(), String> {
     let previous = read_pointer("previous.json")
         .ok_or("No previous patter-1-nano model is available on this device")?;
+    previous.validate().map_err(|_| "This saved release is retired or incompatible and cannot be restored".to_string())?;
     if DOWNLOADING
         .compare_exchange(0, 2, Ordering::AcqRel, Ordering::Relaxed)
         .is_err()
