@@ -11,7 +11,7 @@ mod meeting;
 mod models;
 mod ollama;
 mod inference;
-mod s1;
+mod built_in;
 mod paste;
 mod permissions;
 mod recording;
@@ -206,11 +206,11 @@ fn main() {
                 }
             });
 
-            s1::initialize(app.handle())?;
+            built_in::initialize(app.handle())?;
             let model_manager = models::registry::ModelManager::new(app.handle())?;
             let db_instance = db::Db::new(app.handle());
             let mut settings = db_instance.get_settings();
-            if s1::validate_settings(&settings).is_err() {
+            if built_in::validate_settings(&settings).is_err() {
                 settings.llm_cleanup_enabled = false;
                 db_instance.save_settings(&settings)?;
             }
@@ -678,13 +678,13 @@ fn main() {
             commands::cancel_dictation,
             commands::open_dashboard,
                                                 commands::list_ollama_models,
-            commands::enable_s1,
-            commands::s1_status,
+            commands::enable_built_in_model,
+            commands::built_in_status,
             commands::check_nano_update,
             commands::install_nano_update,
             commands::rollback_nano_update,
-            commands::install_s1,
-            commands::test_s1_cleanup,
+            commands::install_built_in_model,
+            commands::test_built_in_cleanup,
             commands::start_meeting_recording,
             commands::stop_meeting_recording,
             commands::cancel_meeting_recording,
@@ -712,6 +712,6 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_, event| {
-            if matches!(event, tauri::RunEvent::Exit) { s1::shutdown(); }
+            if matches!(event, tauri::RunEvent::Exit) { built_in::shutdown(); }
         });
 }

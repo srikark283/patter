@@ -59,6 +59,6 @@ scripts/capture-demo.sh
 /training/sotto/
 
 # Bundled MLX helper build products
-/native/s1-mini/.build/
-/native/s1-mini/dist/
-/native/s1-mini/.swiftpm/
+/native/patter-intelligence/.build/
+/native/patter-intelligence/dist/
+/native/patter-intelligence/.swiftpm/

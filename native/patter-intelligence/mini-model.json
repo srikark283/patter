@@ -1,0 +1,63 @@
+{
+  "variant_id": "mlx-4bit",
+  "repo": "",
+  "revision": "7294d1a1274cd63c31c94fe24c8048f83d9ff72d",
+  "base_url": "https://github.com/srikark283/patter/releases/download/patter-1-mini-7294d1a1274c",
+  "files": [
+    {
+      "name": "README.md",
+      "size": 81,
+      "sha256": "748c964f9b7e5f2c3770ce013bbc0153be7c54311d9692c343b6188eefe77ac6"
+    },
+    {
+      "name": "chat_template.jinja",
+      "size": 4168,
+      "sha256": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8"
+    },
+    {
+      "name": "config.json",
+      "size": 1021,
+      "sha256": "d8cbd096f758add51a940656710a0319cfb3ad4ae4591507ab29c2e8bebecc54"
+    },
+    {
+      "name": "generation_config.json",
+      "size": 239,
+      "sha256": "2325da0f15bb848e018c5ae071b7943332e9f871d6b60e2ed22ca97d4cb993d2"
+    },
+    {
+      "name": "model.safetensors",
+      "size": 335450548,
+      "sha256": "eae9164c5db6420de86cefd69be97a6f5d3d51ae8570411d635810d28740f5ac"
+    },
+    {
+      "name": "model.safetensors.index.json",
+      "size": 49770,
+      "sha256": "5ee67e4efeb75dfacb8dd3892dd6208473771264fdeff6b9eba4a79db5b1435e"
+    },
+    {
+      "name": "tokenizer.json",
+      "size": 11422650,
+      "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "size": 729,
+      "sha256": "ee8f6d44bf2353e6d3686c3adaf70e1ccfe9e6ed6822d0ab2f28cafdd7754792"
+    },
+    {
+      "name": "LICENSE.txt",
+      "size": 291,
+      "sha256": "f0996c5ace9a7a0e70d0ca319db00f41fc06473cdc0192f7857f28e031430bd7"
+    },
+    {
+      "name": "MODEL_CARD.md",
+      "size": 450,
+      "sha256": "f74f81134bee9d2aa29dec8f0e2885d3f8efead946455fdbed087dc0b310affd"
+    },
+    {
+      "name": "NOTICE.txt",
+      "size": 311,
+      "sha256": "d1f3054d5675fe2ebbe0baabaf406a3f0469119e5776b46d264e323e2e5fe5e3"
+    }
+  ]
+}

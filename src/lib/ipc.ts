@@ -21,7 +21,7 @@ export interface Settings {
   silence_timeout_ms: number;
   llm_cleanup_enabled: boolean;
   cleanup_provider: "ollama" | "built_in";
-  built_in_model: "s1_mini" | "patter-1-nano";
+  built_in_model: "patter-1-nano" | "patter-1-mini";
   ollama_model: string | null;
   meeting_ollama_model: string | null;
   meeting_engine_id: string | null;
@@ -304,7 +304,7 @@ export const checkNanoUpdate = () => invoke<NanoUpdate>("check_nano_update");
 export const installNanoUpdate = (version: string) => invoke<void>("install_nano_update", { version });
 export const rollbackNanoUpdate = () => invoke<void>("rollback_nano_update");
 
-export interface S1Status {
+export interface BuiltInStatus {
   version: string | null;
   previous_version: string | null;
   supported: boolean;
@@ -315,13 +315,13 @@ export interface S1Status {
   download_bytes: number;
   downloading_model: Settings["built_in_model"] | null;
 }
-export const getS1Status = (model: Settings["built_in_model"]) => invoke<S1Status>("s1_status", { model });
-export const installS1 = (model: Settings["built_in_model"]) => invoke<void>("install_s1", { model });
-export const builtInModelName = (model: Settings["built_in_model"]) => model === "patter-1-nano" ? "patter-1-nano" : "S1-mini";
-export const testS1Cleanup = (text: string, appName: string | null = null, model?: Settings["built_in_model"]) => invoke<string>("test_s1_cleanup", { text, appName, model });
+export const getBuiltInStatus = (model: Settings["built_in_model"]) => invoke<BuiltInStatus>("built_in_status", { model });
+export const installBuiltInModel = (model: Settings["built_in_model"]) => invoke<void>("install_built_in_model", { model });
+export const builtInModelName = (model: Settings["built_in_model"]) => model;
+export const testBuiltInCleanup = (text: string, appName: string | null = null, model?: Settings["built_in_model"]) => invoke<string>("test_built_in_cleanup", { text, appName, model });
 
-export const enableS1 = async (model: Settings["built_in_model"], source?: string) => {
-  const settings = await invoke<Settings>("enable_s1", { model, source });
+export const enableBuiltInModel = async (model: Settings["built_in_model"], source?: string) => {
+  const settings = await invoke<Settings>("enable_built_in_model", { model, source });
   window.dispatchEvent(new Event("patter:settings-changed"));
   return settings;
 };

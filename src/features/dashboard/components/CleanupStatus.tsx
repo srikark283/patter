@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, WandSparkles } from "lucide-react";
-import { builtInModelName, getSettings, getS1Status, listOllamaModels, onSettingsChanged, onCleanupError } from "@/lib/ipc";
+import { builtInModelName, getSettings, getBuiltInStatus, listOllamaModels, onSettingsChanged, onCleanupError } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
 
 type Status = { mode: "checking" | "off" | "enabled" | "attention"; detail: string };
@@ -18,7 +18,7 @@ export function CleanupStatus({ page, onClick }: { page: string; onClick: () => 
         const settings = await getSettings();
         if (!settings.llm_cleanup_enabled) next = { mode: "off", detail: "Original transcription" };
         else if (settings.cleanup_provider === "built_in") {
-          const model = await getS1Status(settings.built_in_model);
+          const model = await getBuiltInStatus(settings.built_in_model);
           next = { mode: model.supported && model.installed && model.runtime_ready ? "enabled" : "attention", detail: builtInModelName(settings.built_in_model) };
         } else {
           const models = await listOllamaModels();

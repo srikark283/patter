@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Mic, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatKey } from "@/lib/hotkey";
-import { builtInModelName, getSettings, getPermissionStatus, getMicrophones, getActiveEngine, getS1Status, listOllamaModels, onDbUpdated, openMicrophoneSettings, openAccessibilitySettings, openInputMonitoringSettings, type Settings, type PermissionStatus } from "@/lib/ipc";
+import { builtInModelName, getSettings, getPermissionStatus, getMicrophones, getActiveEngine, getBuiltInStatus, listOllamaModels, onDbUpdated, openMicrophoneSettings, openAccessibilitySettings, openInputMonitoringSettings, type Settings, type PermissionStatus } from "@/lib/ipc";
 import { MODEL_NAMES } from "../views/ModelsView";
 import { toast } from "sonner";
 
@@ -32,7 +32,7 @@ export function ReadinessPanel({ activity, onPreferences, onModels, onIntelligen
         if (settings.llm_cleanup_enabled) {
           try {
             if (settings.cleanup_provider === "built_in") {
-              const status = await getS1Status(settings.built_in_model);
+              const status = await getBuiltInStatus(settings.built_in_model);
               cleanupIssue = !status.supported || !status.installed || !status.runtime_ready;
               cleanup = `${builtInModelName(settings.built_in_model)} ${cleanupIssue ? "needs setup" : "· available"}`;
             } else {

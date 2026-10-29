@@ -36,7 +36,7 @@ fn manifest(model: BuiltInModel) -> Manifest {
     if model == BuiltInModel::Patter1Nano {
         return updates::current_channel().desktop;
     }
-    let json = include_str!("../../native/s1-mini/model.json");
+    let json = include_str!("../../native/patter-intelligence/mini-model.json");
     serde_json::from_str(json).expect("built-in model manifest")
 }
 fn model_file_url(manifest: &Manifest, name: &str) -> String {
@@ -66,7 +66,7 @@ fn migrate_nano_cache(models: &Path) -> std::io::Result<()> {
     let new = models.join("patter-1-nano/mlx-4bit");
     if old.is_dir() && !new.exists() {
         fs::create_dir_all(new.parent().unwrap())?;
-        let legacy: serde_json::Value = serde_json::from_str(include_str!("../../native/s1-mini/flash-channel-v1.json")).unwrap();
+        let legacy: serde_json::Value = serde_json::from_str(include_str!("../../native/patter-intelligence/flash-channel-v1.json")).unwrap();
         let revision = legacy["desktop"]["revision"].as_str().unwrap();
         if !old.join("active.json").exists() && old.join(revision).join(".complete").is_file() {
             fs::write(old.join("active.json"), serde_json::to_vec(&legacy).unwrap())?;
@@ -80,15 +80,15 @@ pub fn initialize(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Erro
     let bundled = app
         .path()
         .resource_dir()?
-        .join("s1-runtime/patter-intelligence");
+        .join("patter-runtime/patter-intelligence");
     let executable = if cfg!(debug_assertions) && !bundled.is_file() {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../native/s1-mini/dist/patter-intelligence")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../native/patter-intelligence/dist/patter-intelligence")
     } else {
         bundled
     };
     migrate_nano_cache(&app.path().app_data_dir()?.join("models"))?;
     let _ = PATHS.set(Paths {
-        kind: BuiltInModel::S1Mini,
+        kind: BuiltInModel::Patter1Nano,
         model: app.path().app_data_dir()?.join("models"),
         executable,
     });
@@ -104,9 +104,7 @@ fn paths_for_manifest(model: BuiltInModel, manifest: &Manifest) -> Result<Paths,
         .clone();
     p.kind = model;
     p.model = p.model.join(model.directory());
-    if model == BuiltInModel::Patter1Nano {
-        p.model = p.model.join("mlx-4bit");
-    }
+    p.model = p.model.join("mlx-4bit");
     p.model = p.model.join(&manifest.revision);
     Ok(p)
 }
@@ -162,8 +160,8 @@ pub fn status(model: BuiltInModel) -> Result<Status, String> {
             && p.executable.with_file_name("mlx.metallib").is_file(),
         downloading: DOWNLOADING.load(Ordering::Relaxed) != 0,
         downloading_model: match DOWNLOADING.load(Ordering::Relaxed) {
-            1 => Some(BuiltInModel::S1Mini),
             2 => Some(BuiltInModel::Patter1Nano),
+            3 => Some(BuiltInModel::Patter1Mini),
             _ => None,
         },
         download_bytes: manifest(model).files.iter().map(|f| f.size).sum(),
@@ -238,8 +236,8 @@ pub fn install_from(model: BuiltInModel, source: Option<&Path>) -> Result<(), St
         .compare_exchange(
             0,
             match model {
-                BuiltInModel::S1Mini => 1,
                 BuiltInModel::Patter1Nano => 2,
+                BuiltInModel::Patter1Mini => 3,
             },
             Ordering::AcqRel,
             Ordering::Relaxed,
@@ -252,14 +250,10 @@ pub fn install_from(model: BuiltInModel, source: Option<&Path>) -> Result<(), St
     PROGRESS.store(0, Ordering::Relaxed);
     let p = paths(model)?;
     if !p.executable.is_file() {
-        return Err("The built-in runtime is missing. Reinstall Patter or run npm run build:s1 in development.".into());
+        return Err("The built-in runtime is missing. Reinstall Patter or run npm run build:intelligence in development.".into());
     }
     install_into_from(model, &p.model, source)
         .map_err(|e| format!("{} installation failed: {e}", model.name()))
-}
-#[cfg(test)]
-fn install_into(model: BuiltInModel, dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    install_into_from(model, dir, None)
 }
 fn install_into_from(
     model: BuiltInModel,
@@ -302,18 +296,18 @@ fn download_manifest(
                     let legacy = m.base_url.as_deref().is_some_and(|url| url.contains("/patter-flash-"));
                     let notice: &'static [u8] = match f.name.as_str() {
                         "GEMMA-TERMS.txt" => {
-                            include_bytes!("../../native/s1-mini/flash-notices/GEMMA-TERMS.txt")
+                            include_bytes!("../../native/patter-intelligence/flash-notices/GEMMA-TERMS.txt")
                         }
                         "GEMMA-PROHIBITED-USE-POLICY.txt" => include_bytes!(
-                            "../../native/s1-mini/flash-notices/GEMMA-PROHIBITED-USE-POLICY.txt"
+                            "../../native/patter-intelligence/flash-notices/GEMMA-PROHIBITED-USE-POLICY.txt"
                         ),
                         "NOTICE.txt" => {
-                            if legacy { include_bytes!("../../native/s1-mini/flash-notices/NOTICE.txt") }
-                            else { include_bytes!("../../native/s1-mini/nano-notices/NOTICE.txt") }
+                            if legacy { include_bytes!("../../native/patter-intelligence/flash-notices/NOTICE.txt") }
+                            else { include_bytes!("../../native/patter-intelligence/nano-notices/NOTICE.txt") }
                         }
                         "MODEL_CARD.md" => {
-                            if legacy { include_bytes!("../../native/s1-mini/flash-notices/MODEL_CARD.md") }
-                            else { include_bytes!("../../native/s1-mini/nano-baseline-MODEL_CARD.md") }
+                            if legacy { include_bytes!("../../native/patter-intelligence/flash-notices/MODEL_CARD.md") }
+                            else { include_bytes!("../../native/patter-intelligence/nano-baseline-MODEL_CARD.md") }
                         }
                         _ => return Err(format!("Missing model file: {}", f.name).into()),
                     };
@@ -452,14 +446,7 @@ fn check_wait(deadline: Instant, cancelled: &impl Fn() -> bool) -> Result<(), St
     }
     Ok(())
 }
-#[derive(Debug, Serialize, PartialEq)]
-struct Controls {
-    styling: &'static str,
-    structure: &'static str,
-    context: &'static str,
-    skip: bool,
-}
-fn controls(settings: &crate::db::Settings, app: Option<&str>) -> Controls {
+fn preserve_verbatim(settings: &crate::db::Settings, app: Option<&str>) -> bool {
     let app = app.unwrap_or("").to_lowercase();
     let prompt = crate::inference::app_profile(settings, &app)
         .map(|p| p.prompt.to_lowercase())
@@ -483,50 +470,9 @@ fn controls(settings: &crate::db::Settings, app: Option<&str>) -> Controls {
     ]
     .iter()
     .any(|p| prompt.contains(p));
-    // Translate only the supported presentation hints, not arbitrary instructions.
-    let positive = prompt
-        .split(['.', ';', '\n'])
-        .filter(|clause| {
-            !["do not", "don't", "never", "not be", "not use", "no "]
-                .iter()
-                .any(|n| clause.contains(n))
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
-    let email = positive.contains("email") || has_app(&["mail", "outlook", "spark"]);
-    let chat = has_app(&["slack", "discord", "messages", "whatsapp", "teams"]);
-    let lists_denied = prompt.contains("no lists")
-        || prompt.contains("not use lists")
-        || prompt.contains("no bullet")
-        || prompt.contains("not use markdown lists")
-        || positive.contains("prose");
-    Controls {
-        styling: if positive.contains("lowercase") || positive.contains("lower case") {
-            "casual"
-        } else if positive.contains("casual") || positive.contains("informal") {
-            "semi-casual"
-        } else if positive.contains("formal") {
-            "formal"
-        } else if chat {
-            "semi-casual"
-        } else if email {
-            "formal"
-        } else {
-            "semi-formal"
-        },
-        structure: if !lists_denied
-            && (positive.contains("bullet")
-                || positive.contains("list")
-                || has_app(&["obsidian", "notes", "notion"]))
-        {
-            "lists"
-        } else {
-            "prose"
-        },
-        context: if email { "email" } else { "general" },
-        skip,
-    }
+    skip
 }
+
 fn request(
     settings: &crate::db::Settings,
     text: &str,
@@ -534,14 +480,10 @@ fn request(
     app: Option<&str>,
 ) -> serde_json::Value {
     let _ = extra; // Retrieved context is not part of either model's trained cleanup input.
-    if settings.built_in_model == BuiltInModel::Patter1Nano {
         let instruction = crate::inference::app_profile(settings, app.unwrap_or(""))
             .map(|p| p.prompt.as_str()).filter(|p| !p.trim().is_empty())
             .unwrap_or("Clean the dictation. Format clock times using digits and preserve any stated am or pm. Preserve names and version numbers.");
-        return serde_json::json!({"text": text, "instruction": instruction});
-    }
-    let c = controls(settings, app);
-    serde_json::json!({"text":text,"styling":c.styling,"structure":c.structure,"context":c.context})
+    serde_json::json!({"text": text, "instruction": instruction})
 }
 pub fn cleanup(
     settings: &crate::db::Settings,
@@ -553,7 +495,7 @@ pub fn cleanup(
 ) -> Result<String, String> {
     let model = settings.built_in_model;
     require_supported()?;
-    if controls(settings, app_name).skip {
+    if preserve_verbatim(settings, app_name) {
         return Ok(text.to_owned());
     }
     if settings.language != "en" {
@@ -607,13 +549,7 @@ pub fn cleanup(
                 partial(text);
             }
             if let Some(text) = event["done"].as_str() {
-                return Ok(if model == BuiltInModel::S1Mini {
-                    text.replace("[EMPTY]", "")
-                } else {
-                    text.to_owned()
-                }
-                .trim()
-                .to_owned());
+                return Ok(text.trim().to_owned());
             }
         }
     })();
@@ -638,6 +574,26 @@ pub fn shutdown() {
 mod tests {
     use super::*;
     #[test]
+    fn mini_identity_manifest_and_instruction_contract() {
+        let model: BuiltInModel = serde_json::from_str("\"patter-1-mini\"").unwrap();
+        assert_eq!(model, BuiltInModel::Patter1Mini);
+        assert_eq!(serde_json::to_string(&model).unwrap(), "\"patter-1-mini\"");
+        assert_ne!(model.directory(), BuiltInModel::Patter1Nano.directory());
+        let m = manifest(model);
+        assert!(m.repo.is_empty());
+        assert_eq!(m.base_url.as_deref(), Some("https://github.com/srikark283/patter/releases/download/patter-1-mini-7294d1a1274c"));
+        for notice in ["LICENSE.txt", "NOTICE.txt", "MODEL_CARD.md"] {
+            assert!(m.files.iter().any(|f| f.name == notice));
+        }
+        assert!(m.files.iter().all(|f| f.sha256.len() == 64 && f.size > 0));
+        assert!(m.files.iter().any(|f| f.name == "model.safetensors" && f.size > 0));
+        let settings = crate::db::Settings { built_in_model: model, ..Default::default() };
+        let input = request(&settings, "hello", None, None);
+        assert_eq!(input["text"], "hello");
+        assert!(input["instruction"].as_str().is_some());
+        assert!(input.get("styling").is_none());
+    }
+    #[test]
     fn nano_migrates_legacy_selection_and_cache_without_losing_revision() {
         let mut old = serde_json::to_value(crate::db::Settings::default()).unwrap();
         old["built_in_model"] = "patter_flash".into();
@@ -645,10 +601,10 @@ mod tests {
         assert_eq!(settings.built_in_model, BuiltInModel::Patter1Nano);
         let saved = serde_json::to_value(settings).unwrap();
         assert_eq!(saved["built_in_model"], "patter-1-nano");
-        old["built_in_model"] = "patter-1-mini".into();
+        old["built_in_model"] = "unknown-future-model".into();
         assert!(crate::inference::load_settings(&old.to_string()).is_err());
         let root = std::env::temp_dir().join(format!("nano-migration-{}", std::process::id()));
-        let legacy: serde_json::Value = serde_json::from_str(include_str!("../../native/s1-mini/flash-channel-v1.json")).unwrap();
+        let legacy: serde_json::Value = serde_json::from_str(include_str!("../../native/patter-intelligence/flash-channel-v1.json")).unwrap();
         let revision = legacy["desktop"]["revision"].as_str().unwrap();
         let old = root.join("patter-flash").join(revision);
         fs::create_dir_all(&old).unwrap();
@@ -693,7 +649,7 @@ mod tests {
         assert_eq!(restored.built_in_model, BuiltInModel::Patter1Nano);
         assert_ne!(
             BuiltInModel::Patter1Nano.directory(),
-            BuiltInModel::S1Mini.directory()
+            BuiltInModel::Patter1Mini.directory()
         );
     }
 
@@ -707,10 +663,6 @@ mod tests {
         let m = manifest(BuiltInModel::Patter1Nano);
         assert_eq!(model_file_url(&m, "model.safetensors"), "https://github.com/srikark283/patter/releases/download/patter-1-nano-80f6f5c1b8be/model.safetensors");
         assert!(m.files.iter().any(|f| f.name == "GEMMA-TERMS.txt"));
-        let s1 = manifest(BuiltInModel::S1Mini);
-        assert!(
-            model_file_url(&s1, "config.json").starts_with("https://huggingface.co/mlx-community/")
-        );
         fs::write(source.join("README.md"), "wrong export").unwrap();
         assert!(install_into_from(BuiltInModel::Patter1Nano, &target, Some(&source)).is_err());
         assert!(!installed_at(BuiltInModel::Patter1Nano, &target));
@@ -720,7 +672,7 @@ mod tests {
 
     /// Downloads or imports the pinned export and runs it without app settings changes.
     #[test]
-    #[ignore = "requires Apple Silicon, npm run build:s1, and network or PATTER_NANO_SOURCE"]
+    #[ignore = "requires Apple Silicon, npm run build:intelligence, and network or PATTER_NANO_SOURCE"]
     fn nano_bundled_runtime_smoke() {
         let _serial = WORKER.lock().unwrap_or_else(|e| e.into_inner());
         let source = std::env::var_os("PATTER_NANO_SOURCE").map(PathBuf::from);
@@ -733,13 +685,59 @@ mod tests {
             kind: BuiltInModel::Patter1Nano,
             model: dir.clone(),
             executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../native/s1-mini/dist/patter-intelligence"),
+                .join("../native/patter-intelligence/dist/patter-intelligence"),
         };
         let mut worker = Worker::start(&p).unwrap();
         let deadline = Instant::now() + Duration::from_secs(180);
         assert!(worker.event(deadline, &|| false).unwrap()["ready"].is_string());
         let settings = crate::db::Settings {
             built_in_model: BuiltInModel::Patter1Nano,
+            ..Default::default()
+        };
+        for input in [
+            "um please send the report tomorrow",
+            "I cannot deploy version 2.4.1 until Thursday.",
+        ] {
+            writeln!(worker.stdin, "{}", request(&settings, input, None, None)).unwrap();
+            worker.stdin.flush().unwrap();
+            loop {
+                let event = worker.event(deadline, &|| false).unwrap();
+                if let Some(done) = event["done"].as_str() {
+                    println!("{input:?} -> {done:?}");
+                    assert!(!done.is_empty());
+                    if input.contains("2.4.1") {
+                        assert!(done.contains("2.4.1"));
+                        assert!(done.contains("cannot") || done.contains("can't"));
+                    }
+                    break;
+                }
+            }
+        }
+        drop(worker);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires Apple Silicon, npm run build:intelligence, and network or PATTER_MINI_SOURCE"]
+    fn mini_bundled_runtime_smoke() {
+        let _serial = WORKER.lock().unwrap_or_else(|e| e.into_inner());
+        let source = std::env::var_os("PATTER_MINI_SOURCE").map(PathBuf::from);
+        let dir = std::env::temp_dir()
+            .join("patter-1-mini-smoke")
+            .join(manifest(BuiltInModel::Patter1Mini).revision);
+        install_into_from(BuiltInModel::Patter1Mini, &dir, source.as_deref()).unwrap();
+        assert!(installed_at(BuiltInModel::Patter1Mini, &dir));
+        let p = Paths {
+            kind: BuiltInModel::Patter1Mini,
+            model: dir.clone(),
+            executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../native/patter-intelligence/dist/patter-intelligence"),
+        };
+        let mut worker = Worker::start(&p).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(180);
+        assert!(worker.event(deadline, &|| false).unwrap()["ready"].is_string());
+        let settings = crate::db::Settings {
+            built_in_model: BuiltInModel::Patter1Mini,
             ..Default::default()
         };
         for input in [
@@ -806,24 +804,6 @@ mod tests {
         assert!(validate_settings(&settings).is_ok());
     }
     #[test]
-    fn download_manifest_is_pinned_and_complete() {
-        let m = manifest(BuiltInModel::S1Mini);
-        assert_eq!(m.revision.len(), 40);
-        assert!(m.files.iter().any(|f| f.name == "LICENSE"));
-        assert!(m
-            .files
-            .iter()
-            .any(|f| f.name == "model.safetensors" && f.size > 300_000_000));
-        assert!(m
-            .files
-            .iter()
-            .all(|f| f.sha256.len() == 64 && !f.name.contains('/')));
-        assert!(!installed_at(
-            BuiltInModel::S1Mini,
-            Path::new("/nonexistent/patter-intelligence-test")
-        ));
-    }
-    #[test]
     fn waiting_honors_cancellation_and_deadline() {
         assert_eq!(
             check_wait(Instant::now() + Duration::from_secs(10), &|| true).unwrap_err(),
@@ -833,104 +813,12 @@ mod tests {
     }
 
     #[test]
-    fn app_profiles_choose_supported_controls_and_protect_code() {
+    fn code_and_terminal_dictation_remain_verbatim() {
         let mut settings = crate::db::Settings::default();
-        settings.app_profiles = vec![crate::db::AppProfile {
-            app: "Review Tool, My Mail".into(),
-            prompt: "Use a formal email with bullet points.".into(),
-        }];
-        let email = controls(&settings, Some("Review Tool"));
-        assert_eq!(
-            (email.styling, email.structure, email.context),
-            ("formal", "lists", "email")
-        );
-        let chat = controls(&settings, Some("Slack"));
-        assert_eq!(chat.styling, "semi-casual");
-        settings.app_profiles.push(crate::db::AppProfile {
-            app: "Slack".into(),
-            prompt: "Use a formal tone.".into(),
-        });
-        assert_eq!(controls(&settings, Some("Slack")).styling, "formal");
-        assert_eq!(controls(&settings, Some("Obsidian")).structure, "lists");
-        assert!(controls(&settings, Some("Visual Studio Code")).skip);
-        assert!(controls(&settings, Some("Ghostty")).skip);
-        settings.app_profiles[0].prompt = "Do not use lists. Do not be formal.".into();
-        assert_eq!(controls(&settings, Some("Review Tool")).structure, "prose");
-        assert_eq!(
-            controls(&settings, Some("Review Tool")).styling,
-            "semi-formal"
-        );
-    }
-    #[test]
-    fn s1_keeps_its_training_contract_and_ignores_free_form_prompts() {
-        let settings = crate::db::Settings::default();
-        let req = request(&settings, "raw words", Some("Write a story"), Some("Mail"));
-        assert_eq!(req["context"], "email");
-        assert!(req.get("messages").is_none());
-        assert_eq!(req["text"], "raw words");
-    }
-    /// Downloads pinned weights and exercises the relocated bundled executable.
-    #[test]
-    #[ignore = "requires Apple Silicon, npm run build:s1, and a 347 MB download"]
-    fn bundled_runtime_smoke() {
-        let _serial = WORKER.lock().unwrap_or_else(|e| e.into_inner());
-        let dir = std::env::temp_dir()
-            .join("patter-intelligence-smoke")
-            .join(manifest(BuiltInModel::S1Mini).revision);
-        install_into(BuiltInModel::S1Mini, &dir).unwrap();
-        assert!(installed_at(BuiltInModel::S1Mini, &dir));
-        let p = Paths {
-            kind: BuiltInModel::S1Mini,
-            model: dir,
-            executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../native/s1-mini/dist/patter-intelligence"),
-        };
-        let mut worker = Worker::start(&p).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(90);
-        assert!(worker.event(deadline, &|| false).unwrap()["ready"].is_string());
-        for (input, expected) in [
-            (
-                "so um send the report by friday no wait thursday",
-                "thursday",
-            ),
-            ("um", ""),
-        ] {
-            let request = serde_json::json!({"text":input,"styling":"semi-formal","structure":"prose","context":"general"});
-            writeln!(worker.stdin, "{request}").unwrap();
-            worker.stdin.flush().unwrap();
-            loop {
-                let event = worker.event(deadline, &|| false).unwrap();
-                if let Some(done) = event["done"].as_str() {
-                    println!("{input:?} -> {done:?}");
-                    if expected.is_empty() {
-                        assert_eq!(done, "");
-                    } else {
-                        assert!(done.to_lowercase().contains(expected));
-                        assert!(!done.to_lowercase().contains("friday"));
-                    }
-                    break;
-                }
-            }
-        }
-
-        let long = include_str!("../../native/s1-mini/Tests/long-transcript.txt");
-        let req = request(&crate::db::Settings::default(), long, None, None);
-        writeln!(worker.stdin, "{req}").unwrap();
-        worker.stdin.flush().unwrap();
-        let mut chunks = 0;
-        loop {
-            let event = worker.event(deadline, &|| false).unwrap();
-            if let Some(count) = event["chunks"].as_str() {
-                chunks = count.parse::<usize>().unwrap();
-            }
-            if let Some(done) = event["done"].as_str() {
-                assert!(chunks > 1);
-                assert!(done.to_lowercase().contains("neptune"));
-                println!("S1 long transcript cleaned in {chunks} chunks");
-                break;
-            }
-        }
-        shutdown();
-        assert!(worker.event(deadline, &|| false).is_err());
+        assert!(preserve_verbatim(&settings, Some("Visual Studio Code")));
+        assert!(preserve_verbatim(&settings, Some("Ghostty")));
+        assert!(!preserve_verbatim(&settings, Some("Mail")));
+        settings.app_profiles.push(crate::db::AppProfile { app: "Review Tool".into(), prompt: "Keep output verbatim.".into() });
+        assert!(preserve_verbatim(&settings, Some("Review Tool")));
     }
 }

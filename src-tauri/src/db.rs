@@ -123,7 +123,7 @@ fn default_auto_update() -> bool {
 pub struct AppProfile {
     /// Case-insensitive substring of the app name ("slack", "mail").
     pub app: String,
-    /// Cleanup instruction: full text for instruction models, supported controls for S1-mini.
+    /// Cleanup instruction supplied to the selected Patter model.
     pub prompt: String,
 }
 

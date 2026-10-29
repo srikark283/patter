@@ -13,6 +13,11 @@ struct NanoPromptCheck {
         assert(payload.hasPrefix("{\"trusted_instruction\": \"Clean the dictation.\", \"transcript\": "))
         let decoded = try JSONSerialization.jsonObject(with: Data(payload.utf8)) as! [String: String]
         assert(decoded == ["trusted_instruction": instruction, "transcript": text])
-        print("Nano prompt checks passed: Gemma user turn, training field order, Unicode, escaping, and transcript isolation.")
+        let mini = try nanoMessages(text: text, instruction: instruction, separateSystem: true)
+        assert(mini.count == 2 && mini[0] == ["role": "system", "content": nanoSystemPrompt])
+        assert(mini[1]["role"] == "user")
+        let miniPayload = try JSONSerialization.jsonObject(with: Data(mini[1]["content"]!.utf8)) as! [String: String]
+        assert(miniPayload == decoded)
+        print("Nano and mini prompt checks passed: Gemma user turn, training field order, Unicode, escaping, and transcript isolation.")
     }
 }

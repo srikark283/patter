@@ -6,7 +6,7 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 
 ### Dictation
 - **On-device transcription** — Whisper (OpenAI) and Parakeet (Nvidia), Metal/GPU-accelerated. Six models from 78 MB to 1.6 GB; pick fast or accurate per your hardware.
-- **AI cleanup** — Built-in S1-mini by Superwhisper on Apple Silicon, or a local Ollama model, cleans up dictation before the text is typed. Silence and noise trimmed by on-device VAD (Silero) first.
+- **AI cleanup** — Built-in Patter models on Apple Silicon, or a local Ollama model, cleans up dictation before the text is typed. Silence and noise trimmed by on-device VAD (Silero) first.
 - **App-aware profiles** — Patter knows which app is frontmost and applies per-app cleanup rules (casual for Slack, verbatim for code editors, formal for Mail, and so on).
 - **Push-to-talk or toggle** — hold the hotkey to record and release to transcribe, or press once to start/stop. Works with modifier-only keys (e.g. right Option) or full combos.
 - **Two output modes** — instant paste (clipboard + simulated paste) or simulated typing (keystroke-by-keystroke, for remote desktops).
@@ -21,7 +21,7 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 
 ### Personalization
 - **Personal memory** — teach Patter facts about you, your projects, and your jargon; it uses them (via local embeddings) to get names and terms right.
-- **Dictionary** — a custom vocabulary list for names, acronyms, and slang. Spelling corrections run before cleanup and again on the final result with either S1-mini or Ollama. Whisper also receives vocabulary hints, and Ollama receives the terms as cleanup context. Corrections still work with cleanup off.
+- **Dictionary** — a custom vocabulary list for names, acronyms, and slang. Spelling corrections run before cleanup and again on the final result with either Patter models or Ollama. Whisper also receives vocabulary hints, and Ollama receives the terms as cleanup context. Corrections still work with cleanup off.
 - **Learns from your edits** — correct a transcript in History and Patter offers to remember the preferred spelling and the misheard variants. Approved variants become exact word or phrase replacements across speech models, with or without cleanup. Click a Dictionary term to edit its spelling and corrections. It proposes, never adds on its own.
 - **Voice macros** — say a short trigger phrase, get a whole block of text expanded automatically (addresses, sign-offs, boilerplate).
 
@@ -127,68 +127,34 @@ the difference. Note hardware, selected models, whisper mode, and silence trimmi
 
 - **Core**: Rust (Tauri) for audio capture (`cpal`), global hotkeys and keyboard/accessibility APIs (a local `rdev` fork plus `enigo`), and local transcription (`whisper-rs`, `sherpa-onnx` for Parakeet and diarization).
 - **Frontend**: React + Vite + Tailwind for the dashboard and the floating HUD, communicating with the Rust backend over Tauri's IPC.
-- **LLM pipeline**: built-in MLX S1-mini for English dictation cleanup on Apple Silicon; Ollama for general cleanup, meeting summaries, commands, and memory embeddings. No cloud APIs, no accounts.
+- **LLM pipeline**: built-in MLX Patter models for English dictation cleanup on Apple Silicon; Ollama for general cleanup, meeting summaries, commands, and memory embeddings. No cloud APIs, no accounts.
 
 ### Built-in cleanup (Apple Silicon)
 
-Choose **Dictation Cleanup Provider → Built-in → S1-mini**, then click
-**Download & enable S1-mini**. Setup downloads 347 MB of pinned, checksum-verified
-weights, loads the model, sets transcription to English, and enables cleanup.
-Existing cleanup settings stay active until setup succeeds. Failed downloads can
-be retried; verified files are reused. After setup, cleanup works offline.
+Choose **Intelligence → Dictation → patter-1-nano or patter-1-mini**.
+Both accept app-profile instructions for English cleanup on Apple Silicon with
+macOS 14 or newer. Code and terminal dictation stays verbatim. Personal memory,
+meeting notes, voice commands, and embeddings continue to use Ollama.
 
-S1-mini by Superwhisper is offered as a **beta** on Apple Silicon with macOS 14+.
-Unsupported devices retain Ollama. Missing weights, missing runtime files, and
-non-English settings cannot activate built-in cleanup. Disable cleanup or switch
-to Ollama before selecting another transcription language.
+Nano downloads pinned, checksum-verified weights. Mini downloads its pinned 4-bit MLX release from GitHub. See
+[native integration](native/patter-intelligence/MINI.md) for setup and release details.
+Installation loads the model before changing cleanup settings. Failed setup
+keeps the previous configuration. Once installed, inference works offline.
 
-Patter maps the active app and existing App Profile to supported tone, list, and
-email hints. Chat apps use a conversational style; email apps use email layout;
-notes apps permit lists. Terminal/code apps and profiles requesting verbatim
-output bypass normalization. Free-form instructions and personal memory require
-Ollama. Dictionary corrections still apply with either provider. Meetings, voice
-commands, and memory embedding generation use Ollama.
+Both models split transcripts into conservative 256-token chunks and preserve
+the original transcript if cleanup fails, is cancelled, or is truncated. Preview
+results under **Try your text**. Input is limited to 128 KB. Nano uses its Gemma
+user-turn training contract; mini uses Qwen system/user messages.
 
-Use **Try a transcript** to preview cleanup and an App Profile without dictating
-into another app. Long transcripts are split with S1-mini's tokenizer into chunks
-of at most 384 tokens, preferring sentence boundaries. Supported app hints apply
-to every chunk; formatting across chunks can vary. Only successfully completed
-output is pasted. Cancellation kills the worker; a failed or truncated chunk
-retains the original transcript. The input limit is 128 KB.
+Retired model selections migrate to nano with built-in cleanup disabled until
+setup is completed. Ollama selections and unrelated preferences are preserved.
 
-Existing S1-mini downloads and Ollama selections are preserved. Retired built-in
-model selections migrate to S1-mini with cleanup disabled until setup completes.
-Beta/RC release tags (for example, `v0.4.16-beta.1`) publish as GitHub prereleases,
-so the stable updater continues using the latest stable release.
-
-See [release checks](docs/s1-mini-release-checks.md) for validation results and
-remaining device/distribution checks before release.
-
-For development, install full Xcode (Swift 6.2+) and its Metal toolchain:
+Build the shared Patter helper with full Xcode and the Metal toolchain:
 
 ```bash
 xcodebuild -downloadComponent MetalToolchain
-npm run tauri dev
+npm run build:intelligence
 ```
-
-patter-1-nano is available under **Intelligence → Built-in → patter-1-nano**.
-Click **Download & enable patter-1-nano** to install the pinned model from the
-[patter-1-nano model release](https://github.com/srikark283/patter/releases).
-The app verifies each file's size and SHA-256, resumes verified files on retry,
-and loads the model before changing cleanup settings. S1-mini remains available;
-selecting a model previews setup until you enable it. Both currently require
-English on Apple Silicon with macOS 14 or newer. The download includes the
-Gemma terms, prohibited-use policy, and modification notices; these terms govern
-the model weights separately from Patter's application source license.
-
-patter-1-nano uses its fine-tuning contract: the cleanup policy and a JSON payload with
-`trusted_instruction` and `transcript` in a Gemma user turn. App Profiles provide
-the trusted instruction, with the training project's default app policy used
-otherwise. Personal memory remains an Ollama feature. Code and terminal dictation
-stays verbatim. patter-1-nano uses 256-token transcript chunks; S1-mini keeps its
-384-token chunks. Failed, cancelled, or truncated cleanup retains the original
-transcript. patter-1-nano is currently best suited to short dictation: the longer native
-regression sample still reaches the generation limit and retains its original text.
 
 patter-1-nano can receive compatible weights-only updates through a shared channel at
 `https://raw.githubusercontent.com/srikark283/patter/model-channel/models/patter-1-nano/stable.json`.
@@ -220,11 +186,11 @@ bundled v1 fallback. Model weights stay outside Git and app installers. GitHub
 model prereleases do not change the stable app updater. The current smoke checks
 verify loadability and basic preservation, not broad cleanup quality.
 
-`tauri dev` builds the helper automatically (`npm run build:s1` builds it alone).
+`tauri dev` builds the helper automatically (`npm run build:intelligence` builds it alone).
 `tauri build` packages the helper, Metal library, Swift compatibility libraries,
 and license notices. Model weights are downloaded inside the app. Revisions and
-checksums are recorded in `native/s1-mini/model.json`;
-Swift dependencies are locked in `native/s1-mini/Package.resolved`.
+checksums are recorded in `native/patter-intelligence/model.json`;
+Swift dependencies are locked in `native/patter-intelligence/Package.resolved`.
 
 The helper builds MLX with `MLX_METAL_NO_NAX` so it uses standard Metal GPU
 kernels on both physical and virtualized Macs. This avoids unsupported
@@ -233,19 +199,13 @@ cooperative-tensor kernels on CI runners; the hardware smoke test remains enable
 The model-free chunking regression check:
 
 ```bash
-xcrun swiftc native/s1-mini/Sources/PatterS1/TranscriptChunks.swift native/s1-mini/Tests/ChunkingCheck.swift -o /tmp/patter-chunk-check
+xcrun swiftc native/patter-intelligence/Sources/PatterIntelligence/TranscriptChunks.swift native/patter-intelligence/Tests/ChunkingCheck.swift -o /tmp/patter-chunk-check
 /tmp/patter-chunk-check
 ```
 
-The hardware integration test downloads S1-mini to a temporary cache and checks
-cleanup, filler removal, long input, and worker shutdown:
-
-```bash
-cargo test --manifest-path src-tauri/Cargo.toml s1::tests -- --include-ignored --nocapture
-```
-
-Model license texts are retained in `native/s1-mini/licenses/` and bundled with
-the helper. MLX conversions are provided by mlx-community.
+Hardware smoke tests for each Patter model live under `built_in::tests`.
+Mini requires `PATTER_MINI_SOURCE`; nano can download its pinned release.
+Model notices and linked Swift dependency licenses are bundled with the helper.
 
 `patter-1-nano` is the canonical model identity in settings, releases, and caches.
 The v2 channel lives at `models/patter-1-nano/stable.json` on `model-channel`.

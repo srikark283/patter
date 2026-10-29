@@ -5,11 +5,11 @@ import { fileURLToPath } from "node:url";
 
 // The Windows app keeps Ollama; MLX is an optional Apple Silicon provider.
 if (process.platform !== "darwin") process.exit(0);
-if (process.arch !== "arm64") throw new Error("Build the S1-mini helper on Apple Silicon");
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../native/s1-mini");
+if (process.arch !== "arm64") throw new Error("Build the Patter intelligence helper on Apple Silicon");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../native/patter-intelligence");
 // NAX cooperative-tensor kernels fail on virtualized Metal devices; use MLX's
 // standard GPU kernels for the same compatible runtime in CI and shipped apps.
-execFileSync("xcodebuild", ["-scheme", "PatterS1", "-configuration", "Release", "-destination", "platform=macOS,arch=arm64", "-derivedDataPath", join(root, ".build/xcode"), "CODE_SIGNING_ALLOWED=NO", "OTHER_CPLUSPLUSFLAGS=$(inherited) -DMLX_METAL_NO_NAX", "build"], { cwd: root, stdio: "inherit" });
+execFileSync("xcodebuild", ["-scheme", "PatterIntelligence", "-configuration", "Release", "-destination", "platform=macOS,arch=arm64", "-derivedDataPath", join(root, ".build/xcode"), "CODE_SIGNING_ALLOWED=NO", "OTHER_CPLUSPLUSFLAGS=$(inherited) -DMLX_METAL_NO_NAX", "build"], { cwd: root, stdio: "inherit" });
 const bin = join(root, ".build/xcode/Build/Products/Release");
 const dist = join(root, "dist");
 rmSync(dist, { recursive: true, force: true });
@@ -18,7 +18,7 @@ copyFileSync(join(bin, "patter-intelligence"), join(dist, "patter-intelligence")
 const metal = [join(bin, "mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib"), join(bin, "mlx-swift_Cmlx.bundle/default.metallib")].find(existsSync);
 if (!metal) throw new Error("MLX Metal library missing. Install the Xcode Metal toolchain.");
 copyFileSync(metal, join(dist, "mlx.metallib"));
-cpSync(join(root, "licenses"), join(dist, "licenses"), { recursive: true });
+mkdirSync(join(dist, "licenses"), { recursive: true });
 // Retain license notices for the statically linked Swift dependencies.
 for (const { name } of readdirSync(join(root, ".build/xcode/SourcePackages/checkouts"), { withFileTypes: true }).filter(entry => entry.isDirectory())) {
   const checkout = join(root, ".build/xcode/SourcePackages/checkouts", name);
@@ -32,4 +32,4 @@ execFileSync("xcrun", ["swift-stdlib-tool", "--copy", "--scan-executable", join(
 for (const file of readdirSync(dist).filter(f => f.endsWith(".original"))) rmSync(join(dist, file));
 execFileSync("install_name_tool", ["-add_rpath", "@executable_path", join(dist, "patter-intelligence")]);
 execFileSync("codesign", ["--force", "--sign", process.env.APPLE_SIGNING_IDENTITY || "-", join(dist, "patter-intelligence")], { stdio: "inherit" });
-console.log("Bundled S1-mini runtime:", dist);
+console.log("Bundled Patter intelligence runtime:", dist);

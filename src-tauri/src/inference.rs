@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub enum CleanupProvider {
     #[default]
     Ollama,
-    #[serde(alias = "s1_mini", alias = "patter")]
+    #[serde(alias = "patter")]
     BuiltIn,
 }
 
@@ -14,10 +14,10 @@ pub enum CleanupProvider {
 #[serde(rename_all = "snake_case")]
 pub enum BuiltInModel {
     #[default]
-    #[serde(alias = "qwen3_4b", alias = "qwen3_1_7b")]
-    S1Mini,
     #[serde(rename = "patter-1-nano", alias = "patter_flash")]
     Patter1Nano,
+    #[serde(rename = "patter-1-mini")]
+    Patter1Mini,
 }
 
 pub fn cleanup(
@@ -41,7 +41,7 @@ pub fn cleanup(
             cancelled,
         ),
         CleanupProvider::BuiltIn => {
-            crate::s1::cleanup(settings, text, extra, app_name, on_partial, cancelled)
+            crate::built_in::cleanup(settings, text, extra, app_name, on_partial, cancelled)
         }
     }?;
     // Cleanup may change a dictionary term's spelling or capitalization again.
@@ -55,15 +55,15 @@ pub fn cleanup(
 impl BuiltInModel {
     pub fn directory(self) -> &'static str {
         match self {
-            Self::S1Mini => "s1-mini",
             Self::Patter1Nano => "patter-1-nano",
+            Self::Patter1Mini => "patter-1-mini",
         }
     }
 
     pub fn name(self) -> &'static str {
         match self {
-            Self::S1Mini => "S1-mini",
             Self::Patter1Nano => "patter-1-nano",
+            Self::Patter1Mini => "patter-1-mini",
         }
     }
 }
@@ -71,13 +71,17 @@ impl BuiltInModel {
 /// Retire experimental models without discarding other preferences or silently
 /// activating a different model with different capabilities.
 pub fn load_settings(content: &str) -> Result<Settings, serde_json::Error> {
-    let value: serde_json::Value = serde_json::from_str(content)?;
+    let mut value: serde_json::Value = serde_json::from_str(content)?;
     let retired = matches!(
         value["built_in_model"].as_str(),
-        Some("qwen3_4b" | "qwen3_1_7b")
+        Some("s1_mini" | "qwen3_4b" | "qwen3_1_7b")
     );
+    let legacy_provider = value["cleanup_provider"] == "s1_mini";
+    let missing_model = value.get("built_in_model").is_none();
+    if legacy_provider { value["cleanup_provider"] = "built_in".into(); }
+    if retired { value["built_in_model"] = "patter-1-nano".into(); }
     let mut settings: Settings = serde_json::from_value(value)?;
-    if retired && settings.cleanup_provider == CleanupProvider::BuiltIn {
+    if (retired || legacy_provider || missing_model) && settings.cleanup_provider == CleanupProvider::BuiltIn {
         settings.llm_cleanup_enabled = false;
     }
     Ok(settings)
@@ -193,14 +197,16 @@ mod tests {
         ] {
             let mut value = serde_json::to_value(Settings::default()).unwrap();
             value["cleanup_provider"] = saved.into();
+            value["llm_cleanup_enabled"] = true.into();
             value["ollama_model"] = "my-local-model".into();
             value.as_object_mut().unwrap().remove("built_in_model");
             // Old manual controls are ignored rather than silently remaining active.
             value["s1_options"] =
                 serde_json::json!({"styling":"casual","structure":"lists","context":"email"});
-            let settings: Settings = serde_json::from_value(value).unwrap();
+            let settings = load_settings(&value.to_string()).unwrap();
             assert_eq!(settings.cleanup_provider, expected);
-            assert_eq!(settings.built_in_model, BuiltInModel::S1Mini);
+            assert_eq!(settings.llm_cleanup_enabled, expected == CleanupProvider::Ollama);
+            assert_eq!(settings.built_in_model, BuiltInModel::Patter1Nano);
             assert_eq!(settings.ollama_model.as_deref(), Some("my-local-model"));
             assert!(serde_json::to_value(settings)
                 .unwrap()
@@ -212,14 +218,14 @@ mod tests {
             "built_in"
         );
         assert_eq!(
-            serde_json::to_value(BuiltInModel::S1Mini).unwrap(),
-            "s1_mini"
+            serde_json::to_value(BuiltInModel::Patter1Nano).unwrap(),
+            "patter-1-nano"
         );
     }
 
     #[test]
     fn retired_models_require_setup_and_preserve_unrelated_preferences() {
-        for retired in ["qwen3_4b", "qwen3_1_7b"] {
+        for retired in ["s1_mini", "qwen3_4b", "qwen3_1_7b"] {
             let mut value = serde_json::to_value(Settings::default()).unwrap();
             value["cleanup_provider"] = "built_in".into();
             value["built_in_model"] = retired.into();
@@ -227,7 +233,7 @@ mod tests {
             value["ollama_model"] = "keep-my-model".into();
             value["language"] = "fr".into();
             let settings = load_settings(&value.to_string()).unwrap();
-            assert_eq!(settings.built_in_model, BuiltInModel::S1Mini);
+            assert_eq!(settings.built_in_model, BuiltInModel::Patter1Nano);
             assert!(!settings.llm_cleanup_enabled);
             assert_eq!(settings.ollama_model.as_deref(), Some("keep-my-model"));
             assert_eq!(settings.language, "fr");
@@ -264,7 +270,7 @@ mod tests {
     fn old_settings_still_select_ollama() {
         let mut value = serde_json::to_value(Settings::default()).unwrap();
         value.as_object_mut().unwrap().remove("cleanup_provider");
-        let settings: Settings = serde_json::from_value(value).unwrap();
+        let settings = load_settings(&value.to_string()).unwrap();
         assert_eq!(settings.cleanup_provider, CleanupProvider::Ollama);
     }
 

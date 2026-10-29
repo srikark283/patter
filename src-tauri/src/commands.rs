@@ -171,7 +171,7 @@ pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
 
 #[tauri::command]
 pub fn update_settings(app: tauri::AppHandle, settings: db::Settings) -> Result<(), String> {
-    crate::s1::validate_settings(&settings)?;
+    crate::built_in::validate_settings(&settings)?;
     crate::dictionary::validate_aliases(&settings.custom_prompt, &settings.dictionary_aliases)?;
     let state = app.state::<AppState>();
     
@@ -732,17 +732,17 @@ pub async fn get_app_icon(_app_name: String) -> Result<Vec<u8>, String> {
 }
 
 #[tauri::command]
-pub async fn s1_status(model: crate::inference::BuiltInModel) -> Result<crate::s1::Status, String> {
-    tauri::async_runtime::spawn_blocking(move || crate::s1::status(model)).await.map_err(|e| e.to_string())?
+pub async fn built_in_status(model: crate::inference::BuiltInModel) -> Result<crate::built_in::Status, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::built_in::status(model)).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub async fn install_s1(model: crate::inference::BuiltInModel) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || crate::s1::install(model)).await.map_err(|e| e.to_string())?
+pub async fn install_built_in_model(model: crate::inference::BuiltInModel) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::built_in::install(model)).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub async fn test_s1_cleanup(app: tauri::AppHandle, text: String, app_name: Option<String>, model: Option<crate::inference::BuiltInModel>) -> Result<String, String> {
+pub async fn test_built_in_cleanup(app: tauri::AppHandle, text: String, app_name: Option<String>, model: Option<crate::inference::BuiltInModel>) -> Result<String, String> {
     if text.trim().is_empty() || text.len() > 128000 {
         return Err("Enter a sample between 1 and 128,000 bytes".into());
     }
@@ -756,18 +756,18 @@ pub async fn test_s1_cleanup(app: tauri::AppHandle, text: String, app_name: Opti
 }
 
 #[tauri::command]
-pub async fn enable_s1(app: tauri::AppHandle, model: Option<crate::inference::BuiltInModel>, source: Option<String>) -> Result<db::Settings, String> {
+pub async fn enable_built_in_model(app: tauri::AppHandle, model: Option<crate::inference::BuiltInModel>, source: Option<String>) -> Result<db::Settings, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let model = model.unwrap_or_default();
-        let status = crate::s1::status(model)?;
+        let status = crate::built_in::status(model)?;
         if !status.supported { return Err("Built-in cleanup requires Apple Silicon and macOS 14 or newer".into()); }
         if !status.runtime_ready { return Err("The built-in runtime is missing. Reinstall Patter and retry.".into()); }
-        if !status.installed { crate::s1::install_from(model, source.as_deref().map(std::path::Path::new))?; }
+        if !status.installed { crate::built_in::install_from(model, source.as_deref().map(std::path::Path::new))?; }
         // Load the actual local model before enabling; settings stay unchanged on failure.
         let mut probe = db::Settings::default();
         probe.language = "en".into();
         probe.built_in_model = model;
-        crate::s1::cleanup(&probe, "", None, None, |_| {}, || false)?;
+        crate::built_in::cleanup(&probe, "", None, None, |_| {}, || false)?;
         let state = app.state::<AppState>();
         let mut current = state.settings.lock().map_err(|e| e.to_string())?;
         let mut next = current.clone();
@@ -775,7 +775,7 @@ pub async fn enable_s1(app: tauri::AppHandle, model: Option<crate::inference::Bu
         next.built_in_model = model;
         next.language = "en".into();
         next.llm_cleanup_enabled = true;
-        crate::s1::validate_settings(&next)?;
+        crate::built_in::validate_settings(&next)?;
         db::Db::new(&app).save_settings(&next).map_err(|e| format!("Could not save built-in setup: {e}"))?;
         *current = next.clone();
         Ok(next)
@@ -783,14 +783,14 @@ pub async fn enable_s1(app: tauri::AppHandle, model: Option<crate::inference::Bu
 }
 
 #[tauri::command]
-pub async fn check_nano_update() -> Result<crate::s1::updates::Check, String> {
-    tauri::async_runtime::spawn_blocking(crate::s1::updates::check).await.map_err(|e| e.to_string())?
+pub async fn check_nano_update() -> Result<crate::built_in::updates::Check, String> {
+    tauri::async_runtime::spawn_blocking(crate::built_in::updates::check).await.map_err(|e| e.to_string())?
 }
 #[tauri::command]
 pub async fn install_nano_update(version: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || crate::s1::updates::install(Some(version))).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || crate::built_in::updates::install(Some(version))).await.map_err(|e| e.to_string())?
 }
 #[tauri::command]
 pub async fn rollback_nano_update() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(crate::s1::updates::rollback).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(crate::built_in::updates::rollback).await.map_err(|e| e.to_string())?
 }

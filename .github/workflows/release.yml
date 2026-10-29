@@ -86,7 +86,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Install Metal compiler for the bundled S1-mini runtime
+      - name: Install Metal compiler for the bundled Patter intelligence runtime
         if: matrix.platform == 'macos-latest'
         run: xcodebuild -downloadComponent MetalToolchain
 
@@ -107,31 +107,27 @@ jobs:
         id: native-cache
         uses: actions/cache/restore@v4
         with:
-          path: native/s1-mini/.build/xcode
-          key: mlx-${{ runner.os }}-${{ runner.arch }}-${{ steps.native-toolchain.outputs.fingerprint }}-${{ hashFiles('native/s1-mini/Package.resolved') }}-${{ hashFiles('native/s1-mini/Package.swift', 'native/s1-mini/Sources/**', 'native/s1-mini/licenses/**', 'scripts/build-s1.mjs') }}
+          path: native/patter-intelligence/.build/xcode
+          key: mlx-${{ runner.os }}-${{ runner.arch }}-${{ steps.native-toolchain.outputs.fingerprint }}-${{ hashFiles('native/patter-intelligence/Package.resolved') }}-${{ hashFiles('native/patter-intelligence/Package.swift', 'native/patter-intelligence/Sources/**', 'native/patter-intelligence/licenses/**', 'scripts/build-intelligence.mjs') }}
           restore-keys: |
-            mlx-${{ runner.os }}-${{ runner.arch }}-${{ steps.native-toolchain.outputs.fingerprint }}-${{ hashFiles('native/s1-mini/Package.resolved') }}-
+            mlx-${{ runner.os }}-${{ runner.arch }}-${{ steps.native-toolchain.outputs.fingerprint }}-${{ hashFiles('native/patter-intelligence/Package.resolved') }}-
 
       # Tauri validates bundled resource paths even when compiling unit tests.
       # Always run Xcode's dependency checks, including after a cache restore.
-      - name: Build the bundled S1-mini runtime
+      - name: Build the bundled Patter intelligence runtime
         if: matrix.platform == 'macos-latest'
-        run: npm run build:s1
+        run: npm run build:intelligence
 
       - name: Run regression tests
         run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml
 
-      - name: Verify the built-in model on Apple Silicon
-        if: matrix.platform == 'macos-latest'
-        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml s1::tests::bundled_runtime_smoke -- --ignored --exact --nocapture
-
       - name: Verify the pinned Nano model on Apple Silicon
         if: matrix.platform == 'macos-latest'
-        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml s1::tests::nano_bundled_runtime_smoke -- --ignored --exact --nocapture
+        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml built_in::tests::nano_bundled_runtime_smoke -- --ignored --exact --nocapture
 
       - name: Verify Nano channel activation and rollback
         if: matrix.platform == 'macos-latest'
-        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml s1::updates::tests::channel_install_probe_failure_and_rollback_smoke -- --ignored --exact --nocapture
+        run: cargo test --release --locked --manifest-path src-tauri/Cargo.toml built_in::updates::tests::channel_install_probe_failure_and_rollback_smoke -- --ignored --exact --nocapture
 
       - name: Build the app and warm release dependencies on main
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -141,7 +137,7 @@ jobs:
         if: matrix.platform == 'macos-latest' && github.ref == 'refs/heads/main' && steps.native-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: native/s1-mini/.build/xcode
+          path: native/patter-intelligence/.build/xcode
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
       # Self-signed (not Apple Developer ID) codesigning, macOS only. Without

@@ -130,7 +130,7 @@ fn decode_cached(bytes: &[u8]) -> Option<Channel> {
     Some(channel)
 }
 fn baseline() -> Channel {
-    decode_cached(include_bytes!("../../../native/s1-mini/nano-channel.json"))
+    decode_cached(include_bytes!("../../../native/patter-intelligence/nano-channel.json"))
         .expect("bundled Nano channel")
 }
 fn pointer(name: &str) -> Option<PathBuf> {
@@ -296,7 +296,7 @@ mod tests {
     use super::*;
     #[test]
     fn channel_validation_rejects_incompatible_and_untrusted_assets() {
-        let legacy = decode_cached(include_bytes!("../../../native/s1-mini/flash-channel-v1.json")).unwrap();
+        let legacy = decode_cached(include_bytes!("../../../native/patter-intelligence/flash-channel-v1.json")).unwrap();
         assert!(legacy.validate().is_err());
         let mut original = baseline();
         original.validate_cached().unwrap();
@@ -340,7 +340,7 @@ mod tests {
         assert!(c.validate().is_err());
     }
     #[test]
-    #[ignore = "requires Apple Silicon, network and npm run build:s1"]
+    #[ignore = "requires Apple Silicon, network and npm run build:intelligence"]
     fn channel_install_probe_failure_and_rollback_smoke() {
         require_supported().unwrap();
         let root =
@@ -350,7 +350,7 @@ mod tests {
                 kind: BuiltInModel::Patter1Nano,
                 model: root.clone(),
                 executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../native/s1-mini/dist/patter-intelligence"),
+                    .join("../native/patter-intelligence/dist/patter-intelligence"),
             })
             .ok()
             .expect("isolated smoke process");

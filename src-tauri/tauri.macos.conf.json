@@ -2,7 +2,7 @@
   "bundle": {
     "resources": {
       "icons/menu/": "icons/menu/",
-      "../native/s1-mini/dist/": "s1-runtime/"
+      "../native/patter-intelligence/dist/": "patter-runtime/"
     }
   }
 }

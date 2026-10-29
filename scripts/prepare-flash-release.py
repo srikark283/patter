@@ -9,8 +9,8 @@ import subprocess
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / 'native/s1-mini/patter-flash.json'
-NOTICES = ROOT / 'native/s1-mini/flash-notices'
+MANIFEST = ROOT / 'native/patter-intelligence/patter-flash.json'
+NOTICES = ROOT / 'native/patter-intelligence/flash-notices'
 
 
 def verify(path, entry):
