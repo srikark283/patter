@@ -1,14 +1,15 @@
+import { AppContextBadge } from "../components/AppContextBadge";
+import { useNewTranscript } from "@/hooks/use-new-transcript";
 import { useEffect, useState, useMemo, useRef, useLayoutEffect } from "react";
 import { toast } from "sonner";
 import { TranscriptionRecord } from "../../../types";
 import { Trash2, Copy, MicOff, Pencil, Check, X, Search, Loader2, Star, SlidersHorizontal, ChevronDown, Clock3, CalendarDays } from "lucide-react";
-import { clearHistory, deleteHistoryRecord, updateHistoryRecord, setHistoryFlags } from "../../../lib/ipc";
+import { clearHistory, deleteHistoryRecord, updateHistoryRecord, setHistoryFlags, getSettings, type Settings } from "../../../lib/ipc";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyState } from "../components/EmptyState";
-import { NativeAppIcon } from "../components/NativeAppIcon";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,14 @@ interface Props {
 }
 
 export function HistoryView({ history, setHistory }: Props) {
+  const freshId = useNewTranscript(history);
+  const [profileSettings, setProfileSettings] = useState<Settings | null>(null);
+  useEffect(() => {
+    let disposed = false;
+    const refresh = () => { void getSettings().then(settings => { if (!disposed) setProfileSettings(settings); }).catch(() => { if (!disposed) setProfileSettings(null); }); };
+    refresh(); window.addEventListener("focus", refresh);
+    return () => { disposed = true; window.removeEventListener("focus", refresh); };
+  }, []);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TranscriptionRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -227,12 +236,13 @@ export function HistoryView({ history, setHistory }: Props) {
       }}
       className={cn(
         "group relative focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 flex flex-col gap-2.5 rounded-xl border border-border bg-card px-5 py-3.5 transition-colors hover:border-input",
-        needsRecovery(record) && "bg-warning/5"
+        needsRecovery(record) && "bg-warning/5",
+        freshId === record.id && "transcript-arrived"
       )}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5 tabular-nums"><Clock3 size={13} />{formatTime(record.timestamp_ms)}</span>
-        {record.app_name && <span className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-1 text-accent-foreground" title={`Dictated for ${record.app_name}`}><NativeAppIcon appName={record.app_name} /><span className="max-w-48 truncate">{record.app_name}</span></span>}
+        {record.app_name && <AppContextBadge app={record.app_name} settings={profileSettings} />}
         {needsRecovery(record) && <span className="rounded-md bg-warning/10 px-2 py-1 text-warning">Needs recovery</span>}
       </div>
 
@@ -398,6 +408,7 @@ export function HistoryView({ history, setHistory }: Props) {
       ) : history.length === 0 ? (
         <EmptyState
           icon={MicOff}
+          voice
           title="No dictation yet"
           description="Hold your shortcut and speak — transcripts land here."
         />

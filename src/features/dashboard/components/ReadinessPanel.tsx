@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Mic, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatKey } from "@/lib/hotkey";
+import { ShortcutKeys } from "./ShortcutKeys";
+import { CleanupSparkle } from "./CleanupSparkle";
 import { builtInModelName, getSettings, getPermissionStatus, getMicrophones, getActiveEngine, getBuiltInStatus, listOllamaModels, onDbUpdated, openMicrophoneSettings, openAccessibilitySettings, openInputMonitoringSettings, type Settings, type PermissionStatus } from "@/lib/ipc";
 import { MODEL_NAMES } from "../views/ModelsView";
 import { toast } from "sonner";
@@ -9,12 +10,13 @@ import { toast } from "sonner";
 type Snapshot = { settings: Settings; permissions: PermissionStatus; microphones: string[]; engine: string | null; cleanup: string; cleanupIssue: boolean };
 interface Props {
   activity: string | null;
+  listening?: boolean;
   onPreferences?: () => void;
   onModels?: () => void;
   onIntelligence?: () => void;
 }
 
-export function ReadinessPanel({ activity, onPreferences, onModels, onIntelligence }: Props) {
+export function ReadinessPanel({ activity, listening = false, onPreferences, onModels, onIntelligence }: Props) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -75,7 +77,8 @@ export function ReadinessPanel({ activity, onPreferences, onModels, onIntelligen
       {issues.length > 0 && <span className="text-xs text-warning">{issues.length} {issues.length === 1 ? "issue" : "issues"}</span>}
       {/* {snapshot && !error && <span className="hidden min-w-0 max-w-48 truncate text-xs text-muted-foreground md:inline" title={snapshot.engine ? MODEL_NAMES[snapshot.engine] ?? snapshot.engine : "No speech model"}>{snapshot.engine ? MODEL_NAMES[snapshot.engine] ?? snapshot.engine : "No speech model"}</span>} */}
       <span className="ml-auto flex items-center gap-3">
-        {snapshot?.settings.hotkey && <kbd className="shortcut-keycap hidden rounded-md px-2.5 py-1 text-xs text-foreground sm:inline">{snapshot.settings.hotkey.split('+').map(formatKey).join(' + ')}</kbd>}
+        {activity === "Cleaning up…" && <CleanupSparkle />}
+        {snapshot?.settings.hotkey && <ShortcutKeys combo={snapshot.settings.hotkey} pressed={listening} />}
         <span className="text-xs text-muted-foreground">Setup</span><ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" />
       </span>
     </summary>
@@ -88,7 +91,7 @@ export function ReadinessPanel({ activity, onPreferences, onModels, onIntelligen
         <div><dt className="text-muted-foreground">Cleanup</dt><dd className="mt-1 break-words">{snapshot.cleanup}</dd></div>
       </dl>
       <div className="flex flex-wrap items-center gap-3">
-        {snapshot.settings.hotkey && <kbd className="rounded-lg border border-border bg-background px-3 py-2 text-sm">{snapshot.settings.hotkey.split('+').map(formatKey).join(' + ')}</kbd>}
+        {snapshot.settings.hotkey && <ShortcutKeys combo={snapshot.settings.hotkey} pressed={listening} />}
         <span className="text-sm text-muted-foreground">{snapshot.settings.push_to_talk ? "Hold to talk" : "Press to start / stop"}</span>
         <Button variant="ghost" size="sm" onClick={onPreferences}>Dictation settings <ArrowRight size={14} /></Button>
       </div>

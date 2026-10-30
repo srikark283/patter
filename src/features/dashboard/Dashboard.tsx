@@ -21,6 +21,7 @@ const AIView = lazy(() => import("./views/AIView").then(module => ({ default: mo
 const PreferencesView = lazy(() => import("./views/PreferencesView").then(module => ({ default: module.PreferencesView })));
 import { CleanupStatus } from "./components/CleanupStatus";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
+import { WorkspaceAtmosphere } from "./components/WorkspaceAtmosphere";
 import icon from "@/assets/logohq.png";
 import {
   SidebarProvider,
@@ -144,6 +145,7 @@ export default function Dashboard() {
   return (
     <MotionConfig reducedMotion="user"><SidebarProvider style={{ "--sidebar-width": "14rem" } as React.CSSProperties}>
       <div className="relative flex h-screen w-full bg-background text-foreground overflow-hidden">
+        <WorkspaceAtmosphere />
         <div 
           onPointerDown={(e) => {
             if (e.buttons === 1) {

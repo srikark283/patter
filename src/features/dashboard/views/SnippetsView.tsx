@@ -1,3 +1,4 @@
+import { EmptyDemo } from "../components/EmptyDemo";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings, Snippet } from "../../../lib/ipc";
@@ -152,6 +153,7 @@ export function SnippetsView() {
             className="mt-2"
             icon={Zap}
             title="Create your first macro"
+            preview={<EmptyDemo kind="macro" />}
             description="Macros let you say a short phrase and have Patter expand it into a pre-defined text block. Perfect for templates, signatures, and repetitive text."
             action={
               <Button onClick={() => setIsAdding(true)} className="rounded-full">

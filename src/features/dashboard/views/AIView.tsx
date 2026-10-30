@@ -1,3 +1,4 @@
+import { ModelEmblem } from "../components/ModelEmblem";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { RefreshCw, Trash2, Info, Server, Clock, WandSparkles, Zap, Check, Plus, Loader2 } from "lucide-react";
@@ -243,7 +244,7 @@ export function AIView() {
               return <article key={option.id} className={cn("patter-model-card", selected && "is-selected")}>
                 <button type="button" className="patter-model-select" disabled={!!builtInStatus?.downloading} aria-pressed={selected} onClick={() => selectBuiltIn(option.id)}>
                   <span className="patter-card-state">{isDefault && status?.installed ? <><Check size={13} /> Current default</> : status?.installed ? "Downloaded" : (status?.storage_bytes ?? 0) > 0 ? "Incomplete download" : "Available to download"}</span>
-                  <span className="patter-card-title">{option.title}</span><span className="patter-card-lead">{option.lead}</span><span className="patter-card-description">{option.description}</span>
+                  <span className="patter-model-heading"><ModelEmblem model={option.id} /><span className="patter-card-title">{option.title}</span></span><span className="patter-card-lead">{option.lead}</span><span className="patter-card-description">{option.description}</span>
                 </button>
                 <details className="patter-model-info"><summary aria-label={`About ${option.title}`}><Info size={16} /></summary><p>{option.detail}</p></details>
                 <div className="patter-card-specs"><span>{option.family}</span><span>English · On-device</span></div>

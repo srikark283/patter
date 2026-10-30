@@ -1,3 +1,5 @@
+import { CleanupComparison } from "./CleanupComparison";
+import { CleanupSparkle } from "./CleanupSparkle";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, WandSparkles } from "lucide-react";
@@ -15,19 +17,12 @@ export function CleanupPlayground({ settings, statuses, busy }: Props) {
   const [testing, setTesting] = useState(false);
   const [sample, setSample] = useState("so um send the report by friday no wait thursday");
   const [testError, setTestError] = useState("");
-  const [response, setResponse] = useState<{ model: Settings["built_in_model"]; text: string } | null>(null);
+  const [response, setResponse] = useState<{ model: Settings["built_in_model"]; text: string; original: string } | null>(null);
   const setResult = (value: null) => setResponse(value);
   const result = response?.model === model ? response.text : null;
-  const highlightedResult = result ? (() => {
-    let start = 0;
-    while (start < sample.length && start < result.length && sample[start] === result[start]) start++;
-    let end = 0;
-    while (end < sample.length - start && end < result.length - start && sample[sample.length - 1 - end] === result[result.length - 1 - end]) end++;
-    return <>{result.slice(0, start)}<mark className="rounded bg-accent-strong text-foreground">{result.slice(start, result.length - end)}</mark>{end > 0 ? result.slice(-end) : ""}</>;
-  })() : null;
   const test = async () => {
     setTesting(true); setResult(null); setTestError("");
-    try { setResponse({ model, text: await testBuiltInCleanup(sample, profile === "none" ? null : profile, model) }); }
+    try { setResponse({ model, original: sample, text: await testBuiltInCleanup(sample, profile === "none" ? null : profile, model) }); }
     catch (error) { setTestError(String(error)); }
     finally { setTesting(false); }
   };
@@ -45,9 +40,10 @@ export function CleanupPlayground({ settings, statuses, busy }: Props) {
           <SelectContent><SelectItem value="none">General dictation</SelectItem>{[...new Set(settings.app_profiles.map(item => item.app).filter(Boolean))].map(app => <SelectItem key={app} value={app}>{app}</SelectItem>)}</SelectContent>
         </Select>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label htmlFor="built-in-sample" className="text-xs text-muted-foreground">Original transcript<textarea id="built-in-sample" disabled={testing} value={sample} onChange={event => { setSample(event.target.value); setResult(null); setTestError(""); }} maxLength={128000} rows={5} className="mt-2 block w-full resize-y rounded-lg border border-input bg-background p-3 text-sm leading-relaxed text-foreground focus-visible:outline-2 focus-visible:outline-ring" /></label>
-          <div><p className="text-xs text-muted-foreground">Cleaned result</p><div role="status" className="mt-2 min-h-36 whitespace-pre-wrap break-words rounded-lg bg-accent-subtle p-3 text-sm leading-relaxed">{testing ? <span className="inline-flex items-center gap-2 text-muted-foreground"><Loader2 size={14} className="animate-spin" />Cleaning up…</span> : result !== null ? highlightedResult || "No text remaining after filler removal." : <span className="text-muted-foreground">Run a preview to see the result here.</span>}</div></div>
+          <label htmlFor="built-in-sample" className="text-xs leading-7 text-muted-foreground">Original transcript<textarea id="built-in-sample" disabled={testing} value={sample} onChange={event => { setSample(event.target.value); setResult(null); setTestError(""); }} maxLength={128000} rows={5} className="mt-2 block w-full resize-y rounded-lg border border-input bg-background p-3 text-sm leading-relaxed text-foreground focus-visible:outline-2 focus-visible:outline-ring" /></label>
+          <div><p className="flex h-7 items-center gap-1.5 text-xs text-muted-foreground">Cleaned result{result !== null && <CleanupSparkle key={result} complete />}</p><div className="mt-2 min-h-36 whitespace-pre-wrap break-words rounded-lg bg-accent-subtle p-3 text-sm leading-relaxed">{testing ? <span className="inline-flex items-center gap-2 text-muted-foreground"><CleanupSparkle />Cleaning up…</span> : result !== null ? <CleanupComparison key={result} original={response!.original} result={result} /> : <span className="text-muted-foreground">Run a preview to see the result here.</span>}</div></div>
         </div>
+        <span role="status" className="sr-only">{testing ? "Cleaning up" : result !== null ? "Cleanup complete. Compare the result above." : ""}</span>
         <Button variant="outline" onClick={test} disabled={testing || busy || !ready || !sample.trim() || settings.language !== "en"}>{testing ? <Loader2 size={14} className="animate-spin" /> : <WandSparkles size={14} />}{testing ? "Cleaning up…" : "Test cleanup"}</Button>
         {testError && <p role="alert" className="break-words text-sm text-destructive">Preview failed. {testError} Try again when the model is available.</p>}
         {!ready && <p className="text-xs text-muted-foreground">Download this model from its card before testing.</p>}

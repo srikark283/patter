@@ -1,3 +1,4 @@
+import { VoiceSignature } from "../components/VoiceSignature";
 import { StageProgress } from "../components/StageProgress";
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
@@ -17,7 +18,6 @@ import {
   ClipboardCopy,
   Pencil,
   User,
-  Check,
   RefreshCcw,
   X,
   AudioLines,
@@ -101,12 +101,12 @@ function toMarkdown(m: MeetingRecord): string {
 
 function Section({ icon: Icon, title, children }: { icon: typeof ListChecks; title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-        <Icon size={13} /> {title}
-      </div>
+    <section className="meeting-note-section" data-kind={title}>
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Icon size={15} /> {title}
+      </h3>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -262,7 +262,10 @@ export function MeetingsView({ modelStatus }: Props) {
     }
   };
 
+  const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
   const toggleActionItem = async (meeting: MeetingRecord, index: number) => {
+    if (pendingActions.has(meeting.id)) return;
+    setPendingActions(current => new Set(current).add(meeting.id));
     const items = [...meeting.action_items];
     let text = items[index];
     if (text.startsWith("[x] ")) {
@@ -279,7 +282,10 @@ export function MeetingsView({ modelStatus }: Props) {
     try {
       await updateMeetingActionItems(meeting.id, items);
     } catch (e) {
+      setMeetings(current => current?.map(item => item.id === meeting.id ? { ...item, action_items: meeting.action_items } : item) ?? null);
       toast.error("Failed to update action item: " + e);
+    } finally {
+      setPendingActions(current => { const next = new Set(current); next.delete(meeting.id); return next; });
     }
   };
 
@@ -465,6 +471,7 @@ export function MeetingsView({ modelStatus }: Props) {
     state === "recording" ? (
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-3.5 py-1.5">
+          <VoiceSignature />
           <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
           <span className="font-sans text-[13px] text-foreground/80 tabular-nums">{formatElapsed(elapsed)}</span>
         </div>
@@ -565,6 +572,7 @@ export function MeetingsView({ modelStatus }: Props) {
       {meetings !== null && meetings.length === 0 && state === "idle" && !processing && (
         <EmptyState
           icon={UsersIcon}
+          voice
           title="No meetings yet"
           description="Hit Record Meeting when your meeting starts. When you stop, Patter transcribes it and generates notes with your local Ollama model."
         />
@@ -605,7 +613,7 @@ export function MeetingsView({ modelStatus }: Props) {
                 className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
               >
                 <div className="min-w-0">
-                  <p className="text-[15px] font-medium text-foreground/90 truncate">{m.title}</p>
+                  <p className="font-display text-lg font-semibold text-foreground truncate">{m.title}</p>
                   <p className="mt-0.5 text-[12px] text-muted-foreground">
                     {formatDate(m.timestamp_ms)} · {formatDuration(m.duration_seconds)}
                     {!hasNotes && " · transcript only"}
@@ -618,7 +626,7 @@ export function MeetingsView({ modelStatus }: Props) {
               </button>
 
               {expanded && (
-                <div className="space-y-6 border-t border-border/60 px-5 py-5">
+                <div className="meeting-document space-y-7 border-t border-border/60 px-5 py-6 sm:px-7">
                   {regeneratingId === m.id ? (
                     <div className="space-y-6">
                       <div className="flex items-center gap-2 text-[13px] text-muted-foreground bg-foreground/[0.02] px-3 py-1.5 rounded-full border border-border w-fit">
@@ -647,7 +655,7 @@ export function MeetingsView({ modelStatus }: Props) {
                     <>
                       {m.summary && (
                         <Section icon={AlignLeft} title="Summary">
-                          <p className="text-[13px] leading-relaxed text-foreground/85">{m.summary}</p>
+                          <p className="meeting-summary">{m.summary}</p>
                         </Section>
                       )}
                       {m.minutes.length > 0 && (
@@ -671,21 +679,11 @@ export function MeetingsView({ modelStatus }: Props) {
                               key={i}
                               className={cn(
                                 "flex gap-2.5 text-[13px] leading-relaxed cursor-pointer transition-colors hover:text-foreground",
-                                isChecked ? "text-muted-foreground/60 line-through" : "text-foreground/85"
+                                isChecked ? "text-muted-foreground line-through" : "text-foreground/85"
                               )}
-                              onClick={() => toggleActionItem(m, i)}
                             >
-                              <div
-                                className={cn(
-                                  "mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
-                                  isChecked
-                                    ? "bg-success/20 border-success/30 text-success"
-                                    : "border-steel/30 bg-foreground/5"
-                                )}
-                              >
-                                {isChecked && <Check size={10} strokeWidth={3} />}
-                              </div>
-                              <span className="flex-1">{text}</span>
+                              <label className="flex flex-1 cursor-pointer gap-2.5"><input type="checkbox" aria-label={text} disabled={pendingActions.has(m.id)} checked={isChecked} onChange={() => void toggleActionItem(m, i)} className="meeting-action-check" />
+                              <span className="flex-1">{text}</span></label>
                             </li>
                           );
                         })}

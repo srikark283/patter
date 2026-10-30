@@ -1,3 +1,4 @@
+import { ShortcutKeys } from "../dashboard/components/ShortcutKeys";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Check, Download, Loader2, Mic, Keyboard, ShieldCheck, KeyRound, Accessibility, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -22,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import icon from "@/assets/logohq.png";
-import { formatHotkey } from "@/lib/hotkey";
 
 const RECOMMENDED_MODEL = "whisper-base";
 const RECOMMENDED_MODEL_NAME = "Whisper Base";
@@ -299,9 +299,7 @@ export function Onboarding({
         <>
           <p>
             Press{" "}
-            <kbd className="px-2 py-1 rounded-md bg-foreground/8 ring-1 ring-border font-sans text-[12px] text-foreground/90">
-              {formatHotkey(hotkey)}
-            </kbd>{" "}
+            <ShortcutKeys combo={hotkey} />{" "}
             in any app, speak, and Patter types what you said right where your cursor is.
           </p>
           <div

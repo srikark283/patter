@@ -1,3 +1,4 @@
+import { useNewTranscript } from "@/hooks/use-new-transcript";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
 import { Copy, Check, ArrowRight } from "lucide-react";
@@ -89,6 +90,7 @@ function calculateStreak(history: TranscriptionRecord[]) {
 /// artifacts. The mask fades the glyph out before it reaches the cut edge, so
 /// there is no hard boundary regardless of the icon's internal structure.
 export function DashboardView({ stats, history, onViewAll, onPreferences, activeEngine, onModels, onIntelligence, onHistoryChange }: Props) {
+  const freshId = useNewTranscript(history);
   const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight);
   useEffect(() => {
     const onResize = () => setViewportHeight(window.innerHeight);
@@ -198,7 +200,7 @@ export function DashboardView({ stats, history, onViewAll, onPreferences, active
         description="Your voice, ready for whatever comes next."
       />
 
-      <ReadinessPanel activity={isRecordingActive ? statusText : null} onPreferences={onPreferences} onModels={onModels} onIntelligence={onIntelligence} />
+      <ReadinessPanel activity={isRecordingActive ? statusText : null} listening={dictationState === "Listening..." && meetingState !== "recording" && meetingState !== "transcribing" && meetingState !== "processing"} onPreferences={onPreferences} onModels={onModels} onIntelligence={onIntelligence} />
       {history?.find(needsRecovery) && (() => {
         const record = history.find(needsRecovery)!;
         return <RecoveryNotice record={record} onResolved={() => onHistoryChange?.(current => current?.map(item => item.id === record.id ? { ...item, recovery_dismissed: true } : item) ?? null)} />;
@@ -369,7 +371,7 @@ export function DashboardView({ stats, history, onViewAll, onPreferences, active
             {history.slice(0, recentCount).map((record) => (
               <div
                 key={record.id}
-                className="group list-row relative flex flex-col gap-2 px-4 py-3"
+                className={cn("group list-row relative flex flex-col gap-2 px-4 py-3", freshId === record.id && "transcript-arrived")}
               >
                 <p className="text-[14px] leading-relaxed text-foreground/90 wrap-break-word line-clamp-2 pr-8">
                   {record.text}

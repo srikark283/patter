@@ -1,3 +1,4 @@
+import { EmptyDemo } from "../components/EmptyDemo";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateSettings, getSettings, Settings, dictionarySuggestions, dismissDictionarySuggestion, DictionarySuggestion } from "../../../lib/ipc";
@@ -414,6 +415,7 @@ export function DictionaryView() {
             className="mt-2"
             icon={BookOpen}
             title="Add a term to the Dictionary"
+            preview={<EmptyDemo kind="dictionary" />}
             description="Add words you want Patter to recognize. It can be particular spellings, names, and slang that you often use."
             action={
               <Button disabled={saving} onClick={() => { setEditingTerm(null); setIsAdding(true); }} className="rounded-full">

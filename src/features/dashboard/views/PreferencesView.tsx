@@ -1,3 +1,4 @@
+import { ShortcutKeys } from "../components/ShortcutKeys";
 import { useState, useEffect, KeyboardEvent, createContext, useContext, ReactNode, ComponentType } from "react";
 import { toast } from "sonner";
 import { Search, SunMoon, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type, Wand2 } from "lucide-react";
@@ -412,9 +413,9 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
     update({ [field]: combo });
   };
 
-  const handleHotkeyRecord = (field: HotkeyField) => (e: KeyboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
+  const handleHotkeyRecord = (field: HotkeyField) => (e: KeyboardEvent<HTMLElement>) => {
     if (recordingField !== field) return;
+    e.preventDefault();
 
     if (e.key === "Escape") {
       setRecordingField(null);
@@ -487,32 +488,16 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           ]}
         >
           <Setting {...ROWS.hotkey} active={!!settings.hotkey}>
-            <input
-              readOnly
-              value={recordingField === "hotkey" ? "Listening..." : formatHotkey(settings.hotkey)}
-              onClick={() => setRecordingField("hotkey")}
-              onBlur={() => setRecordingField(null)}
-              onKeyDown={handleHotkeyRecord("hotkey")}
-              className={cn(
-                "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus-visible:ring-focus cursor-pointer transition-colors",
-                recordingField === "hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
-              )}
-            />
+            <button type="button" aria-label="Change dictation shortcut" onClick={() => setRecordingField("hotkey")} onBlur={() => setRecordingField(null)} onKeyDown={handleHotkeyRecord("hotkey")} className="shortcut-capture" data-recording={recordingField === "hotkey" || undefined}>
+                {recordingField === "hotkey" ? "Press a key…" : settings.hotkey ? <ShortcutKeys combo={settings.hotkey} interactive /> : "Not set"}
+              </button>
           </Setting>
 
           <Setting {...ROWS.meetingHotkey} active={!!settings.meeting_hotkey}>
             <div className="flex items-center gap-1.5">
-              <input
-                readOnly
-                value={recordingField === "meeting_hotkey" ? "Listening..." : (settings.meeting_hotkey ? formatHotkey(settings.meeting_hotkey) : "Not set")}
-                onClick={() => setRecordingField("meeting_hotkey")}
-                onBlur={() => setRecordingField(null)}
-                onKeyDown={handleHotkeyRecord("meeting_hotkey")}
-                className={cn(
-                  "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus-visible:ring-focus cursor-pointer transition-colors",
-                  recordingField === "meeting_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
-                )}
-              />
+              <button type="button" aria-label="Change meeting shortcut" onClick={() => setRecordingField("meeting_hotkey")} onBlur={() => setRecordingField(null)} onKeyDown={handleHotkeyRecord("meeting_hotkey")} className="shortcut-capture" data-recording={recordingField === "meeting_hotkey" || undefined}>
+                {recordingField === "meeting_hotkey" ? "Press a key…" : settings.meeting_hotkey ? <ShortcutKeys combo={settings.meeting_hotkey} interactive /> : "Not set"}
+              </button>
               {settings.meeting_hotkey && (
                 <button
                   onClick={() => update({ meeting_hotkey: "" })}
@@ -534,17 +519,9 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[12px] text-foreground/80">Hotkey</span>
                     <div className="flex items-center gap-1.5">
-                      <input
-                        readOnly
-                        value={recordingField === "command_hotkey" ? "Listening..." : (settings.command_hotkey ? formatHotkey(settings.command_hotkey) : "Not set")}
-                        onClick={() => setRecordingField("command_hotkey")}
-                        onBlur={() => setRecordingField(null)}
-                        onKeyDown={handleHotkeyRecord("command_hotkey")}
-                        className={cn(
-                          "w-32 bg-background border border-input rounded-md text-xs font-sans text-center px-2 py-1.5 focus:outline-none focus-visible:ring-focus cursor-pointer transition-colors",
-                          recordingField === "command_hotkey" ? "border-steel/50 bg-steel/10 text-accent-foreground" : "hover:border-foreground/25 text-muted-foreground"
-                        )}
-                      />
+                      <button type="button" aria-label="Change command shortcut" onClick={() => setRecordingField("command_hotkey")} onBlur={() => setRecordingField(null)} onKeyDown={handleHotkeyRecord("command_hotkey")} className="shortcut-capture" data-recording={recordingField === "command_hotkey" || undefined}>
+                {recordingField === "command_hotkey" ? "Press a key…" : settings.command_hotkey ? <ShortcutKeys combo={settings.command_hotkey} interactive /> : "Not set"}
+              </button>
                       {settings.command_hotkey && (
                         <button
                           onClick={() => update({ command_hotkey: "" })}

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import { X, AudioLines, WandSparkles, Square } from "lucide-react";
+import { X, AudioLines, WandSparkles, Square, Check } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording, cancelMeetingRecording } from "../../lib/ipc";
 import RecordingVisualizer from "./RecordingVisualizer";
 
-type Phase = "idle" | "recording" | "processing" | "cleanup" | "notice" | "meeting";
+type Phase = "idle" | "recording" | "processing" | "cleanup" | "notice" | "meeting" | "success";
 
 const BARS = 28;
 
@@ -15,6 +15,7 @@ function phaseFor(status: string): Phase {
   if (status === "Listening...") return "recording";
   if (status === "Transcribing...") return "processing";
   if (status === "Cleaning up…") return "cleanup";
+  if (status.startsWith("Output sent") || status.startsWith("Copied")) return "success";
   return "notice";
 }
 
@@ -38,9 +39,11 @@ export default function Hud() {
   const meetingActive = useRef(false);
   const meetingPipeline = useRef(false);
   const meetingStart = useRef(0);
+  const completionTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const applyPhase = (next: Phase) => {
+    clearTimeout(completionTimer.current);
     const win = getCurrentWindow();
     if (phaseRef.current === "idle" && next !== "idle") {
       win.show();
@@ -88,12 +91,18 @@ export default function Hud() {
         }, 2500);
         return;
       }
+      clearTimeout(completionTimer.current);
+      if (next === "idle" && phaseRef.current === "success") {
+        completionTimer.current = setTimeout(() => applyPhase("idle"), 800);
+        return;
+      }
       setStatus(state);
       applyPhase(next);
     });
     return () => {
       unlisten.then((f) => f());
       unlistenSound.then((f) => f());
+      clearTimeout(completionTimer.current);
     };
   }, []);
 
@@ -198,6 +207,7 @@ export default function Hud() {
               {phase === "cleanup" && (
                 <><WandSparkles size={15} className="hud-icon-anim hud-icon-sweep" strokeWidth={2} /><span className="hud-label">Refining</span></>
               )}
+              {phase === "success" && <><Check size={15} className="text-success action-confirm" /><span className="hud-label">{status}</span></>}
               {phase === "notice" && <span className="hud-label">{status}</span>}
               </motion.span>
               </AnimatePresence>

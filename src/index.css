@@ -638,3 +638,71 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
 .model-vendor-icon[data-vendor="nvidia"] { background: #edf5e1; }
 .dark .model-vendor-icon[data-vendor="nvidia"] { background: #25301a; }
+
+/* Voice and text craft stays within the established slate-blue controls. */
+.voice-signature { display: inline-flex; flex-shrink: 0; color: var(--accent-foreground); vertical-align: middle; }
+.shortcut-keys { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; vertical-align: middle; }
+.shortcut-key { display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 28px; height: 28px; padding: 0 7px; font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--foreground); background: var(--card); border: 1px solid var(--input); border-radius: 6px; box-shadow: 0 2px 0 var(--border); transition: transform 100ms ease-out, box-shadow 100ms ease-out, background-color 100ms ease-out; }
+.shortcut-key small { font-size: 9px; color: var(--muted-foreground); }
+.shortcut-key[data-pressed] { transform: translateY(2px); box-shadow: 0 0 0 transparent; background: var(--accent); }
+.shortcut-capture { min-width: 128px; min-height: 36px; padding: 4px 8px; text-align: center; border: 1px solid transparent; border-radius: 8px; font-size: 12px; }
+.shortcut-capture[data-recording] { background: var(--accent); border-color: var(--ring); }
+.empty-demo { width: min(100%, 380px); margin-top: 22px; padding: 16px; border-top: 1px solid var(--border); }
+.demo-result { white-space: pre-wrap; color: var(--accent-foreground); animation: action-confirm 180ms ease-out; }
+.comparison-tab { padding: 4px 8px; border-radius: 6px; font-size: 11px; color: var(--muted-foreground); }
+.comparison-tab[aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground); }
+.cleanup-result { animation: action-confirm 200ms ease-out; }
+.diff-added { background: var(--accent-strong); color: var(--foreground); border-radius: 3px; text-decoration: underline; text-decoration-color: var(--primary); text-underline-offset: 3px; }
+.diff-removed { color: var(--muted-foreground); text-decoration-thickness: 1px; }
+.app-context-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; background: var(--accent); color: var(--accent-foreground); font-size: 12px; }
+.transcript-arrived { animation: transcript-arrival 2200ms ease-out; }
+@keyframes transcript-arrival { 0%, 25% { background-color: var(--accent); border-color: var(--ring); } 100% { background-color: var(--card); border-color: var(--border); } }
+.meeting-document { max-width: 80ch; margin-inline: auto; }
+.meeting-note-section { display: flex; flex-direction: column; gap: 12px; }
+.meeting-summary { font-size: 16px; line-height: 1.85; color: var(--foreground); }
+.meeting-note-section[data-kind="Decisions"] { padding: 16px; background: var(--tone-personal-surface); border-radius: 12px; }
+.meeting-note-section[data-kind="Decisions"] h3 { color: var(--tone-personal); }
+.meeting-action-check { flex-shrink: 0; width: 16px; height: 16px; margin-top: 3px; accent-color: var(--color-success); cursor: pointer; }
+.hud-pill.success { min-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .shortcut-key { transition: none; }
+  .shortcut-key[data-pressed] { transform: none; }
+  .transcript-arrived { animation: none; border-color: var(--ring); }
+}
+
+/* Model emblems share the same footprint and supporting color treatment. */
+.model-emblem { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; background: var(--category-surface); color: var(--category-ink); }
+.patter-model-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.patter-model-heading .patter-card-title { margin: 0; }
+.model-emblem .emblem-firefly-light { fill: var(--tone-personal); }
+.model-emblem .emblem-lantern-flame { fill: var(--tone-personal); }
+
+/* Local light cues: cleanup activity and a brief model-card response. */
+.cleanup-sparkle { flex-shrink: 0; color: var(--tone-intelligence); vertical-align: middle; }
+.cleanup-sparkle path { fill: currentColor; transform-box: fill-box; transform-origin: center; animation: cleanup-twinkle 1800ms ease-in-out infinite; animation-play-state: paused; }
+.cleanup-sparkle path:nth-child(2) { animation-delay: 260ms; }
+.cleanup-sparkle path:nth-child(3) { animation-delay: 520ms; color: var(--tone-personal); }
+.cleanup-sparkle[data-running] path { animation-play-state: running; }
+.cleanup-sparkle[data-complete] path { animation-duration: 700ms; animation-iteration-count: 1; }
+@keyframes cleanup-twinkle { 0%, 100% { opacity: .5; transform: scale(.82); } 45% { opacity: 1; transform: scale(1); } }
+.patter-model-card:is(:hover, :focus-within) .emblem-firefly-light { animation: firefly-light 1400ms ease-in-out 1; }
+.patter-model-card:is(:hover, :focus-within) .emblem-lantern-flame { transform-box: fill-box; transform-origin: center bottom; animation: lantern-light 1200ms ease-in-out 1; }
+@keyframes firefly-light { 0%, 100% { opacity: 1; } 30% { opacity: .45; } 65% { opacity: 1; } 80% { opacity: .75; } }
+@keyframes lantern-light { 0%, 100% { transform: scale(1); opacity: 1; } 30% { transform: scale(.94, 1.06); opacity: .7; } 65% { transform: scale(1.04, .96); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .cleanup-sparkle path,
+  .patter-model-card:is(:hover, :focus-within) .emblem-firefly-light,
+  .patter-model-card:is(:hover, :focus-within) .emblem-lantern-flame { animation: none; }
+}
+
+/* Ambient slate light stays behind opaque reading surfaces and controls. */
+.workspace-atmosphere { position: absolute; inset: 0 0 0 14rem; overflow: hidden; pointer-events: none; user-select: none; }
+.workspace-atmosphere span { position: absolute; width: min(70vw, 900px); height: min(85vh, 800px); background: radial-gradient(ellipse at center, var(--accent-foreground), transparent 72%); opacity: .16; animation: workspace-light-drift 18s ease-in-out infinite alternate; }
+.workspace-atmosphere span:first-child { right: -10%; top: -24%; }
+.workspace-atmosphere span:last-child { left: -20%; bottom: -28%; opacity: .10; animation-duration: 24s; animation-delay: -12s; animation-direction: alternate-reverse; }
+.dark .workspace-atmosphere span { opacity: .12; }
+.dark .workspace-atmosphere span:last-child { opacity: .08; }
+.workspace-atmosphere[data-paused] span { animation-play-state: paused; }
+@keyframes workspace-light-drift { from { transform: translate3d(-8%, -5%, 0) scale(.94); } to { transform: translate3d(12%, 14%, 0) scale(1.08); } }
+@media (max-width: 767px) { .workspace-atmosphere { left: 0; } }
+@media (prefers-reduced-motion: reduce) { .workspace-atmosphere span { animation: none; } }
