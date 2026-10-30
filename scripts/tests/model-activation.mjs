@@ -9,11 +9,13 @@ async function scenario(kind, activate, failure) {
   const events = [];
   const record = name => (...args) => events.push([name, ...args]);
   const ipc = name => async () => { events.push([name]); if (failure === name) throw Error(name); };
-  const context = { operationLock: { current: false }, downloadingId: null, setOperation: record('operation'), setError: record('error'), setDownloadingId: record('downloading'), downloadModel: ipc('download'), setEngine: ipc('activate'), deleteModel: ipc('delete'), setActiveEngine: record('active'), onModelDeleted: record('refresh'), setDeleteTarget: record('deleteTarget'), toast: { success: record('success'), error: record('toastError') } };
+  const context = { operationLock: { current: false }, downloadingId: null, setOperation: record('operation'), setSetup: record('setup'), setError: record('error'), setDownloadingId: record('downloading'), downloadModel: ipc('download'), setEngine: ipc('activate'), deleteModel: ipc('delete'), setActiveEngine: record('active'), onModelDeleted: record('refresh'), setDeleteTarget: record('deleteTarget'), toast: { success: record('success'), error: record('toastError') } };
   const js = ts.transpile(operation + '\nreturn run;', { target: ts.ScriptTarget.ES2022 });
   const run = new Function(...Object.keys(context), js)(...Object.values(context));
   await run({ id: 'test', fullName: 'Test model' }, kind, activate);
   assert.equal(context.operationLock.current, false);
+  assert.deepEqual(events.filter(event => event[0] === 'setup').at(-1)?.[1],
+    failure || kind === 'delete' ? null : { id: 'test', stage: 2, activate: activate || kind === 'select' });
   return events.map(event => event[0]);
 }
 const activated = await scenario('download', true);
