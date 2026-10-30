@@ -1,3 +1,4 @@
+import { StageProgress } from "../components/StageProgress";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, Download, Loader2, Trash2, RefreshCw, ArrowRight, Zap, Languages, HardDrive } from "lucide-react";
@@ -73,6 +74,7 @@ interface Props {
 
 export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelStray, modelStatusLoading, downloadingId, setDownloadingId, downloadProgress, onModelDeleted, statusError, onRetry }: Props) {
   const [operation, setOperation] = useState<{ id: string; kind: "download" | "select" | "delete" } | null>(null);
+  const [setup, setSetup] = useState<{ id: string; stage: number; activate: boolean } | null>(null);
   const operationLock = useRef(false);
   const [error, setError] = useState<{ id: string; message: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ModelSpec | null>(null);
@@ -89,6 +91,7 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
     if (operationLock.current || downloadingId) return;
     operationLock.current = true;
     setOperation({ id: model.id, kind }); setError(null);
+    setSetup(kind === "delete" ? null : { id: model.id, stage: kind === "select" ? 1 : 0, activate: activate || kind === "select" });
     try {
       if (kind === "download") {
         setDownloadingId(model.id);
@@ -96,6 +99,7 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
         onModelDeleted?.();
         if (activate) {
           setOperation({ id: model.id, kind: "select" });
+          setSetup({ id: model.id, stage: 1, activate: true });
           await setEngine(model.id);
           setActiveEngine(model.id);
           toast.success(`${model.fullName} is now active`);
@@ -107,7 +111,9 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
         await deleteModel(model.id); onModelDeleted?.(); setDeleteTarget(null);
         toast.success(`${model.fullName} removed from this device`);
       }
+      if (kind !== "delete") setSetup({ id: model.id, stage: 2, activate: activate || kind === "select" });
     } catch (failure) {
+      setSetup(null);
       const message = String(failure);
       setError({ id: model.id, message });
       toast.error(`Could not finish ${model.fullName} setup. ${String(failure)}`);
@@ -122,11 +128,11 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
     const partial = modelStatus[model.id] === "partial";
     const selected = activeEngine === model.id;
     const currentOperation = operation?.id === model.id ? operation.kind : null;
-    const downloading = downloadingId === model.id || currentOperation === "download";
+    const downloading = currentOperation !== "select" && (downloadingId === model.id || currentOperation === "download");
     const status = downloading ? "Downloading" : currentOperation === "select" ? "Loading model" : currentOperation === "delete" ? "Removing" : selected ? "Selected" : complete ? "Downloaded" : partial ? "Incomplete download" : "Not downloaded";
     return <article key={model.id} className={cn("speech-choice", selected && "is-active")} aria-label={model.fullName}>
       <div className="flex items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.04]"><img src={VENDOR_LOGOS[model.vendor]} alt={model.vendor === "nvidia" ? "NVIDIA" : "OpenAI"} className={cn("invert dark:invert-0 opacity-80", model.vendor === "nvidia" ? "w-7" : "w-5")} /></div>
+        <div data-vendor={model.vendor} data-tone="voice" className="model-vendor-icon flex size-9 shrink-0 items-center justify-center rounded-lg"><img src={VENDOR_LOGOS[model.vendor]} alt={model.vendor === "nvidia" ? "NVIDIA" : "OpenAI"} className={cn("invert dark:invert-0 opacity-80", model.vendor === "nvidia" ? "w-7" : "w-5")} /></div>
         <div className="min-w-0 flex-1"><h3 className="text-base font-semibold leading-snug">{model.fullName}</h3><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{model.description}</p></div>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground"><span>{model.size} download</span><span>{model.multilingual ? model.id === "parakeet-v3" ? "25 languages" : "99 languages" : "English only"}</span></div>
@@ -135,7 +141,7 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
       </dl>
       {model.id === "whisper-large-v3-turbo" && <p className="text-xs text-warning">Requires a Metal GPU. Choose a smaller model if your device does not support it.</p>}
       {partial && !downloading && <p className="text-xs leading-relaxed text-warning">Interrupted download · {Math.round((modelStray[model.id] ?? 0) / 1_048_576)} MB on disk. Retry the download or remove these files.</p>}
-      {downloading && <div className="space-y-2"><div className="flex justify-between text-xs text-muted-foreground"><span>{downloadProgress >= 100 ? "Verifying download…" : "Downloading model…"}</span><span className="tabular-nums">{Math.min(100, Math.max(0, downloadProgress)).toFixed(0)}%</span></div><Progress aria-label={`Downloading ${model.fullName}`} value={downloadProgress} /></div>}
+      {downloading && <div className="space-y-2"><div className="flex justify-between text-xs text-muted-foreground"><span>{downloadProgress >= 100 ? "Finishing download…" : "Downloading model…"}</span><span className="tabular-nums">{Math.min(100, Math.max(0, downloadProgress)).toFixed(0)}%</span></div><Progress aria-label={`Downloading ${model.fullName}`} value={downloadProgress} /></div>}
       {error?.id === model.id && <p role="alert" className="break-words text-xs leading-relaxed text-destructive">{error.message}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
         <span role="status" className={cn("inline-flex items-center gap-1.5 text-xs", selected ? "text-success" : partial ? "text-warning" : "text-muted-foreground")}>{selected && <Check size={13} />}{status}</span>
@@ -154,7 +160,11 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
   return <div className="space-y-5 workspace-enter pb-6">
     <PageHeader title="Speech Models" description="Choose how Patter hears you. Download once, transcribe on your device." />
 
-    {downloadingId && <div role="status" className="space-y-2 rounded-xl bg-accent-subtle p-4"><div className="flex justify-between gap-3 text-sm"><span>{downloadProgress >= 100 ? "Verifying" : "Downloading"} {MODEL_NAMES[downloadingId]}</span><span>{Math.min(100, Math.max(0, downloadProgress)).toFixed(0)}%</span></div><Progress value={downloadProgress} aria-label="Speech model download" /></div>}
+    {(setup || downloadingId) && <section aria-label="Model setup progress" className="setup-progress space-y-3 rounded-xl p-4">
+      <p role="status" className="text-sm font-medium">{MODEL_NAMES[setup?.id ?? downloadingId!] ?? setup?.id ?? downloadingId} · {setup?.stage === 2 ? setup.activate ? "Ready to dictate" : "Download complete" : setup?.stage === 1 ? "Loading model…" : "Downloading model…"}</p>
+      <StageProgress steps={setup?.activate ? ["Download", "Load model", "Ready"] : ["Download", "Downloaded"]} current={setup?.stage === 1 ? 1 : 0} complete={setup?.stage === 2} label="Model setup stages" />
+      {setup?.stage !== 1 && setup?.stage !== 2 && <><Progress value={downloadProgress} aria-label="Speech model download" /><p className="text-xs tabular-nums text-muted-foreground">{Math.min(100, Math.max(0, downloadProgress)).toFixed(0)}%{downloadProgress >= 100 ? " · Finishing download…" : ""}</p></>}
+    </section>}
     <div className="speech-language"><div><h2>What languages do you speak?</h2><p>Multilingual models also understand English.</p></div><div className="choice-segments" aria-label="Language coverage">{[{ id: "english", label: "English" }, { id: "multi", label: "Multiple languages" }].map(item => <button key={item.id} type="button" aria-pressed={(language === "all" ? "english" : language) === item.id} onClick={() => { setLanguage(item.id); setBrowsingId(""); }}>{item.label}</button>)}</div></div>
     {statusError ? <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4"><p className="text-sm text-destructive">Could not check downloaded models. {statusError}</p><Button variant="outline" onClick={onRetry}><RefreshCw size={14} />Retry</Button></div> : modelStatusLoading ? <div role="status" aria-label="Loading speech models" className="grid grid-cols-1 gap-3 xl:grid-cols-2">{MODELS.map(model => <Skeleton key={model.id} className="h-52 rounded-xl" />)}</div> : <>
       <section className="space-y-4"><div className="section-heading"><h2>Start with one of these</h2><span>Relative scale: 5 is highest · varies by device</span></div><div className="speech-shortlist">{featured.map((model, index) => <div key={model.id} className="featured-model"><div className="model-purpose">{index === 0 ? <Zap size={15} /> : index === 1 ? <HardDrive size={15} /> : <Languages size={15} />}<span>{index === 0 ? "For fast everyday dictation" : index === 1 ? "For a smaller download" : "For more detail"}</span></div>{renderCard(model)}</div>)}</div></section>

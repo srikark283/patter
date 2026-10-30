@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useLayoutEffect } from "react";
+import { useEffect, useState, useMemo, useRef, useLayoutEffect } from "react";
 import { toast } from "sonner";
 import { TranscriptionRecord } from "../../../types";
 import { Trash2, Copy, MicOff, Pencil, Check, X, Search, Loader2, Star, SlidersHorizontal, ChevronDown, Clock3, CalendarDays } from "lucide-react";
@@ -40,6 +40,12 @@ export function HistoryView({ history, setHistory }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ id: string; kind: "copied" | "saved" } | null>(null);
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,8 +71,8 @@ export function HistoryView({ history, setHistory }: Props) {
     }
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => toast.success("Copied to clipboard")).catch(() => toast.error("Could not copy. Select the text and copy manually."));
+  const handleCopy = (record: TranscriptionRecord) => {
+    navigator.clipboard.writeText(record.text).then(() => setFeedback({ id: record.id, kind: "copied" })).catch(() => toast.error("Could not copy. Select the text and copy manually."));
   };
 
   const handleDelete = async (id: string) => {
@@ -87,8 +93,8 @@ export function HistoryView({ history, setHistory }: Props) {
     try {
       if (!await updateHistoryRecord(editingId, editValue)) throw new Error("Transcript no longer exists");
       setHistory(current => current ? current.map(r => r.id === editingId ? { ...r, text: editValue } : r) : []);
+      setFeedback({ id: editingId, kind: "saved" });
       setEditingId(null);
-      toast.success("Record updated");
     } catch (e) {
       toast.error("Failed to update record: " + e);
     } finally {
@@ -185,16 +191,6 @@ export function HistoryView({ history, setHistory }: Props) {
     return { groups: groupsObj, flatRecords: flat, groupCounts: counts };
   }, [filteredHistory]);
 
-  // Virtuoso renders rows as flat siblings, so each day's card outline has to
-  // be reassembled from where a row sits inside its group.
-  const edges = useMemo(() => {
-    const out: { first: boolean; last: boolean }[] = [];
-    for (const n of groupCounts) {
-      for (let i = 0; i < n; i++) out.push({ first: i === 0, last: i === n - 1 });
-    }
-    return out;
-  }, [groupCounts]);
-
   // The page scrolls in <main>, not in the list. Handing Virtuoso that element
   // keeps one scrollbar and keeps PageHeader's stick-on-scroll working.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -208,7 +204,8 @@ export function HistoryView({ history, setHistory }: Props) {
    *  Plain <div>, not a laid-out motion.div: framer's `layout` re-measures every
    *  mounted sibling on each render, which is exactly what made a long history
    *  crawl. The edit/read swap inside still animates. */
-  const renderRow = (record: TranscriptionRecord, edge: { first: boolean; last: boolean }) => (
+  const renderRow = (record: TranscriptionRecord) => (
+    <div className="pb-3">
     <div
       tabIndex={0}
       data-transcript-id={record.id}
@@ -229,16 +226,13 @@ export function HistoryView({ history, setHistory }: Props) {
         } else if (event.key === "Enter") { event.preventDefault(); startEdit(record); }
       }}
       className={cn(
-        "group relative focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 flex flex-col gap-2 px-5 py-3 bg-card border-x border-border transition-colors hover:bg-accent-subtle",
-        edge.first ? "border-t border-border rounded-t-xl" : "border-t border-border/20",
-        edge.last && "border-b border-border rounded-b-xl",
+        "group relative focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 flex flex-col gap-2.5 rounded-xl border border-border bg-card px-5 py-3.5 transition-colors hover:border-input",
         needsRecovery(record) && "bg-warning/5"
       )}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5 tabular-nums"><Clock3 size={13} />{formatTime(record.timestamp_ms)}</span>
         {record.app_name && <span className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-1 text-accent-foreground" title={`Dictated for ${record.app_name}`}><NativeAppIcon appName={record.app_name} /><span className="max-w-48 truncate">{record.app_name}</span></span>}
-        {record.favorite && <span className="inline-flex items-center gap-1 rounded-md bg-warning/10 px-2 py-1 text-warning"><Star size={12} fill="currentColor" />Favorite</span>}
         {needsRecovery(record) && <span className="rounded-md bg-warning/10 px-2 py-1 text-warning">Needs recovery</span>}
       </div>
 
@@ -306,18 +300,20 @@ export function HistoryView({ history, setHistory }: Props) {
       </div>
       {needsRecovery(record) && <RecoveryNotice compact record={record} onResolved={() => setHistory(current => current?.map(item => item.id === record.id ? { ...item, recovery_dismissed: true } : item) ?? null)} />}
 
+      <span role="status" className="sr-only">{feedback?.id === record.id ? feedback.kind === "copied" ? "Copied to clipboard" : "Transcript saved" : ""}</span>
+      {feedback?.id === record.id && feedback.kind === "saved" && <span className="action-confirm inline-flex items-center gap-1 text-xs text-success"><Check size={12} />Saved</span>}
       {/* Actions and recording details */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2">
         <div style={editingId === record.id ? { display: "none" } : undefined} className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-xs" aria-label={record.favorite ? "Remove favorite" : "Add favorite"} title={record.favorite ? "Remove favorite" : "Add favorite"} aria-pressed={!!record.favorite} disabled={pendingFavorites.has(record.id)} onClick={() => void toggleFavorite(record)} className={cn("h-7 w-7", record.favorite ? "text-warning hover:text-warning hover:bg-warning/10" : "text-muted-foreground hover:text-warning")}><Star size={14} fill={record.favorite ? "currentColor" : "none"} /></Button>
+          <Button variant="ghost" size="icon-xs" aria-label={record.favorite ? "Remove favorite" : "Add favorite"} title={record.favorite ? "Remove favorite" : "Add favorite"} aria-pressed={!!record.favorite} disabled={pendingFavorites.has(record.id)} onClick={() => void toggleFavorite(record)} className={cn("h-7 w-7", record.favorite ? "text-warning hover:text-warning hover:bg-warning/10" : "text-muted-foreground hover:text-warning")}><Star key={String(!!record.favorite)} className={record.favorite ? "favorite-confirm" : undefined} size={14} fill={record.favorite ? "currentColor" : "none"} /></Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleCopy(record.text)}
+            onClick={() => handleCopy(record)}
             title="Copy text"
             className="h-7 px-2 text-muted-foreground hover:text-accent-foreground"
           >
-            <Copy size={14} /><span className="text-xs">Copy</span>
+            {feedback?.id === record.id && feedback.kind === "copied" ? <Check size={14} className="action-confirm text-success" /> : <Copy size={14} />}<span className="text-xs">{feedback?.id === record.id && feedback.kind === "copied" ? "Copied" : "Copy"}</span>
           </Button>
           <Button
             variant="ghost"
@@ -353,6 +349,7 @@ export function HistoryView({ history, setHistory }: Props) {
           </div>)}
         </dl>
       </div>
+    </div>
     </div>
   );
 
@@ -421,7 +418,7 @@ export function HistoryView({ history, setHistory }: Props) {
               <CalendarDays size={14} />{groups[i]?.date}<span className="rounded-md bg-accent px-1.5 py-0.5 text-xs tabular-nums">{groupCounts[i]}</span>
             </h3>
           )}
-          itemContent={(index) => flatRecords[index] && edges[index] ? renderRow(flatRecords[index], edges[index]) : null}
+          itemContent={(index) => flatRecords[index] ? renderRow(flatRecords[index]) : null}
         />
       )}
 

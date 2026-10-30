@@ -1,3 +1,4 @@
+import { StageProgress } from "../components/StageProgress";
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -357,6 +358,7 @@ export function MeetingsView({ modelStatus }: Props) {
         setState("idle");
       } else {
         if (s === "recording") meetingStartRef.current = Date.now();
+        setProgress("");
         setState(s as MeetingState);
       }
     });
@@ -581,6 +583,7 @@ export function MeetingsView({ modelStatus }: Props) {
                 {progress || (state === "transcribing" ? "Transcribing…" : "Generating notes…")}
               </div>
             </div>
+            <div className="mt-4 border-t border-border pt-4"><StageProgress steps={["Recorded", "Transcript", "Notes"]} current={state === "summarizing" ? 2 : 1} label="Meeting processing stages" /></div>
             {partial.length > 0 && (
               <div className="mt-4">
                 {/* Turns that transcribed to nothing leave holes in the index. */}

@@ -582,3 +582,59 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 @media(prefers-reduced-motion:reduce) { .patter-model-card { transition:none; } }
 .cleanup-playground { margin-top:36px; padding:24px; border-radius:14px; background:var(--card); }
 @media(max-width:650px) { .cleanup-playground { padding:18px; } }
+
+/* Page motion belongs to the workspace, rather than each nested view. */
+.workspace-content .animate-in, .workspace-content .workspace-enter { animation: none; }
+.hud-phase-content { position: relative; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.hud-drag-handle { position: relative; }
+.usage-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 8px 0; }
+.usage-metric { min-width: 0; padding: 14px 18px; }
+.usage-metric-featured { grid-column: 1 / -1; grid-row: 1; padding: 12px 18px 22px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
+.usage-metric-featured > p:nth-child(2) { font-family: var(--font-display); font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 550; line-height: 1.15; color: var(--accent-foreground); }
+.readiness-panel { box-shadow: var(--surface-highlight), var(--surface-shadow); }
+.shortcut-keycap { background: var(--background); border: 1px solid var(--input); box-shadow: 0 2px 0 var(--border), inset 0 1px 0 var(--surface-keycap-highlight, transparent); }
+.action-confirm { animation: action-confirm 180ms ease-out; }
+.favorite-confirm { animation: favorite-confirm 280ms cubic-bezier(.16,1,.3,1); }
+@keyframes action-confirm { from { opacity: .4; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes favorite-confirm { 0% { transform: scale(.75); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@media (max-width: 640px) { .usage-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); } .usage-metric { padding-inline: 10px; } }
+
+/* Floating tools sit above the workspace; reading surfaces stay opaque. */
+:root { --floating-surface: #ffffff; --floating-shadow: 0 8px 24px -12px rgba(20,23,28,.15), 0 24px 64px -20px rgba(20,23,28,.2); }
+.dark { --floating-surface: #171a20; --floating-shadow: 0 8px 24px -12px rgba(0,0,0,.6), 0 24px 64px -20px rgba(0,0,0,.8); }
+[data-slot="dialog-content"], [data-slot="popover-content"], [data-slot="select-content"] { background: var(--floating-surface); box-shadow: var(--surface-highlight), var(--floating-shadow); }
+.stage-progress { display: flex; flex-wrap: wrap; gap: 12px 20px; padding: 0; margin: 0; list-style: none; }
+.stage-progress li { display: flex; align-items: center; gap: 7px; color: var(--muted-foreground); font-size: 12px; transition: color 180ms ease-out; }
+.stage-progress .is-current { color: var(--accent-foreground); }
+.stage-progress .is-complete { color: var(--color-success); }
+.stage-mark { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--secondary); }
+.is-current .stage-mark { background: var(--accent); }
+.setup-progress { background: var(--card); box-shadow: var(--surface-highlight), var(--surface-shadow); }
+
+/* Category accents: voice, intelligence, and personal vocabulary. */
+:root {
+  --tone-voice: #126e65;
+  --tone-voice-surface: #e9f5f2;
+  --tone-intelligence: #7044a6;
+  --tone-intelligence-surface: #f2edf9;
+  --tone-personal: #925015;
+  --tone-personal-surface: #fbf1e5;
+}
+.dark {
+  --tone-voice: #79cdbd;
+  --tone-voice-surface: #142723;
+  --tone-intelligence: #bea1e8;
+  --tone-intelligence-surface: #251d33;
+  --tone-personal: #e7b67f;
+  --tone-personal-surface: #2c2319;
+}
+[data-tone="voice"] { --category-ink: var(--tone-voice); --category-surface: var(--tone-voice-surface); }
+[data-tone="intelligence"] { --category-ink: var(--tone-intelligence); --category-surface: var(--tone-intelligence-surface); }
+[data-tone="personal"] { --category-ink: var(--tone-personal); --category-surface: var(--tone-personal-surface); }
+/* Supporting icons use category color; app controls retain slate blue. */
+.nav-category-icon[data-tone] { color: var(--category-ink); }
+.model-vendor-icon { background: var(--category-surface); }
+.setting-icon[data-tone] { background: var(--category-surface); color: var(--category-ink); }
+
+.model-vendor-icon[data-vendor="nvidia"] { background: #edf5e1; }
+.dark .model-vendor-icon[data-vendor="nvidia"] { background: #25301a; }

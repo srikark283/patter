@@ -1,5 +1,6 @@
+import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
-import { Copy, ArrowRight } from "lucide-react";
+import { Copy, Check, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { listen } from "@tauri-apps/api/event";
 import { AppStats, TranscriptionRecord } from "../../../types";
@@ -95,6 +96,12 @@ export function DashboardView({ stats, history, onViewAll, onPreferences, active
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const recentCount = Math.min(15, Math.max(5, Math.ceil((viewportHeight - 340) / 96)));
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!copiedId) return;
+    const timer = window.setTimeout(() => setCopiedId(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copiedId]);
   const [timeframe, setTimeframe] = useState<7 | 30>(7);
 
   // Rolls into hours. The headline figure grows without bound, and a heavy
@@ -198,14 +205,14 @@ export function DashboardView({ stats, history, onViewAll, onPreferences, active
       })()}
       {history?.length === 0 && <div className="py-6 text-sm leading-relaxed text-muted-foreground">Your first transcript will appear here. Try a short dictation in any text field.</div>}
 
-      <section aria-label="Usage overview" className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <section aria-label="Usage overview" className="usage-overview">
         {[
           { label: "Words dictated", value: stats?.total_words.toLocaleString(), detail: `+${weekWords.toLocaleString()} this week` },
           { label: "Dictations", value: stats?.transcriptions_count.toLocaleString(), detail: `+${weekDictations} this week` },
           { label: "Time saved", value: stats ? formatTime(stats.time_saved_seconds) : null, detail: "Estimated typing time" },
           { label: "Longest streak", value: history ? `${longestStreak} ${longestStreak === 1 ? "day" : "days"}` : null, detail: "Consecutive days" },
           { label: "Apps used", value: history ? uniqueAppsCount.toLocaleString() : null, detail: "Across your dictations" },
-        ].map(metric => <div key={metric.label} className="surface-raised rounded-xl px-4 py-3">
+        ].map(metric => <div key={metric.label} className={cn("usage-metric", metric.label === "Time saved" && "usage-metric-featured")}>
           <p className="text-xs text-muted-foreground">{metric.label}</p>
           <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{metric.value ?? <Skeleton className="h-8 w-16" />}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">{metric.detail}</p>
@@ -379,12 +386,12 @@ export function DashboardView({ stats, history, onViewAll, onPreferences, active
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => {
-                    navigator.clipboard.writeText(record.text).then(() => toast.success("Copied to clipboard")).catch(() => toast.error("Could not copy text. Try again."));
+                    navigator.clipboard.writeText(record.text).then(() => setCopiedId(record.id)).catch(() => toast.error("Could not copy text. Try again."));
                   }}
-                  title="Copy text"
+                  title={copiedId === record.id ? "Copied" : "Copy text"} aria-label={copiedId === record.id ? "Copied to clipboard" : "Copy text"}
                   className="absolute right-3 top-3 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 hover:text-steelIce bg-background/80 backdrop-blur-sm"
                 >
-                  <Copy size={13} />
+                  <span role="status">{copiedId === record.id ? <Check size={13} className="action-confirm text-success" /> : <Copy size={13} />}</span>
                 </Button>
               </div>
             ))}

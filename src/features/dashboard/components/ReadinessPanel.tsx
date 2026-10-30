@@ -68,14 +68,14 @@ export function ReadinessPanel({ activity, onPreferences, onModels, onIntelligen
     if (cleanupIssue) issues.push({ text: "Cleanup needs attention. Original transcription remains available if cleanup fails.", label: "Review cleanup", action: onIntelligence });
   }
   const title = activity ?? (checking ? "Checking dictation setup…" : error ? "Could not check dictation setup" : issues.length ? "Your setup needs attention" : "Ready to dictate");
-  return <details className="group rounded-xl bg-card px-4 py-3 shadow-[var(--surface-shadow)]" aria-label="Dictation readiness">
+  return <details className="group readiness-panel rounded-xl bg-card px-5 py-4 shadow-[var(--surface-shadow)]" aria-label="Dictation readiness">
     <summary aria-label={`${title}${issues.length ? `, ${issues.length} setup issues` : ""}. Setup details`} className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 text-sm [&::-webkit-details-marker]:hidden">
       <Mic size={16} className={error || issues.length ? "text-warning" : "text-accent-foreground"} />
       <span className="font-medium" role="status">{title}</span>
       {issues.length > 0 && <span className="text-xs text-warning">{issues.length} {issues.length === 1 ? "issue" : "issues"}</span>}
       {/* {snapshot && !error && <span className="hidden min-w-0 max-w-48 truncate text-xs text-muted-foreground md:inline" title={snapshot.engine ? MODEL_NAMES[snapshot.engine] ?? snapshot.engine : "No speech model"}>{snapshot.engine ? MODEL_NAMES[snapshot.engine] ?? snapshot.engine : "No speech model"}</span>} */}
       <span className="ml-auto flex items-center gap-3">
-        {snapshot?.settings.hotkey && <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground sm:inline">{snapshot.settings.hotkey.split('+').map(formatKey).join(' + ')}</kbd>}
+        {snapshot?.settings.hotkey && <kbd className="shortcut-keycap hidden rounded-md px-2.5 py-1 text-xs text-foreground sm:inline">{snapshot.settings.hotkey.split('+').map(formatKey).join(' + ')}</kbd>}
         <span className="text-xs text-muted-foreground">Setup</span><ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" />
       </span>
     </summary>

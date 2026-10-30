@@ -265,7 +265,7 @@ export function AIView() {
           {providerChoice === "ollama" && (
             <div className="flex flex-wrap items-center justify-between gap-4 p-4">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <SettingIcon icon={Zap} active={!!settings.ollama_model} />
+                <SettingIcon tone="intelligence" icon={Zap} active={!!settings.ollama_model} />
                 <div>
                   <p id="ollama-cleanup-label" className="text-sm font-medium">Cleanup model</p>
                   <p className="text-xs text-muted-foreground">
@@ -299,7 +299,7 @@ export function AIView() {
           {providerChoice === "ollama" && (
             <details className="p-4"><summary className="cursor-pointer text-sm font-medium">Advanced · Memory usage</summary><div className="flex flex-wrap items-center justify-between gap-4 p-4">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <SettingIcon icon={Clock} active={settings.ollama_keep_alive_minutes !== 0} />
+                <SettingIcon tone="intelligence" icon={Clock} active={settings.ollama_keep_alive_minutes !== 0} />
                 <div>
                   <p className="text-[13px] font-medium text-foreground/90">Keep Model Loaded</p>
                   <p className="text-xs text-muted-foreground">
@@ -340,7 +340,7 @@ export function AIView() {
         <div className="surface-raised rounded-xl">
           <div className="flex flex-wrap items-center justify-between gap-4 p-4">
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <SettingIcon icon={WandSparkles} active={!!settings.meeting_ollama_model} />
+              <SettingIcon tone="intelligence" icon={WandSparkles} active={!!settings.meeting_ollama_model} />
               <div>
                 <p className="text-[13px] font-medium text-foreground/90">Meeting Notes Model</p>
                 <p className="text-xs text-muted-foreground">

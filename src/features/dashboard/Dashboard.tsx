@@ -1,3 +1,4 @@
+import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Home as HomeIcon, UsersRound as MeetingsIcon, CaseSensitive as DictionaryIcon, Cog as SettingsIcon, Brain as MemoryIcon, AudioLines as ModelsIcon, WandSparkles as AIIcon, History as HistoryIcon, Zap as SnippetsIcon, ChevronRight } from "lucide-react";
 
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/sidebar";
 
 export default function Dashboard() {
+  const reducedMotion = useReducedMotion();
   const mainRef = useRef<HTMLElement>(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [stats, setStats] = useState<AppStats | null>(null);
@@ -137,8 +139,10 @@ export default function Dashboard() {
     { id: "preferences", label: "Preferences", icon: SettingsIcon },
   ];
 
+  const tones: Record<string, string> = { meetings: "voice", models: "voice", ai: "intelligence", memory: "intelligence", dictionary: "personal", snippets: "personal" };
+
   return (
-    <SidebarProvider style={{ "--sidebar-width": "14rem" } as React.CSSProperties}>
+    <MotionConfig reducedMotion="user"><SidebarProvider style={{ "--sidebar-width": "14rem" } as React.CSSProperties}>
       <div className="relative flex h-screen w-full bg-background text-foreground overflow-hidden">
         <div 
           onPointerDown={(e) => {
@@ -179,16 +183,17 @@ export default function Dashboard() {
                       onClick={() => setActiveTab(tab.id)}
                       isActive={isActive}
                       className={cn(
-                        "group w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-colors duration-150 cursor-pointer h-auto",
+                        "relative isolate group w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[14px] font-medium transition-colors duration-150 cursor-pointer h-auto",
                         isActive
                           // accent-foreground, not white: --accent is a pale blue
                           // tint, so white ink on it disappears in light mode.
                           // The token is steelIce on dark, steelDeep on light.
-                          ? "bg-accent text-accent-foreground shadow-[0_1px_0_rgba(255,255,255,0.05)_inset] hover:bg-accent hover:text-accent-foreground"
+                          ? "text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
                           : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                       )}
                     >
-                      <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+                      {isActive && <motion.span aria-hidden="true" layoutId="sidebar-selection" className="absolute inset-0 -z-10 rounded-lg bg-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 480, damping: 40 }} />}
+                      <span data-tone={tones[tab.id]} className="nav-category-icon"><Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} /></span>
                       <span>{tab.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -226,8 +231,9 @@ export default function Dashboard() {
 
         {/* Main Content */}
       <main ref={mainRef} className="relative z-10 min-w-0 flex-1 overflow-y-auto">
-        <div className="px-5 py-9 lg:px-10 max-w-5xl mx-auto">
+        <div className="px-5 py-9 lg:px-10 max-w-5xl mx-auto workspace-content">
           <Suspense fallback={<div role="status" className="py-12 text-sm text-muted-foreground">Opening workspace…</div>}>
+          <motion.div key={activeTab} initial={{ opacity: 0.65, y: reducedMotion ? 0 : 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}>
           {activeTab === "dashboard" && <DashboardView stats={stats} history={history} onViewAll={() => setActiveTab("history")} onPreferences={() => setActiveTab("preferences")} activeEngine={activeEngine} onModels={() => setActiveTab("models")} onIntelligence={() => setActiveTab("ai")} onHistoryChange={setHistory} />}
           {activeTab === "meetings" && <MeetingsView modelStatus={modelStatus} />}
           {activeTab === "history" && <HistoryView history={history} setHistory={setHistory} />}
@@ -251,6 +257,7 @@ export default function Dashboard() {
           )}
           {activeTab === "ai" && <AIView />}
           {activeTab === "preferences" && <PreferencesView activeEngine={activeEngine} />}
+          </motion.div>
           </Suspense>
         </div>
       </main>
@@ -268,6 +275,6 @@ export default function Dashboard() {
         />
       )}
       </div>
-    </SidebarProvider>
+    </SidebarProvider></MotionConfig>
   );
 }

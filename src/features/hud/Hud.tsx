@@ -162,10 +162,11 @@ export default function Hud() {
       <AnimatePresence onExitComplete={handleExitComplete}>
         {phase !== "idle" && (
           <motion.div
+            layout={reducedMotion ? false : "size"}
             initial={{ opacity: 0, y: reducedMotion ? 0 : 8, scale: reducedMotion ? 1 : 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: reducedMotion ? 0 : 4, scale: reducedMotion ? 1 : 0.98 }}
-            transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reducedMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1], layout: { duration: reducedMotion ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] } }}
             role="status"
             aria-live="polite"
             aria-label={phase === "meeting" ? `Meeting recording ${fmtElapsed(elapsed)}` : status}
@@ -181,6 +182,8 @@ export default function Hud() {
             >
               <span className={`hud-dot ${phase}`} />
 
+              <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span key={phase} className="hud-phase-content" initial={{ opacity: 0, y: reducedMotion ? 0 : 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reducedMotion ? 0 : -3 }} transition={{ duration: reducedMotion ? 0 : 0.14 }}>
               {phase === "recording" && (
                 <RecordingVisualizer phase={phase} targets={targets} heights={heights} />
               )}
@@ -196,6 +199,8 @@ export default function Hud() {
                 <><WandSparkles size={15} className="hud-icon-anim hud-icon-sweep" strokeWidth={2} /><span className="hud-label">Refining</span></>
               )}
               {phase === "notice" && <span className="hud-label">{status}</span>}
+              </motion.span>
+              </AnimatePresence>
             </div>
 
             {(phase === "recording" || phase === "processing" || phase === "cleanup" || phase === "meeting" || (phase === "notice" && meetingPipeline.current)) && (

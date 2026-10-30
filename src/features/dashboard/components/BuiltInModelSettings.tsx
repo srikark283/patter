@@ -1,3 +1,4 @@
+import { StageProgress } from "./StageProgress";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -74,6 +75,7 @@ export function BuiltInModelSettings({ settings, model, status, error, busy, onE
       {update && !update.update_available && <p role="status" className="text-xs text-muted-foreground">No newer model release is available.</p>}
       {updateError && <p role="alert" className="break-words text-xs text-destructive">{updateError} Your current model is kept.</p>}
     </div></section>}
+    {(busy || status?.downloading) && <StageProgress steps={["Install", "Enable", "Ready"]} current={status?.installed && !status.downloading ? 1 : 0} label={`${name} setup stages`} />}
     {status?.downloading && <Progress aria-label={`${name} installation`} value={status.progress} />}
     {error && <div role="alert" className="space-y-2 text-sm text-destructive break-words">
       <p>{error}</p>
