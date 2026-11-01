@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface Props { settings: Settings; statuses: Partial<Record<Settings["built_in_model"], BuiltInStatus>>; busy: boolean; }
 export function CleanupPlayground({ settings, statuses, busy }: Props) {
   const [chosenModel, setModel] = useState<Settings["built_in_model"] | null>(null);
-  const model = chosenModel ?? (statuses[settings.built_in_model]?.installed ? settings.built_in_model : statuses["patter-1-nano"]?.installed ? "patter-1-nano" : "patter-1-mini");
+  const model = chosenModel ?? (statuses[settings.built_in_model]?.installed ? settings.built_in_model : statuses["patter-1-nano"]?.installed ? "patter-1-nano" : statuses["patter-1-mini"]?.installed ? "patter-1-mini" : statuses["patter-1-omni"]?.installed ? "patter-1-omni" : "patter-1-mini");
   const status = statuses[model];
   const ready = !!status?.supported && status.installed && status.runtime_ready && !status.downloading;
   const nano = model === "patter-1-nano";
@@ -28,8 +28,8 @@ export function CleanupPlayground({ settings, statuses, busy }: Props) {
   };
   return (
     <section className="cleanup-playground" aria-label="Try your text">
-      <div className="section-heading"><div><h2>Try your text</h2><p>Compare cleanup using any downloaded Patter model. Your default stays unchanged.</p></div></div>
-      <label className="mt-5 block text-xs text-muted-foreground">Test model<Select value={model} disabled={testing || busy} onValueChange={value => { setModel(value as Settings["built_in_model"]); setResult(null); setTestError(""); }}><SelectTrigger className="mt-2" aria-label="Test model"><SelectValue /></SelectTrigger><SelectContent>{(["patter-1-nano", "patter-1-mini"] as const).map(id => <SelectItem key={id} value={id} disabled={!statuses[id]?.installed}>{builtInModelName(id)}{!statuses[id]?.installed ? " · Download first" : ""}</SelectItem>)}</SelectContent></Select></label>
+      <div className="section-heading"><div><h2>Try your text</h2><p>Compare cleanup using any installed Patter model. Your default stays unchanged.</p></div></div>
+      <label className="mt-5 block text-xs text-muted-foreground">Test model<Select value={model} disabled={testing || busy} onValueChange={value => { setModel(value as Settings["built_in_model"]); setResult(null); setTestError(""); }}><SelectTrigger className="mt-2" aria-label="Test model"><SelectValue /></SelectTrigger><SelectContent>{(["patter-1-nano", "patter-1-mini", "patter-1-omni"] as const).map(id => <SelectItem key={id} value={id} disabled={!statuses[id]?.installed}>{builtInModelName(id)}{!statuses[id]?.installed ? " · Download first" : ""}</SelectItem>)}</SelectContent></Select></label>
       <div className="space-y-3 pt-3">
         {nano && <p className="text-xs text-muted-foreground">If generation is truncated, Patter keeps the original transcript.</p>}
         <p className="text-xs leading-relaxed text-muted-foreground">Compare your transcript with the cleaned result. This preview does not paste into another app.</p>

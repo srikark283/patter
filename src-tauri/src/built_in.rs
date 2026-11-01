@@ -36,7 +36,11 @@ fn manifest(model: BuiltInModel) -> Manifest {
     if model == BuiltInModel::Patter1Nano {
         return updates::current_channel().desktop;
     }
-    let json = include_str!("../../native/patter-intelligence/mini-model.json");
+    let json = if model == BuiltInModel::Patter1Omni {
+        include_str!("../../native/patter-intelligence/omni-model.json")
+    } else {
+        include_str!("../../native/patter-intelligence/mini-model.json")
+    };
     serde_json::from_str(json).expect("built-in model manifest")
 }
 fn model_file_url(manifest: &Manifest, name: &str) -> String {
@@ -163,6 +167,7 @@ pub fn status(model: BuiltInModel) -> Result<Status, String> {
         downloading_model: match DOWNLOADING.load(Ordering::Relaxed) {
             2 => Some(BuiltInModel::Patter1Nano),
             3 => Some(BuiltInModel::Patter1Mini),
+            4 => Some(BuiltInModel::Patter1Omni),
             _ => None,
         },
         download_bytes: manifest(model).files.iter().map(|f| f.size).sum(),
@@ -283,6 +288,7 @@ pub fn install_from(model: BuiltInModel, source: Option<&Path>) -> Result<(), St
             match model {
                 BuiltInModel::Patter1Nano => 2,
                 BuiltInModel::Patter1Mini => 3,
+                BuiltInModel::Patter1Omni => 4,
             },
             Ordering::AcqRel,
             Ordering::Relaxed,
@@ -634,6 +640,22 @@ mod tests {
     }
 
     #[test]
+    fn omni_identity_and_release_contract() {
+        let model: BuiltInModel = serde_json::from_str("\"patter-1-omni\"").unwrap();
+        assert_eq!(model, BuiltInModel::Patter1Omni);
+        assert_eq!(serde_json::to_string(&model).unwrap(), "\"patter-1-omni\"");
+        assert_ne!(model.directory(), BuiltInModel::Patter1Nano.directory());
+        assert_ne!(model.directory(), BuiltInModel::Patter1Mini.directory());
+        let m = manifest(model);
+        assert!(m.repo.is_empty());
+        assert_eq!(m.base_url.as_deref(), Some("https://github.com/srikark283/patter/releases/download/patter-1-omni-094013416e15"));
+        assert!(m.files.iter().all(|f| f.sha256.len() == 64 && f.size > 0));
+        for name in ["LICENSE.txt", "NOTICE.txt", "MODEL_CARD.md", "config.json", "tokenizer.json", "chat_template.jinja", "model.safetensors"] {
+            assert!(m.files.iter().any(|f| f.name == name));
+        }
+    }
+
+    #[test]
     fn mini_identity_manifest_and_instruction_contract() {
         let model: BuiltInModel = serde_json::from_str("\"patter-1-mini\"").unwrap();
         assert_eq!(model, BuiltInModel::Patter1Mini);
@@ -824,6 +846,52 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires Apple Silicon, npm run build:intelligence, and network or PATTER_OMNI_SOURCE"]
+    fn omni_bundled_runtime_smoke() {
+        let _serial = WORKER.lock().unwrap_or_else(|e| e.into_inner());
+        let source = std::env::var_os("PATTER_OMNI_SOURCE").map(PathBuf::from);
+        let dir = std::env::temp_dir()
+            .join("patter-1-omni-smoke")
+            .join(manifest(BuiltInModel::Patter1Omni).revision);
+        install_into_from(BuiltInModel::Patter1Omni, &dir, source.as_deref()).unwrap();
+        assert!(installed_at(BuiltInModel::Patter1Omni, &dir));
+        let p = Paths {
+            kind: BuiltInModel::Patter1Omni,
+            model: dir.clone(),
+            executable: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../native/patter-intelligence/dist/patter-intelligence"),
+        };
+        let mut worker = Worker::start(&p).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(180);
+        assert!(worker.event(deadline, &|| false).unwrap()["ready"].is_string());
+        let settings = crate::db::Settings {
+            built_in_model: BuiltInModel::Patter1Omni,
+            ..Default::default()
+        };
+        for input in [
+            "um please send the report tomorrow",
+            "I cannot deploy version 2.4.1 until Thursday.",
+        ] {
+            writeln!(worker.stdin, "{}", request(&settings, input, None, None)).unwrap();
+            worker.stdin.flush().unwrap();
+            loop {
+                let event = worker.event(deadline, &|| false).unwrap();
+                if let Some(done) = event["done"].as_str() {
+                    println!("{input:?} -> {done:?}");
+                    assert!(!done.is_empty());
+                    if input.contains("2.4.1") {
+                        assert!(done.contains("2.4.1"));
+                        assert!(done.contains("cannot") || done.contains("can't"));
+                    }
+                    break;
+                }
+            }
+        }
+        drop(worker);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn activation_requires_supported_runtime_download_and_english() {
         let mut settings = crate::db::Settings::default();
         settings.cleanup_provider = crate::inference::CleanupProvider::BuiltIn;
@@ -880,7 +948,7 @@ mod tests {
             app: "Visual Studio Code, Ghostty".into(),
             prompt: "Keep code verbatim. Do not fix grammar inside code. Format terminal commands carefully.".into(),
         });
-        for model in [BuiltInModel::Patter1Nano, BuiltInModel::Patter1Mini] {
+        for model in [BuiltInModel::Patter1Nano, BuiltInModel::Patter1Mini, BuiltInModel::Patter1Omni] {
             settings.built_in_model = model;
             for app in ["Visual Studio Code", "Ghostty"] {
                 let input = request(&settings, "um update getUserById", None, Some(app));
@@ -899,7 +967,7 @@ mod tests {
         settings.app_profiles.push(crate::db::AppProfile {
             app: "Review Tool".into(), prompt: "Keep output verbatim.".into(),
         });
-        for model in [BuiltInModel::Patter1Nano, BuiltInModel::Patter1Mini] {
+        for model in [BuiltInModel::Patter1Nano, BuiltInModel::Patter1Mini, BuiltInModel::Patter1Omni] {
             settings.built_in_model = model;
             for app in ["Visual Studio Code", "Codex", "Terminal", "Ghostty", "Review Tool"] {
                 // Cancellation occurs before loading weights, after the former bypass.

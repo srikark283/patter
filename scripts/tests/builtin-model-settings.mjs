@@ -40,3 +40,12 @@ assert(readyPreview.includes('Test model'));
 assert(readyPreview.includes('Your default stays unchanged'));
 assert(!readyPreview.includes('Model maintenance'));
 console.log('Cleanup playground: independent model selector, visible without Manage, no activation or maintenance controls.');
+
+const omni = render({ ...props, model: 'patter-1-omni', settings: { ...props.settings, built_in_model: 'patter-1-omni' }, status: { ...props.status, installed: false, previous_version: null } });
+assert(!omni.includes('Local MLX export folder'));
+assert(omni.includes('Download &amp; enable patter-1-omni'));
+assert(!omni.includes('Gemma Terms'));
+assert(!omni.includes('Model maintenance'));
+assert(!preview({ 'patter-1-omni': props.status }).includes('Import this model'));
+assert(!preview({ 'patter-1-omni': props.status }).includes('Download this model'));
+console.log('Omni setup: public download offered and installed model available in playground.');

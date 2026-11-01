@@ -1,12 +1,13 @@
 import { useId } from "react";
 
-/** Shared orbital geometry: one focused orbit for Nano, three for Mini. */
-export function ModelEmblem({ model }: { model: "patter-1-nano" | "patter-1-mini" }) {
+/** Related orbital silhouettes, with a meridian globe for Omni. */
+export function ModelEmblem({ model }: { model: "patter-1-nano" | "patter-1-mini" | "patter-1-omni" }) {
+  const omni = model === "patter-1-omni";
   const mini = model === "patter-1-mini";
   const id = useId().replace(/:/g, "");
   const ring = `${id}-ring`;
   const core = `${id}-core`;
-  return <span className="model-emblem" data-tone={mini ? "intelligence" : "voice"} title={mini ? "Mini · Atomic orbitals" : "Nano · Atomic orbital"}>
+  return <span className="model-emblem" data-tone={omni ? "personal" : mini ? "intelligence" : "voice"} title={omni ? "Omni · Meridian globe" : mini ? "Mini · Atomic orbitals" : "Nano · Atomic orbital"}>
     <svg width="36" height="36" viewBox="0 0 40 40" fill="none" aria-hidden="true">
       <defs>
         <linearGradient id={ring} x1="5" y1="34" x2="34" y2="6" gradientUnits="userSpaceOnUse">
@@ -17,7 +18,13 @@ export function ModelEmblem({ model }: { model: "patter-1-nano" | "patter-1-mini
         </radialGradient>
       </defs>
       <g className="emblem-orbits">
-        {mini ? <>
+        {omni ? <>
+          <circle cx="20" cy="20" r="16" stroke="#c58a43" strokeWidth="1.6" />
+          <ellipse cx="20" cy="20" rx="7.5" ry="16" transform="rotate(30 20 20)" stroke="#e4b76d" strokeWidth="1.6" />
+          <ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(30 20 20)" stroke="#c58a43" strokeWidth="1.6" />
+          <circle cx="20" cy="20" r="4" fill="#e4b76d" />
+          <circle cx="28" cy="6.2" r="2.8" fill="#f4d5a0" />
+        </> : mini ? <>
           <g stroke={`url(#${ring})`} strokeWidth="2.1">
             <ellipse cx="20" cy="20" rx="17" ry="10" transform="rotate(-30 20 20)" />
             <ellipse cx="20" cy="20" rx="17" ry="10" transform="rotate(30 20 20)" />

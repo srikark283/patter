@@ -18,6 +18,8 @@ pub enum BuiltInModel {
     Patter1Nano,
     #[serde(rename = "patter-1-mini")]
     Patter1Mini,
+    #[serde(rename = "patter-1-omni")]
+    Patter1Omni,
 }
 
 pub fn cleanup(
@@ -63,6 +65,7 @@ impl BuiltInModel {
         match self {
             Self::Patter1Nano => "patter-1-nano",
             Self::Patter1Mini => "patter-1-mini",
+            Self::Patter1Omni => "patter-1-omni",
         }
     }
 
@@ -70,6 +73,7 @@ impl BuiltInModel {
         match self {
             Self::Patter1Nano => "patter-1-nano",
             Self::Patter1Mini => "patter-1-mini",
+            Self::Patter1Omni => "patter-1-omni",
         }
     }
 }

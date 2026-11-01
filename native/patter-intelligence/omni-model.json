@@ -1,0 +1,63 @@
+{
+  "variant_id": "mlx-4bit",
+  "repo": "",
+  "revision": "094013416e15fd262a6142f698f8bfc538d9d308",
+  "base_url": "https://github.com/srikark283/patter/releases/download/patter-1-omni-094013416e15",
+  "files": [
+    {
+      "name": "LICENSE.txt",
+      "size": 10644,
+      "sha256": "61d7e939a05911c765b7e98ffaa1ab5ca6c0174a65350766c25cb10197d19fc8"
+    },
+    {
+      "name": "MODEL_CARD.md",
+      "size": 1028,
+      "sha256": "c73aa9b64fb65ceb1a9abeebdaf45c8ccad2826844fa39e48af53a90634c0fe7"
+    },
+    {
+      "name": "NOTICE.txt",
+      "size": 704,
+      "sha256": "a130ef66a2da2a7ae9059315593cf3d7c5c0588516efe16edb954254d77cea3b"
+    },
+    {
+      "name": "README.md",
+      "size": 1028,
+      "sha256": "c73aa9b64fb65ceb1a9abeebdaf45c8ccad2826844fa39e48af53a90634c0fe7"
+    },
+    {
+      "name": "chat_template.jinja",
+      "size": 5487,
+      "sha256": "ba551d58630afa3190b1be3602e28301f3d2e9bbac978dfc49d6d825171648b6"
+    },
+    {
+      "name": "config.json",
+      "size": 1572,
+      "sha256": "3201758c1b68e92a8102583626b0d76f70ff4c6fc2e2b99d32e96cdbe6788cea"
+    },
+    {
+      "name": "generation_config.json",
+      "size": 132,
+      "sha256": "5ffd97da1dec4308543894569662d96e923ed01f7a9d8c7ff5aea7f800738cbd"
+    },
+    {
+      "name": "model.safetensors",
+      "size": 658540250,
+      "sha256": "094013416e15fd262a6142f698f8bfc538d9d308f5cca01c8d03780bcd78a121"
+    },
+    {
+      "name": "model.safetensors.index.json",
+      "size": 23414,
+      "sha256": "3074009e9be56358bf8edc25354572cbca2b5a625e02f8a2c2789a656f51f5a1"
+    },
+    {
+      "name": "tokenizer.json",
+      "size": 4733389,
+      "sha256": "df1d8d5ec5d091b460562ffd545e4a5e91d17d4a0db7ebe733be34ed374377bd"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "size": 518,
+      "sha256": "0b3d79111ef4ed919081f3fc0b82f2ce7e46dc3eb1abcfa8a29b9520560c2ba4"
+    }
+  ]
+}

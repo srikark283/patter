@@ -19,10 +19,10 @@ struct InferenceError: LocalizedError {
 struct PatterIntelligence {
     static func main() async {
         guard CommandLine.arguments.count == 3,
-            ["patter-1-nano", "patter-1-mini"].contains(CommandLine.arguments[2]) else {
+            ["patter-1-nano", "patter-1-mini", "patter-1-omni"].contains(CommandLine.arguments[2]) else {
             emit(["error": "Expected a Patter model directory and model ID"]); return
         }
-        let mini = CommandLine.arguments[2] == "patter-1-mini"
+        let separateSystem = CommandLine.arguments[2] != "patter-1-nano"
         let name = CommandLine.arguments[2]
         let budget = 256
         do {
@@ -49,7 +49,7 @@ struct PatterIntelligence {
                         guard count <= budget else {
                             throw InferenceError(message: "A transcript character exceeds the chunk token budget")
                         }
-                        let messages = try nanoMessages(text: chunk, instruction: instruction, separateSystem: mini)
+                        let messages = try nanoMessages(text: chunk, instruction: instruction, separateSystem: separateSystem)
                         let input = try await model.prepare(input: UserInput(messages: messages,
                             additionalContext: ["enable_thinking": false]))
                         let limit = max(128, count * 2 + 128)

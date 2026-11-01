@@ -21,7 +21,7 @@ export interface Settings {
   silence_timeout_ms: number;
   llm_cleanup_enabled: boolean;
   cleanup_provider: "ollama" | "built_in";
-  built_in_model: "patter-1-nano" | "patter-1-mini";
+  built_in_model: "patter-1-nano" | "patter-1-mini" | "patter-1-omni";
   ollama_model: string | null;
   meeting_ollama_model: string | null;
   meeting_engine_id: string | null;
