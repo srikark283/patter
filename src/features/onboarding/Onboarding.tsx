@@ -1,7 +1,7 @@
 import { ShortcutKeys } from "../dashboard/components/ShortcutKeys";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Check, Download, Loader2, Mic, Keyboard, ShieldCheck, KeyRound, Accessibility, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Check, Download, Loader2, Mic, Keyboard, ShieldCheck, Accessibility, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
   Settings,
   getSettings,
@@ -205,7 +205,7 @@ export function Onboarding({
       ),
     },
     {
-      icon: KeyRound,
+      icon: Keyboard,
       title: "System Permissions",
       body: (
         <div className="space-y-2.5 my-1">
@@ -221,7 +221,7 @@ export function Onboarding({
             onOpen={openMicrophoneSettings}
           />
           <OnboardingPermissionRow
-            icon={KeyRound}
+            icon={Keyboard}
             title="Input Monitoring"
             description="Registers global hotkey shortcut anywhere"
             granted={permissions?.input_monitoring}

@@ -1,7 +1,7 @@
 import { ShortcutKeys } from "../components/ShortcutKeys";
-import { useState, useEffect, KeyboardEvent, createContext, useContext, ReactNode, ComponentType } from "react";
+import { useState, useEffect, useRef, KeyboardEvent, createContext, useContext, ReactNode, ComponentType } from "react";
 import { toast } from "sonner";
-import { Search, SunMoon, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, KeyRound, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type, Wand2 } from "lucide-react";
+import { Search, SunMoon, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, Keyboard, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type, Wand2 } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
 import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, requestAccessibilityPermission, openInputMonitoringSettings, requestInputMonitoringPermission, openMicrophoneSettings, requestMicrophonePermission, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
@@ -50,8 +50,9 @@ const MODES = [
 /** The filter box's text, so a row can hide itself without every call site
  *  threading a prop down. Empty string means "show everything". */
 const FilterContext = createContext("");
+const SectionFilterContext = createContext<{ label: string; description?: string }>({ label: "" });
 
-function matches(query: string, ...text: (string | undefined)[]) {
+export function matches(query: string, ...text: (string | undefined)[]) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return text.filter(Boolean).join(" ").toLowerCase().includes(q);
@@ -142,7 +143,94 @@ const ROWS = {
   updates: { icon: PackageIcon,
     title: "Updates", description: "Notify about new versions on launch",
     keywords: "version upgrade release" },
+  permAccessibility: { icon: Accessibility,
+    title: "Accessibility", description: "Lets Patter type finished text into other apps",
+    keywords: "permissions access system settings grant" },
+  permInputMonitoring: { icon: Keyboard,
+    title: "Input Monitoring", description: "Needed for the global hotkey to work anywhere",
+    keywords: "permissions access system settings grant" },
+  permMicrophone: { icon: Mic,
+    title: "Microphone", description: "Required to capture dictation and meeting audio",
+    keywords: "permissions access system settings grant" },
+  permNotifications: { icon: Bell,
+    title: "Notifications", description: "Used to alert you when a new version is available",
+    keywords: "permissions access system settings grant" },
+  backup: { icon: Download,
+    title: "Backup & restore",
+    description: "Export settings, dictionary, snippets, memory, history, and meetings to a single file — or restore from one.",
+    keywords: "data backup restore export import" },
+  privacy: { icon: ShieldCheck,
+    title: "Everything stays on your machine",
+    description: "Audio is captured, transcribed, and cleaned up entirely on-device. Whisper, Parakeet, and Patter Intelligence run locally. Nothing is ever uploaded — the only network traffic Patter makes is downloading models you explicitly request.",
+    keywords: "privacy on-device local telemetry" },
 } satisfies Record<string, RowMeta>;
+
+interface SectionMeta {
+  id: string;
+  label: string;
+  description: string;
+  rows: RowMeta[];
+}
+
+export const PREFERENCE_SECTIONS: SectionMeta[] = [
+  {
+    id: "shortcuts",
+    label: "Shortcuts",
+    description: "Global hotkeys, voice commands, and recording triggers.",
+    rows: [ROWS.hotkey, ROWS.meetingHotkey, ROWS.commandMode, ROWS.pushToTalk],
+  },
+  {
+    id: "dictation",
+    label: "Dictation",
+    description: "How spoken words are captured, trimmed, and inserted into apps.",
+    rows: [ROWS.outputMode, ROWS.language, ROWS.silence, ROWS.trimSilence, ROWS.whisperMode],
+  },
+  {
+    id: "audio",
+    label: "Audio",
+    description: "Input device selection for dictation and meetings.",
+    rows: [ROWS.microphone],
+  },
+  {
+    id: "feedback",
+    label: "Feedback",
+    description: "Theme, recording pill position, and sound effects.",
+    rows: [ROWS.appearance, ROWS.hudPosition, ROWS.sounds],
+  },
+  {
+    id: "application",
+    label: "Application",
+    description: "Startup behavior and software updates.",
+    rows: [ROWS.autostart, ROWS.updates],
+  },
+  {
+    id: "permissions",
+    label: "Permissions",
+    description: "System access required for typing, hotkeys, and audio.",
+    rows: [ROWS.permAccessibility, ROWS.permInputMonitoring, ROWS.permMicrophone, ROWS.permNotifications],
+  },
+  {
+    id: "data",
+    label: "Data",
+    description: "Back up or restore your settings, vocabulary, and transcripts.",
+    rows: [ROWS.backup],
+  },
+  {
+    id: "privacy",
+    label: "Privacy",
+    description: "Local processing guarantees and network boundaries.",
+    rows: [ROWS.privacy],
+  },
+];
+
+type SectionTarget = SectionMeta | { id?: string; label: string; description?: string; rows: RowMeta[] };
+
+export function sectionMatches(query: string, section: SectionTarget) {
+  return (
+    matches(query, section.label, section.description) ||
+    section.rows.some((r) => matches(query, r.title, r.description, r.keywords))
+  );
+}
 
 /** One settings row: icon bubble, label, description, and its control. */
 /** `expansion` renders inside the same cell, under the row and aligned with the
@@ -156,58 +244,70 @@ function Setting({ icon: Icon, title, description, keywords, primary, active, ch
   expansion?: ReactNode;
 }) {
   const query = useContext(FilterContext);
-  if (!matches(query, title, description, keywords)) return null;
+  const section = useContext(SectionFilterContext);
+  if (!matches(query, section.label, section.description) && !matches(query, title, description, keywords)) {
+    return null;
+  }
   return (
-    <div className={cn("group/row transition-colors", primary ? "p-5" : "p-4", "hover:bg-accent-subtle")}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className={cn("group/row transition-colors", primary ? "px-5 py-5 bg-foreground/[0.012]" : "px-5 py-4", "hover:bg-accent-subtle")}>
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex min-w-0 items-center gap-3.5">
           <SettingIcon icon={Icon} active={active} size={primary ? "lg" : "sm"} />
-          <div>
+          <div className="min-w-0">
             <p className={cn(
-              "font-medium text-foreground/90",
-              primary ? "text-[14px] tracking-tight" : "text-[13px]"
+              "text-foreground/90",
+              primary ? "text-[14px] font-semibold tracking-tight text-foreground" : "text-[13px] font-medium"
             )}>{title}</p>
-            <p className="text-[11px] text-muted-foreground">{description}</p>
+            <p className="mt-0.5 max-w-[62ch] text-[12px] leading-relaxed text-muted-foreground">{description}</p>
           </div>
         </div>
         <div className="shrink-0">{children}</div>
       </div>
       {/* Clears the icon and its gap, so this lines up with the title rather
           than the icon. */}
-      {expansion && <div className={cn("pt-3", primary ? "pl-12" : "pl-11")}>{expansion}</div>}
+      {expansion && <div className={cn("pt-3.5", primary ? "pl-12" : "pl-11")}>{expansion}</div>}
     </div>
   );
 }
 
 /** A titled group of rows. Hides itself when the filter empties it, so the
  *  filter never leaves a bare header over an empty card. */
-function SettingsSection({ label, rows, children }: {
-  label: string; rows: RowMeta[]; children: ReactNode;
+function SettingsSection({ id, label, description, rows, children }: SectionMeta & {
+  children: ReactNode;
 }) {
   const query = useContext(FilterContext);
-  if (!rows.some((r) => matches(query, r.title, r.description, r.keywords))) return null;
+  if (!sectionMatches(query, { id, label, description, rows })) return null;
+  const headingId = `preferences-${id}-heading`;
   return (
-    <section className="space-y-4">
-      <span className="t-label block px-1 pb-1">{label}</span>
-      <div className="surface-raised rounded-xl divide-y divide-border overflow-hidden">{children}</div>
-    </section>
+    <SectionFilterContext.Provider value={{ label, description }}>
+      <section id={`preferences-${id}`} aria-labelledby={headingId} className="scroll-mt-28 space-y-3.5">
+        <header className="preferences-section-heading px-1">
+          <h2 id={headingId}>{label}</h2>
+          <p>{description}</p>
+        </header>
+        <div className="surface-raised rounded-xl divide-y divide-border overflow-hidden">{children}</div>
+      </section>
+    </SectionFilterContext.Provider>
   );
 }
 
-interface PermissionRowProps {
+interface PermissionRowProps extends RowMeta {
   icon: typeof Mic;
-  title: string;
-  description: string;
   /** Omit when the OS gives no reliable way to query the live status. */
   granted?: boolean;
   onRequestAccess?: () => Promise<boolean | void>;
   onOpenSettings: () => Promise<void>;
 }
 
-function PermissionRow({ icon: Icon, title, description, granted, onRequestAccess, onOpenSettings }: PermissionRowProps) {
+function PermissionRow({ icon: Icon, title, description, keywords, granted, onRequestAccess, onOpenSettings }: PermissionRowProps) {
+  const query = useContext(FilterContext);
+  const section = useContext(SectionFilterContext);
+  if (!matches(query, section.label, section.description) && !matches(query, title, description, keywords)) {
+    return null;
+  }
   return (
-    <div className="flex items-center justify-between p-4 transition-colors hover:bg-accent-subtle">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between gap-6 px-5 py-4 transition-colors hover:bg-accent-subtle">
+      <div className="flex min-w-0 items-center gap-3.5">
         {/* The chip states whether the permission is granted. Which permission
             it is was never worth a colour of its own. */}
         <div
@@ -222,12 +322,12 @@ function PermissionRow({ icon: Icon, title, description, granted, onRequestAcces
         >
           <Icon size={14} />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-[13px] font-medium text-foreground/90">{title}</p>
-          <p className="text-[11px] text-muted-foreground">{description}</p>
+          <p className="mt-0.5 max-w-[62ch] text-[12px] leading-relaxed text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-2.5">
         {granted === undefined ? (
           <span className="text-[11px] text-muted-foreground">Check in System Settings</span>
         ) : granted ? (
@@ -279,6 +379,8 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   /// derived value would snap the picker straight back to Off.
   const [commandMode, setCommandMode] = useState<CommandMode>("off");
   const [query, setQuery] = useState("");
+  const [activeSection, setActiveSection] = useState<string>(PREFERENCE_SECTIONS[0].id);
+  const navRef = useRef<HTMLElement>(null);
   const theme = useTheme();
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -299,6 +401,58 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
     window.addEventListener("focus", refreshPermissions);
     return () => window.removeEventListener("focus", refreshPermissions);
   }, []);
+
+  useEffect(() => {
+    if (!settings) return;
+    const nav = navRef.current;
+    if (!nav) return;
+    const scroller = nav.closest("main");
+    const supportsScrollTargetGroup =
+      typeof CSS !== "undefined" &&
+      typeof CSS.supports === "function" &&
+      CSS.supports("scroll-target-group: auto");
+
+    if (supportsScrollTargetGroup) {
+      const syncAriaCurrent = () => {
+        const currentLink = nav.querySelector<HTMLAnchorElement>("a:target-current");
+        const href = currentLink?.getAttribute("href");
+        if (href?.startsWith("#preferences-")) {
+          setActiveSection(href.slice("#preferences-".length));
+        }
+      };
+      syncAriaCurrent();
+      const target: EventTarget = scroller ?? document;
+      target.addEventListener("scrollend", syncAriaCurrent);
+      return () => target.removeEventListener("scrollend", syncAriaCurrent);
+    }
+
+    if (typeof IntersectionObserver === "undefined") return;
+    const sections = PREFERENCE_SECTIONS.map((s) =>
+      document.getElementById(`preferences-${s.id}`)
+    ).filter((el): el is HTMLElement => el !== null);
+    if (!sections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute("id");
+            if (id?.startsWith("preferences-")) {
+              setActiveSection(id.slice("preferences-".length));
+            }
+          }
+        }
+      },
+      {
+        root: scroller,
+        rootMargin: "-20% 0px -65% 0px",
+        threshold: 0,
+      }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, [settings, query]);
 
   const handleCheckUpdates = async () => {
     setCheckingUpdate(true);
@@ -451,42 +605,95 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   // Falls back to the first mode so the row still renders if a stored value
   // ever stops matching a known id.
   const activeMode = MODES.find((m) => m.id === settings.output_mode) ?? MODES[0];
+  const visibleSections = PREFERENCE_SECTIONS.filter((section) => sectionMatches(query, section));
+  const currentSectionId = visibleSections.some((s) => s.id === activeSection)
+    ? activeSection
+    : (visibleSections[0]?.id ?? PREFERENCE_SECTIONS[0].id);
+  const missingPermission =
+    !!permissions &&
+    (!permissions.accessibility || !permissions.input_monitoring || !permissions.microphone);
+
+  const jumpToSection = (id: string, isVisible: boolean) => {
+    setActiveSection(id);
+    const scrollTarget = () => {
+      document.getElementById(`preferences-${id}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+    if (!isVisible) {
+      setQuery("");
+      window.requestAnimationFrame(scrollTarget);
+    } else {
+      scrollTarget();
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       <PageHeader title="Preferences" description="Configure Patter's behavior." />
 
-      <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter settings…"
-          className="w-full surface-raised rounded-xl pl-9 pr-9 py-2.5 text-[13px] text-foreground/90 placeholder:text-muted-foreground/60 focus:outline-none focus-visible:ring-focus transition-shadow"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery("")}
-            title="Clear filter"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
-          >
-            <X size={13} />
-          </button>
-        )}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+          <input
+            type="search"
+            aria-label="Filter settings"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter settings…"
+            className="w-full surface-raised rounded-xl pl-9 pr-9 py-2.5 text-[13px] text-foreground/90 placeholder:text-muted-foreground/60 focus:outline-none focus-visible:ring-focus transition-shadow"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              title="Clear filter"
+              aria-label="Clear filter"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        <nav ref={navRef} className="preferences-sections" aria-label="Preferences sections">
+          {PREFERENCE_SECTIONS.map((section) => {
+            const isVisible = visibleSections.some((s) => s.id === section.id);
+            const isCurrent = isVisible && currentSectionId === section.id;
+            return (
+              <a
+                key={section.id}
+                href={`#preferences-${section.id}`}
+                aria-current={isCurrent ? "true" : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  jumpToSection(section.id, isVisible);
+                }}
+                className={cn(
+                  isCurrent && "\\:target-current",
+                  !isVisible && "opacity-45"
+                )}
+              >
+                <span>{section.label}</span>
+                {section.id === "permissions" && missingPermission && (
+                  <span
+                    aria-label="Action needed"
+                    title="One or more permissions need attention"
+                    className="size-1.5 rounded-full bg-warning"
+                  />
+                )}
+              </a>
+            );
+          })}
+        </nav>
       </div>
 
       <FilterContext.Provider value={query}>
+        <div className="space-y-10">
         {/* Shortcuts: every way of starting a recording, together. These used to
             sit in a "Hardware & System" group alongside updates and autostart. */}
-        <SettingsSection
-          label="Shortcuts"
-          rows={[
-            ROWS.hotkey,
-            ROWS.meetingHotkey,
-            ROWS.commandMode,
-            ROWS.pushToTalk,
-          ]}
-        >
+        <SettingsSection {...PREFERENCE_SECTIONS[0]}>
           <Setting {...ROWS.hotkey} active={!!settings.hotkey}>
             <button type="button" aria-label="Change dictation shortcut" onClick={() => setRecordingField("hotkey")} onBlur={() => setRecordingField(null)} onKeyDown={handleHotkeyRecord("hotkey")} className="shortcut-capture" data-recording={recordingField === "hotkey" || undefined}>
                 {recordingField === "hotkey" ? "Press a key…" : settings.hotkey ? <ShortcutKeys combo={settings.hotkey} interactive /> : "Not set"}
@@ -515,7 +722,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             active={commandMode !== "off"}
             expansion={
               commandMode === "hotkey" ? (
-                <div className="rounded-lg bg-foreground/[0.03] ring-1 ring-border/60 px-3 py-2.5 space-y-2">
+                <div className="rounded-lg bg-foreground/[0.03] ring-1 ring-border/60 px-3.5 py-3 space-y-2">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[12px] text-foreground/80">Hotkey</span>
                     <div className="flex items-center gap-1.5">
@@ -540,7 +747,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                   </p>
                 </div>
               ) : commandMode === "phrase" ? (
-                <div className="rounded-lg bg-foreground/[0.03] ring-1 ring-border/60 px-3 py-2.5 space-y-2">
+                <div className="rounded-lg bg-foreground/[0.03] ring-1 ring-border/60 px-3.5 py-3 space-y-2">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[12px] text-foreground/80">Phrase</span>
                     <input
@@ -590,7 +797,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
 
         {/* How dictation behaves once it is running. Previously split between
             "Hardware & System" and a separate "Transcription" group. */}
-        <SettingsSection label="Dictation" rows={[ROWS.outputMode, ROWS.language, ROWS.silence, ROWS.trimSilence, ROWS.whisperMode]}>
+        <SettingsSection {...PREFERENCE_SECTIONS[1]}>
           {/* Was a pair of oversized cards in its own section. It is a two-way
               choice like any other row, so it reads as one — the bubble and the
               description follow the selection, which is what the cards were
@@ -681,7 +888,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           </Setting>
         </SettingsSection>
 
-        <SettingsSection label="Audio" rows={[ROWS.microphone]}>
+        <SettingsSection {...PREFERENCE_SECTIONS[2]}>
           <Setting {...ROWS.microphone}>
             <Select
               value={settings.microphone ?? "none"}
@@ -700,7 +907,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           </Setting>
         </SettingsSection>
 
-        <SettingsSection label="Feedback" rows={[ROWS.appearance, ROWS.hudPosition, ROWS.sounds]}>
+        <SettingsSection {...PREFERENCE_SECTIONS[3]}>
           <Setting {...ROWS.appearance}>
             <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
               {(["system", "light", "dark"] as Theme[]).map((t) => (
@@ -761,7 +968,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           </Setting>
         </SettingsSection>
 
-        <SettingsSection label="Application" rows={[ROWS.autostart, ROWS.updates]}>
+        <SettingsSection {...PREFERENCE_SECTIONS[4]}>
           <Setting {...ROWS.autostart} active={settings.autostart}>
             <Switch
               checked={settings.autostart}
@@ -789,56 +996,33 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           </Setting>
         </SettingsSection>
 
-        {matches(query, "Permissions accessibility input monitoring microphone notifications access") && (
-        <section className="space-y-4">
-        <span className="t-label block px-1 pb-1">Permissions</span>
-
-        <div className="surface-raised rounded-xl divide-y divide-border">
+        <SettingsSection {...PREFERENCE_SECTIONS[5]}>
           <PermissionRow
-            icon={Accessibility}
-            title="Accessibility"
-            description="Lets Patter type finished text into other apps"
+            {...ROWS.permAccessibility}
             granted={permissions?.accessibility ?? true}
             onRequestAccess={requestAccessibilityPermission}
             onOpenSettings={openAccessibilitySettings}
           />
           <PermissionRow
-            icon={KeyRound}
-            title="Input Monitoring"
-            description="Needed for the global hotkey to work anywhere"
+            {...ROWS.permInputMonitoring}
             granted={permissions?.input_monitoring ?? true}
             onRequestAccess={requestInputMonitoringPermission}
             onOpenSettings={openInputMonitoringSettings}
           />
           <PermissionRow
-            icon={Mic}
-            title="Microphone"
-            description="Required to capture dictation and meeting audio"
+            {...ROWS.permMicrophone}
             granted={permissions?.microphone ?? true}
             onRequestAccess={requestMicrophonePermission}
             onOpenSettings={openMicrophoneSettings}
           />
           <PermissionRow
-            icon={Bell}
-            title="Notifications"
-            description="Used to alert you when a new version is available"
+            {...ROWS.permNotifications}
             onOpenSettings={openNotificationSettings}
           />
-        </div>
-      </section>
-        )}
+        </SettingsSection>
 
-        {matches(query, "Data backup restore export import") && (
-        <section className="space-y-4">
-        <span className="t-label block px-1 pb-1">Data</span>
-        <div className="surface-raised rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[13px] font-medium text-foreground/90">Backup &amp; restore</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                Export settings, dictionary, snippets, memory, history, and meetings to a single file — or restore from one.
-              </p>
-            </div>
+        <SettingsSection {...PREFERENCE_SECTIONS[6]}>
+          <Setting {...ROWS.backup}>
             <div className="flex items-center gap-2 shrink-0">
               <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
                 {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -849,57 +1033,49 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                 Import
               </Button>
             </div>
-          </div>
-        </div>
-      </section>
-        )}
+          </Setting>
+        </SettingsSection>
 
-      <Dialog open={confirmImportOpen} onOpenChange={setConfirmImportOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Replace all data with a backup?</DialogTitle>
-            <DialogDescription>
-              You'll be asked to pick a backup file. Its contents overwrite your current settings, dictionary, snippets, memory, history, and meetings. This can't be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmImportOpen(false)} disabled={importing}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmImport} disabled={importing}>
-              {importing && <Loader2 size={14} className="animate-spin" />}
-              Choose File &amp; Import
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <Dialog open={confirmImportOpen} onOpenChange={setConfirmImportOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Replace all data with a backup?</DialogTitle>
+              <DialogDescription>
+                You'll be asked to pick a backup file. Its contents overwrite your current settings, dictionary, snippets, memory, history, and meetings. This can't be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmImportOpen(false)} disabled={importing}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmImport} disabled={importing}>
+                {importing && <Loader2 size={14} className="animate-spin" />}
+                Choose File &amp; Import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-        {matches(query, "Privacy on-device local telemetry") && (
-        <section className="space-y-4">
-        <span className="t-label block px-1 pb-1">Privacy</span>
-        <div className="surface-raised rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 shrink-0 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <ShieldCheck size={14} className="text-emerald-500" />
+        <SettingsSection {...PREFERENCE_SECTIONS[7]}>
+          <div className="flex items-start gap-3.5 px-5 py-4">
+            <div className="w-8 h-8 shrink-0 rounded-full bg-success/15 flex items-center justify-center">
+              <ShieldCheck size={14} className="text-success" />
             </div>
             <div>
-              <p className="text-[13px] font-medium text-foreground/90">Everything stays on your machine</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                Audio is captured, transcribed, and cleaned up entirely on-device. Whisper and Parakeet
-                run locally; Ollama runs on localhost. Nothing is ever uploaded — the only network
-                traffic Patter makes is downloading models you explicitly request.
+              <p className="text-[13px] font-medium text-foreground/90">{ROWS.privacy.title}</p>
+              <p className="mt-1 max-w-[84ch] text-[12px] leading-relaxed text-muted-foreground">
+                {ROWS.privacy.description}
               </p>
             </div>
           </div>
-        </div>
-      </section>
-        )}
+        </SettingsSection>
 
-        {query.trim() && !Object.values(ROWS).some((r) => matches(query, r.title, r.description, r.keywords)) && (
+        {query.trim() && visibleSections.length === 0 && (
           <p className="text-[13px] text-muted-foreground text-center py-10">
             No settings match “{query.trim()}”.
           </p>
         )}
+        </div>
       </FilterContext.Provider>
     </div>
   );

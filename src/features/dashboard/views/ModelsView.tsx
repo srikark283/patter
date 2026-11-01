@@ -129,7 +129,7 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
     const selected = activeEngine === model.id;
     const currentOperation = operation?.id === model.id ? operation.kind : null;
     const downloading = currentOperation !== "select" && (downloadingId === model.id || currentOperation === "download");
-    const status = downloading ? "Downloading" : currentOperation === "select" ? "Loading model" : currentOperation === "delete" ? "Removing" : selected ? "Selected" : complete ? "Downloaded" : partial ? "Incomplete download" : "Not downloaded";
+    const status = downloading ? "Downloading" : currentOperation === "select" ? "Loading model" : currentOperation === "delete" ? "Removing" : selected ? "Active model" : complete ? "Downloaded" : partial ? "Incomplete download" : "Not downloaded";
     return <article key={model.id} className={cn("speech-choice", selected && "is-active")} aria-label={model.fullName}>
       <div className="flex items-start gap-3">
         <div data-vendor={model.vendor} data-tone="voice" className="model-vendor-icon flex size-9 shrink-0 items-center justify-center rounded-lg"><img src={VENDOR_LOGOS[model.vendor]} alt={model.vendor === "nvidia" ? "NVIDIA" : "OpenAI"} className={cn("invert dark:invert-0 opacity-80", model.vendor === "nvidia" ? "w-7" : "w-5")} /></div>
@@ -150,7 +150,7 @@ export function ModelsView({ activeEngine, setActiveEngine, modelStatus, modelSt
           {(complete || partial) && !selected && <Button variant="ghost" size="icon-sm" disabled={busy} title={`Remove ${model.fullName}`} aria-label={`Remove ${model.fullName}`} onClick={() => setDeleteTarget(model)}><Trash2 size={14} /></Button>}
           <Button variant={selected ? "secondary" : complete ? "default" : "outline"} size="sm" disabled={busy || selected} onClick={() => void run(model, complete ? "select" : "download", !complete)}>
             {currentOperation || downloading ? <Loader2 size={14} className="animate-spin" /> : selected ? <Check size={14} /> : !complete ? <Download size={14} /> : null}
-            {downloading ? "Downloading…" : currentOperation === "select" ? "Loading…" : currentOperation === "delete" ? "Removing…" : selected ? "Selected" : complete ? "Use model" : partial ? "Retry & use" : "Download & use"}
+            {downloading ? "Downloading…" : currentOperation === "select" ? "Loading…" : currentOperation === "delete" ? "Removing…" : selected ? "Active model" : complete ? "Use model" : partial ? "Retry & use" : "Download & use"}
           </Button>
         </div>
       </div>
