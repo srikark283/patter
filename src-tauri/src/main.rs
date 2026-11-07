@@ -142,6 +142,7 @@ fn main() {
 
     builder
         .setup(move |app| {
+            db::lock_data_directory(app.handle())?;
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
@@ -209,6 +210,10 @@ fn main() {
             built_in::initialize(app.handle())?;
             let model_manager = models::registry::ModelManager::new(app.handle())?;
             let db_instance = db::Db::new(app.handle());
+            db_instance.recover_restore()?;
+            if let Err(error) = std::fs::remove_file(app.path().app_data_dir()?.join("meeting_buffer.f32")) {
+                if error.kind() != std::io::ErrorKind::NotFound { return Err(error.into()); }
+            }
             let mut settings = db_instance.get_settings();
             if built_in::validate_settings(&settings).is_err() {
                 settings.llm_cleanup_enabled = false;
@@ -218,40 +223,14 @@ fn main() {
             let mut initial_engine: Option<Box<dyn asr::ASREngine>> = None;
             let mut initial_engine_id: Option<String> = None;
 
-            if let Some(ref engine_id) = settings.active_engine_id {
-                if model_manager.is_downloaded(engine_id) {
-                    if let Some(kind) = model_manager.get_engine_kind(engine_id) {
-                        match kind {
-                            models::registry::EngineKind::Whisper => {
-                                if let Some(path) = model_manager.variant_file_path(engine_id) {
-                                    if let Ok(whisper) = asr::whisper::WhisperEngine::new(&path.to_string_lossy()) {
-                                        initial_engine = Some(Box::new(whisper));
-                                        initial_engine_id = Some(engine_id.to_string());
-                                    }
-                                }
-                            }
-                            models::registry::EngineKind::Parakeet => {
-                                if let Some(path) = model_manager.variant_dir(engine_id) {
-                                    if let Ok(parakeet) = asr::parakeet::ParakeetEngine::new(&path.to_string_lossy()) {
-                                        initial_engine = Some(Box::new(parakeet));
-                                        initial_engine_id = Some(engine_id.to_string());
-                                    }
-                                }
-                            }
-                            models::registry::EngineKind::Diarization => {}
-                        }
-                    }
-                }
-            } else if model_manager.is_downloaded("whisper-base") {
-                if let Some(whisper_path) = model_manager.variant_file_path("whisper-base") {
-                    if let Ok(whisper) = asr::whisper::WhisperEngine::new(&whisper_path.to_string_lossy()) {
-                        initial_engine = Some(Box::new(whisper));
-                        initial_engine_id = Some("whisper-base".to_string());
-                    }
+            let candidate = settings.active_engine_id.as_deref().unwrap_or("whisper-base");
+            if model_manager.is_downloaded(candidate) {
+                match commands::build_engine(&model_manager, candidate) {
+                    Ok(engine) => { initial_engine = Some(engine); initial_engine_id = Some(candidate.to_string()); }
+                    Err(_) => eprintln!("Saved speech model failed verification or loading; select a model again"),
                 }
             }
-            
-            // Apply autostart preference
+
             let autolaunch = app.autolaunch();
             if settings.autostart {
                 let _ = autolaunch.enable();
@@ -271,6 +250,7 @@ fn main() {
                 device_config: shared_config.clone(),
                 is_recording: Arc::new(AtomicBool::new(false)),
                 is_paused: Arc::new(AtomicBool::new(false)),
+                output_target: Arc::new(Mutex::new(None)),
                 frontmost_app: Arc::new(Mutex::new(None)),
                 command_selection: Arc::new(Mutex::new(None)),
                 meeting_captured: Arc::new(Mutex::new(Vec::new())),
@@ -662,6 +642,7 @@ fn main() {
             commands::get_app_icon,
             commands::get_active_engine,
             commands::get_settings,
+            commands::get_sound_theme,
             commands::update_settings,
             commands::get_microphones,
             commands::get_stats,

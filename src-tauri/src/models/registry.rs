@@ -2,7 +2,9 @@ use anyhow::{bail, Result};
 use futures_util::StreamExt;
 use reqwest::Client;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
+use sha2::{Digest, Sha256};
+use std::time::Duration;
 use std::path::PathBuf;
 use tauri::Manager;
 
@@ -23,6 +25,7 @@ pub enum EngineKind {
 pub struct ModelFile {
     pub name: &'static str,
     pub size: u64,
+    pub sha256: &'static str,
 }
 
 #[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,23 +52,23 @@ const CATALOG: &[ModelVariant] = &[
     ModelVariant {
         id: "whisper-tiny",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-tiny.en.bin", size: 77_704_715 }],
+        files: &[ModelFile { name: "ggml-tiny.en.bin", size: 77_704_715, sha256: "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f" }],
     },
     ModelVariant {
         id: "whisper-base",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-base.en.bin", size: 147_964_211 }],
+        files: &[ModelFile { name: "ggml-base.en.bin", size: 147_964_211, sha256: "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002" }],
     },
     ModelVariant {
         id: "whisper-small",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-small.en.bin", size: 487_614_201 }],
+        files: &[ModelFile { name: "ggml-small.en.bin", size: 487_614_201, sha256: "c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d" }],
     },
     // Multilingual counterparts of the three `.en` builds above. Same
     // architecture and size class — the `.en` weights are simply trained on
@@ -74,48 +77,48 @@ const CATALOG: &[ModelVariant] = &[
     ModelVariant {
         id: "whisper-tiny-multi",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-tiny.bin", size: 77_691_713 }],
+        files: &[ModelFile { name: "ggml-tiny.bin", size: 77_691_713, sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21" }],
     },
     ModelVariant {
         id: "whisper-base-multi",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-base.bin", size: 147_951_465 }],
+        files: &[ModelFile { name: "ggml-base.bin", size: 147_951_465, sha256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe" }],
     },
     ModelVariant {
         id: "whisper-small-multi",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-small.bin", size: 487_601_967 }],
+        files: &[ModelFile { name: "ggml-small.bin", size: 487_601_967, sha256: "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b" }],
     },
     ModelVariant {
         id: "whisper-medium-multi",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-medium.bin", size: 1_533_763_059 }],
+        files: &[ModelFile { name: "ggml-medium.bin", size: 1_533_763_059, sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208" }],
     },
     ModelVariant {
         id: "whisper-large-v3-turbo",
         engine: EngineKind::Whisper,
-        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main",
+        base_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1",
         dest_subdir: "whisper",
-        files: &[ModelFile { name: "ggml-large-v3-turbo.bin", size: 1_624_555_275 }],
+        files: &[ModelFile { name: "ggml-large-v3-turbo.bin", size: 1_624_555_275, sha256: "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69" }],
     },
     ModelVariant {
         id: "parakeet-v2",
         engine: EngineKind::Parakeet,
-        base_url: "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/resolve/main",
+        base_url: "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/resolve/1ab9323565ddb038682214b292f588070a538ce2",
         dest_subdir: "parakeet-v2",
         files: &[
-            ModelFile { name: "encoder.int8.onnx", size: 652_184_296 },
-            ModelFile { name: "decoder.int8.onnx", size: 7_257_753 },
-            ModelFile { name: "joiner.int8.onnx", size: 1_739_080 },
-            ModelFile { name: "tokens.txt", size: 9_384 },
+            ModelFile { name: "encoder.int8.onnx", size: 652_184_296, sha256: "a32b12d17bbbc309d0686fbbcc2987b5e9b8333a7da83fa6b089f0a2acd651ab" },
+            ModelFile { name: "decoder.int8.onnx", size: 7_257_753, sha256: "b6bb64963457237b900e496ee9994b59294526439fbcc1fecf705b31a15c6b4e" },
+            ModelFile { name: "joiner.int8.onnx", size: 1_739_080, sha256: "7946164367946e7f9f29a122407c3252b680dbae9a51343eb2488d057c3c43d2" },
+            ModelFile { name: "tokens.txt", size: 9_384, sha256: "ec182b70dd42113aff6c5372c75cac58c952443eb22322f57bbd7f53977d497d" },
         ],
     },
     // Diarization pair: pyannote segmentation + speaker embedding. Sizes
@@ -123,27 +126,27 @@ const CATALOG: &[ModelVariant] = &[
     ModelVariant {
         id: "diar-segmentation",
         engine: EngineKind::Diarization,
-        base_url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/main",
+        base_url: "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/9403a6902bb58e3d5ae8c7e77c3422de279db2e0",
         dest_subdir: "diarization",
-        files: &[ModelFile { name: "model.onnx", size: 5_992_913 }],
+        files: &[ModelFile { name: "model.onnx", size: 5_992_913, sha256: "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079" }],
     },
     ModelVariant {
         id: "diar-embedding",
         engine: EngineKind::Diarization,
-        base_url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main",
+        base_url: "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/0743f301363dec56491a490f6d6cbc9d67f9a3bf",
         dest_subdir: "diarization",
-        files: &[ModelFile { name: "nemo_en_titanet_small.onnx", size: 40_257_283 }],
+        files: &[ModelFile { name: "nemo_en_titanet_small.onnx", size: 40_257_283, sha256: "ad4a1802485d8b34c722d2a9d04249662f2ece5d28a7a039063ca22f515a789e" }],
     },
     ModelVariant {
         id: "parakeet-v3",
         engine: EngineKind::Parakeet,
-        base_url: "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/main",
+        base_url: "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/2bda32ec70b097a55adaa07d9a7173915b43cc78",
         dest_subdir: "parakeet-v3",
         files: &[
-            ModelFile { name: "encoder.int8.onnx", size: 652_184_281 },
-            ModelFile { name: "decoder.int8.onnx", size: 11_845_275 },
-            ModelFile { name: "joiner.int8.onnx", size: 6_355_277 },
-            ModelFile { name: "tokens.txt", size: 93_939 },
+            ModelFile { name: "encoder.int8.onnx", size: 652_184_281, sha256: "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247" },
+            ModelFile { name: "decoder.int8.onnx", size: 11_845_275, sha256: "179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e" },
+            ModelFile { name: "joiner.int8.onnx", size: 6_355_277, sha256: "3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3" },
+            ModelFile { name: "tokens.txt", size: 93_939, sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d" },
         ],
     },
 ];
@@ -160,6 +163,23 @@ const MIRROR_BASE: &str = "https://github.com/srikark283/patter/releases/downloa
 
 fn mirror_url(variant_id: &str, file_name: &str) -> String {
     format!("{}/{}-{}", MIRROR_BASE, variant_id, file_name)
+}
+
+pub(crate) fn verify_file(path: &std::path::Path, file: &ModelFile) -> Result<()> {
+    let mut input = File::open(path)?;
+    if input.metadata()?.len() != file.size { bail!("Model size mismatch: {}", file.name); }
+    let mut hash = Sha256::new();
+    let mut buffer = [0u8; 65536];
+    loop { let n = input.read(&mut buffer)?; if n == 0 { break; } hash.update(&buffer[..n]); }
+    if format!("{:x}", hash.finalize()) != file.sha256 { bail!("Model checksum mismatch: {}. Remove and download the model again.", file.name); }
+    Ok(())
+}
+
+fn write_download_chunk(out: &mut impl Write, chunk: &[u8], written: u64, expected: u64) -> Result<u64> {
+    let next = written.checked_add(chunk.len() as u64).ok_or_else(|| anyhow::anyhow!("Model size overflow"))?;
+    if next > expected { bail!("Model response exceeds expected size"); }
+    out.write_all(chunk)?;
+    Ok(next)
 }
 
 pub struct ModelManager {
@@ -181,6 +201,12 @@ impl ModelManager {
         let models_dir = app_dir.join("models");
         std::fs::create_dir_all(&models_dir)?;
         Ok(Self { models_dir })
+    }
+
+    pub fn verify_variant(&self, id: &str) -> Result<()> {
+        let variant = find_variant(id).ok_or_else(|| anyhow::anyhow!("Unknown model"))?;
+        for file in variant.files { verify_file(&self.models_dir.join(variant.dest_subdir).join(file.name), file)?; }
+        Ok(())
     }
 
     pub fn get_engine_kind(&self, id: &str) -> Option<EngineKind> {
@@ -277,6 +303,7 @@ impl ModelManager {
         std::fs::create_dir_all(&dir)?;
 
         let client = Client::builder()
+            .https_only(true).connect_timeout(Duration::from_secs(15)).timeout(Duration::from_secs(1800))
             .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Patter/0.2.1")
             .build()?;
         let total_bytes: f64 = variant.files.iter().map(|f| f.size as f64).sum();
@@ -285,7 +312,7 @@ impl ModelManager {
 
         for file in variant.files {
             let dest_path = dir.join(file.name);
-            if dest_path.exists() && std::fs::metadata(&dest_path).map(|m| m.len()).unwrap_or(0) == file.size {
+            if verify_file(&dest_path, file).is_ok() {
                 overall_downloaded += file.size as f64;
                 continue;
             }
@@ -309,14 +336,13 @@ impl ModelManager {
                     if !res.status().is_success() {
                         bail!("HTTP {}", res.status());
                     }
-                    let mut written = 0f64;
+                    let mut written = 0u64;
                     let mut stream = res.bytes_stream();
                     let mut out = File::create(&part_path)?;
                     let result: Result<()> = async {
                         while let Some(item) = stream.next().await {
                             let chunk = item?;
-                            out.write_all(&chunk)?;
-                            written += chunk.len() as f64;
+                            written = write_download_chunk(&mut out, &chunk, written, file.size)?;
                             overall_downloaded += chunk.len() as f64;
 
                             let pct = (overall_downloaded / total_bytes).min(0.99);
@@ -330,7 +356,7 @@ impl ModelManager {
                     .await;
                     if result.is_err() {
                         // Roll back the partial file so the next source restarts clean.
-                        overall_downloaded -= written;
+                        overall_downloaded -= written as f64;
                         let _ = std::fs::remove_file(&part_path);
                         return result;
                     }
@@ -340,8 +366,15 @@ impl ModelManager {
                     let got = std::fs::metadata(&part_path).map(|m| m.len()).unwrap_or(0);
                     if got != file.size {
                         let _ = std::fs::remove_file(&part_path);
-                        overall_downloaded -= written;
+                        overall_downloaded -= written as f64;
                         bail!("{} is {} bytes, expected {}", file.name, got, file.size);
+                    }
+                    out.sync_all()?;
+                    drop(out);
+                    if let Err(error) = verify_file(&part_path, file) {
+                        let _ = std::fs::remove_file(&part_path);
+                        overall_downloaded -= written as f64;
+                        return Err(error);
                     }
                     std::fs::rename(&part_path, &dest_path)?;
                     result
@@ -391,6 +424,23 @@ impl ModelManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn downloaded_models_reject_tampering_and_oversized_chunks() {
+        let path = std::env::temp_dir().join(format!("patter-integrity-{}", std::process::id()));
+        let file = ModelFile { name: "fixture", size: 3, sha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" };
+        std::fs::write(&path, b"abc").unwrap(); assert!(verify_file(&path, &file).is_ok());
+        std::fs::write(&path, b"bad").unwrap(); assert!(verify_file(&path, &file).is_err());
+        std::fs::remove_file(path).unwrap();
+        let mut output = Vec::new();
+        let written = write_download_chunk(&mut output, b"ab", 0, 3).unwrap();
+        assert!(write_download_chunk(&mut output, b"cd", written, 3).is_err());
+        assert_eq!(output, b"ab");
+        for variant in CATALOG {
+            assert!(!variant.base_url.contains("/main"));
+            for file in variant.files { assert_eq!(file.sha256.len(), 64); }
+        }
+    }
 
     /// A truncated file must read as `Partial`, not `Missing`. Reporting it as
     /// missing is what let a 338MB fragment of a 1.6GB model sit unnoticed:

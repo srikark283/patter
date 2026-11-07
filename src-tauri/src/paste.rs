@@ -1,4 +1,5 @@
 use arboard::Clipboard;
+use tauri::Manager;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 
 /// Both output modes synthesize keystrokes via enigo, which needs the
@@ -70,6 +71,72 @@ pub fn frontmost_app_name() -> Option<String> {
     }
 }
 
+/// Process/window identity captured when recording starts, checked on the dispatch queue.
+#[cfg(target_os = "macos")]
+pub fn output_target() -> Option<u64> {
+    use std::ffi::c_void;
+    use objc2_app_kit::NSWorkspace;
+    let pid = NSWorkspace::sharedWorkspace().frontmostApplication()?.processIdentifier() as i64;
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGWindowListCopyWindowInfo(options: u32, relative: u32) -> *const c_void;
+        static kCGWindowOwnerPID: *const c_void;
+        static kCGWindowLayer: *const c_void;
+        static kCGWindowNumber: *const c_void;
+    }
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        fn CFArrayGetCount(array: *const c_void) -> isize;
+        fn CFArrayGetValueAtIndex(array: *const c_void, index: isize) -> *const c_void;
+        fn CFDictionaryGetValue(dictionary: *const c_void, key: *const c_void) -> *const c_void;
+        fn CFNumberGetValue(number: *const c_void, kind: isize, value: *mut i64) -> bool;
+        fn CFRelease(value: *const c_void);
+    }
+    unsafe fn number(dictionary: *const c_void, key: *const c_void) -> Option<i64> {
+        let value = CFDictionaryGetValue(dictionary, key);
+        if value.is_null() { return None; }
+        let mut result = 0;
+        CFNumberGetValue(value, 4, &mut result).then_some(result) // kCFNumberSInt64Type
+    }
+    // Only public window IDs and owner PIDs are read; titles/screenshots are not requested.
+    unsafe {
+        let windows = CGWindowListCopyWindowInfo(1 | 16, 0); // on-screen, excluding desktop
+        if windows.is_null() { return None; }
+        let mut target = None;
+        for index in 0..CFArrayGetCount(windows) {
+            let window = CFArrayGetValueAtIndex(windows, index);
+            if number(window, kCGWindowOwnerPID) == Some(pid) && number(window, kCGWindowLayer) == Some(0) {
+                target = number(window, kCGWindowNumber).map(|id| ((pid as u64) << 32) | id as u64);
+                break;
+            }
+        }
+        CFRelease(windows);
+        target
+    }
+}
+#[cfg(target_os = "windows")]
+pub fn output_target() -> Option<u64> {
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+    let hwnd = unsafe { GetForegroundWindow() };
+    (!hwnd.0.is_null()).then_some(hwnd.0 as usize as u64)
+}
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub fn output_target() -> Option<u64> { None }
+
+fn check_target(expected: Option<u64>, actual: Option<u64>) -> Result<(), String> {
+    if expected.is_none() || expected != actual { return Err("Output destination changed; recover your text in Transcripts".into()); }
+    Ok(())
+}
+
+fn restore_clipboard_if_ours(previous: Option<String>, pasted: &str) {
+    if let Ok(mut clipboard) = Clipboard::new() {
+        if clipboard.get_text().ok().as_deref() == Some(pasted) {
+            if let Some(previous) = previous { let _ = clipboard.set_text(previous); }
+            else { let _ = clipboard.clear(); }
+        }
+    }
+}
+
 /// Clipboard-only fallback for when keystroke synthesis isn't permitted.
 pub fn copy_text(text: &str) {
     if let Ok(mut clipboard) = Clipboard::new() {
@@ -93,8 +160,14 @@ fn synth_on_main(app: &tauri::AppHandle, f: impl FnOnce(&mut Enigo) + Send + 'st
 
 fn dispatch_checked(app: &tauri::AppHandle, action: impl FnOnce(&mut Enigo) -> Result<(), String> + Send + 'static) -> Result<(), String> {
     let (send, receive) = std::sync::mpsc::sync_channel(1);
+    let expected = *app.state::<crate::state::AppState>().output_target.lock().map_err(|_| "Output target lock failed")?;
+    let expires = std::time::Instant::now() + std::time::Duration::from_secs(2);
     app.run_on_main_thread(move || {
-        let result = Enigo::new(&Settings::default()).map_err(|e| e.to_string()).and_then(|mut enigo| action(&mut enigo));
+        let result = Enigo::new(&Settings::default()).map_err(|e| e.to_string()).and_then(|mut enigo| {
+            check_target(expected, output_target())?;
+            if std::time::Instant::now() >= expires { return Err("Output dispatch expired".into()); }
+            action(&mut enigo)
+        });
         let _ = send.send(result);
     }).map_err(|e| e.to_string())?;
     receive.recv_timeout(std::time::Duration::from_secs(2)).map_err(|e| e.to_string())?
@@ -175,12 +248,6 @@ pub fn read_selection(app: &tauri::AppHandle) -> Option<String> {
 /// window wide enough to notice.
 const CLIPBOARD_RESTORE_DELAY_MS: u64 = 150;
 
-pub fn paste_text(app: &tauri::AppHandle, mode: &str, text: &str) {
-    if let Err(error) = dispatch_text(app, mode, text) {
-        eprintln!("Output failed: {error}");
-    }
-}
-
 /// Called on a worker: confirms OS dispatch, not insertion in the target app.
 pub fn dispatch_text(app: &tauri::AppHandle, mode: &str, text: &str) -> Result<(), String> {
     if mode == "type" {
@@ -196,13 +263,14 @@ pub fn dispatch_text(app: &tauri::AppHandle, mode: &str, text: &str) -> Result<(
         let previous = Clipboard::new().ok().and_then(|mut c| c.get_text().ok());
 
         Clipboard::new().map_err(|e| e.to_string())?.set_text(text).map_err(|e| e.to_string())?;
-        dispatch_checked(app, |enigo| {
+        let dispatch = dispatch_checked(app, |enigo| {
             let modifier = chord_modifier();
             enigo.key(modifier, Direction::Press).map_err(|e| e.to_string())?;
             let paste = enigo.key(Key::Unicode('v'), Direction::Click).map_err(|e| e.to_string());
             let release = enigo.key(modifier, Direction::Release).map_err(|e| e.to_string());
             paste.and(release)
-        })?;
+        });
+        if let Err(error) = dispatch { restore_clipboard_if_ours(previous, text); return Err(error); }
 
         if let Some(previous) = previous {
             // The restore has to outlast the paste, which is queued on the main
@@ -223,6 +291,18 @@ pub fn dispatch_text(app: &tauri::AppHandle, mode: &str, text: &str) -> Result<(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[test]
+    fn dispatch_requires_the_original_destination() {
+        assert!(check_target(Some(42), Some(42)).is_ok());
+        assert!(check_target(Some(42), Some(43)).is_err());
+        assert!(check_target(None, None).is_err());
+        assert!(check_target(Some(42), None).is_err());
+    }
 }
 
 pub fn undo(app: &tauri::AppHandle) {

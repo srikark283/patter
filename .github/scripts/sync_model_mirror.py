@@ -6,6 +6,8 @@ ensures every file exists as a release asset named {variant_id}-{file_name},
 uploads what's missing (downloading from the primary source on the runner),
 and replaces assets whose size no longer matches.
 """
+import hashlib
+from pathlib import Path
 import json
 import os
 import re
@@ -16,7 +18,7 @@ import urllib.request
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "srikark283/patter")
 TAG = "models-v1"
-TOKEN = os.environ["GITHUB_TOKEN"]
+TOKEN = os.environ.get("GITHUB_TOKEN", "")
 REGISTRY = "src-tauri/src/models/registry.rs"
 
 
@@ -37,7 +39,7 @@ def api(path, method="GET", body=None, host="api.github.com"):
 
 
 def parse_catalog():
-    src = open(REGISTRY).read()
+    src = Path(REGISTRY).read_text()
     files = []
     for vm in re.finditer(
         r'ModelVariant\s*\{\s*id:\s*"([^"]+)".*?base_url:\s*"([^"]+)".*?'
@@ -46,9 +48,9 @@ def parse_catalog():
         re.S,
     ):
         vid, base_url, files_block = vm.groups()
-        for fm in re.finditer(r'ModelFile\s*\{\s*name:\s*"([^"]+)",\s*size:\s*([\d_]+)', files_block):
+        for fm in re.finditer(r'ModelFile\s*\{\s*name:\s*"([^"]+)",\s*size:\s*([\d_]+),\s*sha256:\s*"([0-9a-f]{64})"', files_block):
             name, size = fm.group(1), int(fm.group(2).replace("_", ""))
-            files.append({"variant": vid, "name": name, "size": size, "base_url": base_url})
+            files.append({"variant": vid, "name": name, "size": size, "base_url": base_url, "sha256": fm.group(3)})
     if not files:
         sys.exit("FATAL: parsed zero files from registry.rs — catalog format changed?")
     return files
@@ -82,12 +84,9 @@ def main():
     for f in files:
         asset_name = f"{f['variant']}-{f['name']}"
         existing = assets.get(asset_name)
-        if existing and existing["size"] == f["size"]:
+        if existing and existing["size"] == f["size"] and existing.get("digest") == "sha256:" + f["sha256"]:
             print(f"ok      {asset_name}")
             continue
-        if existing:
-            print(f"replace {asset_name} (size {existing['size']} != {f['size']})")
-            api(f"/repos/{REPO}/releases/assets/{existing['id']}", "DELETE")
 
         url = f"{f['base_url']}/{f['name']}?download=true"
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -96,14 +95,19 @@ def main():
         if subprocess.run(["curl", "-fsSL", "-A", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Patter/0.2.1", "--retry", "3", "-o", path, url]).returncode != 0:
             print(f"FAIL fetch {asset_name}")
             failures += 1
+            os.unlink(path)
             continue
         actual = os.path.getsize(path)
-        if actual != f["size"]:
+        with open(path, "rb") as model_file:
+            digest = hashlib.file_digest(model_file, "sha256").hexdigest()
+        if actual != f["size"] or digest != f["sha256"]:
             print(f"FAIL size {asset_name}: got {actual}, catalog says {f['size']} — update registry.rs")
             failures += 1
             os.unlink(path)
             continue
 
+        if existing:
+            api(f"/repos/{REPO}/releases/assets/{existing['id']}", "DELETE")
         print(f"upload  {asset_name}")
         rc = subprocess.run(
             [

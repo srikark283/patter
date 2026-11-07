@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-01",
+  "rust_database": {
+    "advisory-count": 1395,
+    "last-commit": "2295466c4e9df26647fd67d8fa1c705ac2fc7f81",
+    "last-updated": "2026-10-30T12:12:39+01:00"
+  },
+  "rust_vulnerability_count": 0,
+  "rust_warnings": {
+    "unmaintained": [
+      {
+        "name": "proc-macro-error",
+        "version": "1.0.4",
+        "advisory": "RUSTSEC-2024-0370"
+      },
+      {
+        "name": "zbus_names",
+        "version": "4.3.4",
+        "advisory": "RUSTSEC-2026-0371"
+      },
+      {
+        "name": "zvariant",
+        "version": "5.13.1",
+        "advisory": "RUSTSEC-2026-0370"
+      },
+      {
+        "name": "zvariant_derive",
+        "version": "5.13.1",
+        "advisory": "RUSTSEC-2026-0372"
+      }
+    ],
+    "unsound": [
+      {
+        "name": "glib",
+        "version": "0.18.5",
+        "advisory": "RUSTSEC-2024-0429"
+      }
+    ]
+  },
+  "npm_production": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "npm_all": {
+    "info": 0,
+    "low": 2,
+    "moderate": 4,
+    "high": 0,
+    "critical": 0,
+    "total": 6
+  }
+}

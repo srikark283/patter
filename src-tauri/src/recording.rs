@@ -156,6 +156,7 @@ pub fn start_recording(app: &tauri::AppHandle) {
 
     // The app in focus now is where the text will land — remember it for
     // per-app cleanup profiles.
+    *state.output_target.lock().unwrap() = paste::output_target();
     *state.frontmost_app.lock().unwrap() = paste::frontmost_app_name();
     // A plain dictation must never inherit a selection left behind by a command
     // that was cancelled or never transcribed. `start_command` re-sets it after.
@@ -468,7 +469,6 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
 
         if bail_if_cancelled(&app_handle, dictation_session_id) { return; }
 
-        println!("Transcript: {}", text);
         if text.is_empty() {
              let _ = app_handle.emit("patter://state", "Idle");
              return;
@@ -656,7 +656,6 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
                 ) {
                     Ok(cleaned) => {
                         cleanup_ms = cleanup_started.elapsed().as_millis() as u32;
-                        println!("Cleaned: {}", cleaned);
                         cleaned
                     }
                     Err(e) if e == crate::ollama::CLEANUP_CANCELLED => {
@@ -714,7 +713,7 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         // --- Snippet Expansion ---
         let text = {
             if let Some(snippet) = settings.snippets.iter().find(|s| s.trigger.trim().to_lowercase() == clean_text) {
-                println!("[snippet] Expanding macro: {}", snippet.trigger);
+                println!("[snippet] Expanding macro");
                 snippet.content.clone()
             } else {
                 text
@@ -947,13 +946,18 @@ fn run_command(
         return;
     }
 
-    println!("[command] instruction={} result_chars={}", instruction, result.len());
+    println!("[command] result_chars={}", result.len());
 
     // Always the paste path, never `type`: replacing a selection keystroke by
     // keystroke means the first character overwrites it and every character
     // after lands in a field the app may have already reformatted.
+    if paste::dispatch_text(app, "paste", &result).is_err() {
+        let _ = app.emit("patter://state", "Rewrite not pasted — select the original text and retry");
+        thread::sleep(Duration::from_millis(2000));
+        let _ = app.emit("patter://state", "Idle");
+        return;
+    }
     let _ = app.emit("patter://state", "✓ Rewritten");
-    paste::paste_text(app, "paste", &result);
 
     thread::sleep(Duration::from_millis(1500));
     let _ = app.emit("patter://state", "Idle");

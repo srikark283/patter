@@ -165,6 +165,13 @@ pub fn update_meeting_action_items(
 }
 
 #[tauri::command]
+pub fn get_sound_theme(app: tauri::AppHandle) -> String {
+    let state = app.state::<AppState>();
+    let settings = state.settings.lock().unwrap();
+    match settings.sound_theme.as_str() { "chime" | "wood" | "pluck" => settings.sound_theme.clone(), _ => "pop".into() }
+}
+
+#[tauri::command]
 pub fn get_settings(app: tauri::AppHandle) -> db::Settings {
     app.state::<AppState>().settings.lock().unwrap().clone()
 }
@@ -405,14 +412,24 @@ pub async fn import_data(app: tauri::AppHandle) -> Result<bool, String> {
         return Ok(false);
     };
     let path = file_path.into_path().map_err(|e| e.to_string())?;
-    let json = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    use std::io::Read;
+    let mut json = String::new();
+    std::fs::File::open(path).map_err(|e| e.to_string())?
+        .take(100_000_001).read_to_string(&mut json).map_err(|e| e.to_string())?;
+    if json.len() > 100_000_000 { return Err("Backup exceeds the 100 MB import limit".into()); }
     let backup: db::Backup = serde_json::from_str(&json).map_err(|e| e.to_string())?;
     crate::dictionary::validate_aliases(&backup.settings.custom_prompt, &backup.settings.dictionary_aliases)?;
 
+    let state = app.state::<AppState>();
+    let _settings = state.settings.lock().map_err(|e| e.to_string())?;
+    if state.is_recording.load(Ordering::SeqCst) || state.is_meeting_recording.load(Ordering::SeqCst) {
+        return Err("Stop recording before restoring a backup".into());
+    }
+    state.dictation_session_id.fetch_add(1, Ordering::SeqCst);
+    state.meeting_session_id.fetch_add(1, Ordering::SeqCst);
     let db = db::Db::new(&app);
-    let _ = db.save_settings(&backup.settings);
-    db.save_history(&backup.history);
-    db.save_meetings(&backup.meetings);
+    db.restore_backup(&backup)?;
+    db.require_restart_after_restore();
     let _ = app.emit("patter://db_updated", ());
     Ok(true)
 }
@@ -435,6 +452,7 @@ pub fn build_engine(
     mm: &models::registry::ModelManager,
     id: &str,
 ) -> Result<Box<dyn asr::ASREngine>, String> {
+    mm.verify_variant(id).map_err(|e| e.to_string())?;
     match mm.get_engine_kind(id) {
         Some(models::registry::EngineKind::Whisper) => {
             let path = mm.variant_file_path(id).ok_or("Unknown engine")?;

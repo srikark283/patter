@@ -15,6 +15,7 @@ pub struct AppState {
     pub is_recording: Arc<AtomicBool>,
     pub is_paused: Arc<AtomicBool>,
     /// App the user was in when recording started — the paste target.
+    pub output_target: Arc<Mutex<Option<u64>>>,
     pub frontmost_app: Arc<Mutex<Option<String>>>,
     /// Text selected in the target app when a command-mode recording started.
     /// `Some` marks this dictation as an instruction to rewrite that text

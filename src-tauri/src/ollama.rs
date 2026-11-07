@@ -17,7 +17,9 @@ pub const EMBEDDING_MODEL: &str = "nomic-embed-text";
 /// the request builder, which overrides the client default.
 fn client() -> &'static reqwest::blocking::Client {
     static CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
-    CLIENT.get_or_init(reqwest::blocking::Client::new)
+    CLIENT.get_or_init(|| reqwest::blocking::Client::builder()
+        .no_proxy().redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(Duration::from_secs(3)).build().expect("loopback HTTP client"))
 }
 
 /// Encodes the configured keep-alive for Ollama's API. Ollama's own default is
@@ -206,6 +208,35 @@ struct TagsResponse {
 #[derive(Deserialize)]
 struct ModelEntry {
     name: String,
+    size: u64,
+    digest: String,
+    #[serde(default)]
+    remote_model: Option<String>,
+    #[serde(default)]
+    remote_host: Option<String>,
+}
+
+fn local_model(entry: &ModelEntry) -> bool {
+    entry.size > 0 && entry.digest.len() == 64 && entry.digest.bytes().all(|b| b.is_ascii_hexdigit())
+        && entry.remote_model.as_deref().unwrap_or("").is_empty()
+        && entry.remote_host.as_deref().unwrap_or("").is_empty()
+        && !entry.name.to_lowercase().contains("cloud")
+}
+
+fn model_catalog() -> Result<TagsResponse, String> {
+    client().get(format!("{OLLAMA_URL}/api/tags"))
+        .timeout(Duration::from_secs(3)).send()
+        .and_then(|r| r.error_for_status()).map_err(|_| "Could not verify local Ollama models".to_string())?
+        .json().map_err(|_| "Invalid Ollama model metadata".to_string())
+}
+
+// Check every request, including warm-up, before sending any user content.
+fn require_local_model(model: &str) -> Result<(), String> {
+    let catalog = model_catalog()?;
+    let entry = catalog.models.iter().find(|entry| entry.name == model || entry.name == format!("{model}:latest"))
+        .ok_or("Select a downloaded local Ollama model")?;
+    if !local_model(entry) { return Err("Cloud-backed Ollama models are disabled to keep your data on this device".into()); }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -240,6 +271,7 @@ struct EmbeddingResponse {
 /// model unloads between dictations, and the next one pays a cold load
 /// serially, in front of the user, before cleanup has even started.
 pub fn get_embedding(model: &str, prompt: &str, keep_alive_minutes: i32) -> Result<Vec<f32>, String> {
+    require_local_model(model)?;
     let resp: EmbeddingResponse = client()
         .post(format!("{}/api/embeddings", OLLAMA_URL))
         .timeout(Duration::from_secs(10))
@@ -257,14 +289,7 @@ pub fn get_embedding(model: &str, prompt: &str, keep_alive_minutes: i32) -> Resu
 
 /// List locally downloaded Ollama models. Errors if Ollama isn't running.
 pub fn list_models() -> Result<Vec<String>, String> {
-    let resp: TagsResponse = client()
-        .get(format!("{}/api/tags", OLLAMA_URL))
-        .timeout(Duration::from_secs(3))
-        .send()
-        .map_err(|e| format!("Ollama not reachable: {}", e))?
-        .json()
-        .map_err(|e| format!("Bad response from Ollama: {}", e))?;
-    Ok(resp.models.into_iter().map(|m| m.name).collect())
+    Ok(model_catalog()?.models.into_iter().filter(local_model).map(|m| m.name).collect())
 }
 
 /// Fire-and-forget `warm` on the hotkey press, so the weight load overlaps with
@@ -322,6 +347,7 @@ fn spawn_warm(model: String, load: impl FnOnce() -> Result<(), String> + Send + 
 /// next dictation prefills again. Raising `OLLAMA_NUM_PARALLEL` to 2 gives both
 /// prefixes a slot if that turns out to be a common enough pattern to matter.
 pub fn warm_cleanup(model: &str, keep_alive_minutes: i32) -> Result<(), String> {
+    require_local_model(model)?;
     client()
         .post(format!("{}/api/chat", OLLAMA_URL))
         .timeout(Duration::from_secs(180))
@@ -380,6 +406,7 @@ fn stream_chat(
     mut on_partial: impl FnMut(&str),
     cancelled: impl Fn() -> bool,
 ) -> Result<String, String> {
+    require_local_model(model)?;
     let resp = client()
         .post(format!("{}/api/chat", OLLAMA_URL))
         .timeout(Duration::from_secs(60))
@@ -716,6 +743,7 @@ fn summarize_meeting_chunk(model: &str, transcript: &str, dictionary: &str, is_f
 }
 
 fn run_json_generate<T: serde::de::DeserializeOwned>(model: &str, prompt: &str) -> Result<T, String> {
+    require_local_model(model)?;
     let resp: GenerateResponse = client()
         .post(format!("{}/api/generate", OLLAMA_URL))
         .timeout(Duration::from_secs(300))
@@ -764,6 +792,36 @@ mod tests {
     /// every dictation — and the context must stay a system turn rather than
     /// the last thing before the transcript, which is what made the model echo
     /// its input straight back.
+    #[test]
+    fn local_model_gate_rejects_remote_aliases_and_missing_metadata() {
+        let digest = "a".repeat(64);
+        let local: ModelEntry = serde_json::from_value(serde_json::json!({"name":"local:latest", "size":1000, "digest":digest})).unwrap();
+        assert!(local_model(&local));
+        for field in ["remote_model", "remote_host"] {
+            let mut value = serde_json::json!({"name":"innocent-alias:latest", "size":1000, "digest":"a".repeat(64)});
+            value[field] = "remote".into();
+            assert!(!local_model(&serde_json::from_value(value).unwrap()));
+        }
+        assert!(serde_json::from_str::<ModelEntry>(r#"{"name":"unknown"}"#).is_err());
+        let empty: ModelEntry = serde_json::from_value(serde_json::json!({"name":"fake", "size":0, "digest":""})).unwrap();
+        assert!(!local_model(&empty));
+    }
+
+    #[test]
+    fn loopback_client_does_not_follow_redirects() {
+        use std::io::{Read, Write};
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = server.local_addr().unwrap();
+        let thread = std::thread::spawn(move || {
+            let (mut stream, _) = server.accept().unwrap();
+            let mut buf = [0; 1024]; let _ = stream.read(&mut buf);
+            stream.write_all(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: http://127.0.0.1:1/leak\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+        });
+        let response = client().get(format!("http://{address}/test")).send().unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::TEMPORARY_REDIRECT);
+        thread.join().unwrap();
+    }
+
     #[test]
     fn context_lands_after_the_cached_prefix_and_before_the_transcript() {
         let plain = cleanup_messages("hello there", None);

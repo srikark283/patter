@@ -21,14 +21,27 @@ pub fn ensure_model(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .join("models");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let path = dir.join("silero_vad.onnx");
-    if path.exists() {
-        return Ok(path);
-    }
-    let bytes = reqwest::blocking::get(MODEL_URL)
-        .and_then(|r| r.error_for_status())
-        .and_then(|r| r.bytes())
-        .map_err(|e| format!("VAD model download failed: {}", e))?;
-    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    let manifest = crate::models::registry::ModelFile { name: "silero_vad.onnx", size: 643854,
+        sha256: "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6" };
+    if crate::models::registry::verify_file(&path, &manifest).is_ok() { return Ok(path); }
+    use std::io::{Read, Write};
+    let client = reqwest::blocking::Client::builder().https_only(true)
+        .connect_timeout(std::time::Duration::from_secs(15)).timeout(std::time::Duration::from_secs(120))
+        .build().map_err(|e| e.to_string())?;
+    let mut bytes = Vec::new();
+    client.get(MODEL_URL).send().and_then(|r| r.error_for_status()).map_err(|_| "VAD download failed")?
+        .take(manifest.size + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+    let temporary = path.with_extension("part");
+    let result = (|| -> Result<(), String> {
+        if bytes.len() as u64 != manifest.size { return Err("VAD download size mismatch".into()); }
+        let mut file = std::fs::File::create(&temporary).map_err(|e| e.to_string())?;
+        file.write_all(&bytes).and_then(|_| file.sync_all()).map_err(|e| e.to_string())?;
+        drop(file);
+        crate::models::registry::verify_file(&temporary, &manifest).map_err(|e| e.to_string())?;
+        std::fs::rename(&temporary, &path).map_err(|e| e.to_string())
+    })();
+    if result.is_err() { let _ = std::fs::remove_file(&temporary); }
+    result?;
     Ok(path)
 }
 

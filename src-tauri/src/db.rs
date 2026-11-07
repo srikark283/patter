@@ -2,6 +2,30 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
 
+static MEETING_WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static RESTORE_COMPLETE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+const RESTORE_FILES: [&str; 3] = ["settings.json", "history.json", "meetings.json"];
+
+#[derive(Serialize, Deserialize)]
+struct RestoreJournal { stage: String, existed: [bool; 3] }
+
+fn writable() -> std::io::Result<()> {
+    if RESTORE_COMPLETE.load(std::sync::atomic::Ordering::SeqCst) { return Err(std::io::Error::other("Restart Patter to apply the restored backup before making changes")); }
+    Ok(())
+}
+
+fn sync_dir(path: &std::path::Path) -> std::io::Result<()> {
+    #[cfg(unix)] { fs::File::open(path)?.sync_all()?; }
+    Ok(())
+}
+
+fn durable_write(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let mut options = fs::OpenOptions::new(); options.write(true).create(true).truncate(true);
+    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; options.mode(0o600); }
+    let mut file = options.open(path)?; file.write_all(bytes)?; file.sync_all()
+}
+
 static HISTORY_WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 use tauri::Manager;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -246,6 +270,23 @@ pub struct Backup {
     pub meetings: Vec<MeetingRecord>,
 }
 
+pub fn lock_data_directory(app: &tauri::AppHandle) -> std::io::Result<()> {
+    static LOCK: std::sync::OnceLock<fs::File> = std::sync::OnceLock::new();
+    let directory = app.path().app_data_dir().map_err(std::io::Error::other)?;
+    fs::create_dir_all(&directory)?;
+    #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))?; }
+    let file = acquire_data_lock(&directory)?;
+    LOCK.set(file).map_err(|_| std::io::Error::other("Data directory already locked"))
+}
+
+fn acquire_data_lock(directory: &std::path::Path) -> std::io::Result<fs::File> {
+    let mut options = fs::OpenOptions::new(); options.read(true).write(true).create(true).truncate(false);
+    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; options.mode(0o600); }
+    let file = options.open(directory.join(".patter.lock"))?;
+    file.try_lock().map_err(|_| std::io::Error::other("Another Patter process is using this data directory. Open the running app instead."))?;
+    Ok(file)
+}
+
 pub struct Db {
     data_dir: PathBuf,
 }
@@ -259,6 +300,94 @@ impl Db {
         Self { data_dir }
     }
 
+    /// Roll back an interrupted import before loading settings or starting workers.
+    pub fn recover_restore(&self) -> Result<(), String> {
+        let path = self.data_dir.join(".restore-journal.json");
+        if !path.exists() { return Ok(()); }
+        let journal: RestoreJournal = serde_json::from_slice(&fs::read(&path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+        if !journal.stage.starts_with(".restore-") || journal.stage.bytes().any(|b| !(b.is_ascii_digit() || b".restore-".contains(&b))) {
+            return Err("Invalid restore journal; original data retained for recovery".into());
+        }
+        let stage = self.data_dir.join(&journal.stage);
+        for (index, name) in RESTORE_FILES.iter().enumerate() {
+            let live = self.data_dir.join(name);
+            if journal.existed[index] {
+                let original = stage.join(format!("{name}.original"));
+                let rollback = stage.join(format!("{name}.rollback"));
+                fs::copy(original, &rollback).map_err(|e| e.to_string())?;
+                fs::File::open(&rollback).and_then(|f| f.sync_all()).map_err(|e| e.to_string())?;
+                fs::rename(rollback, live).map_err(|e| e.to_string())?;
+            } else if let Err(error) = fs::remove_file(live) {
+                if error.kind() != std::io::ErrorKind::NotFound { return Err(error.to_string()); }
+            }
+        }
+        sync_dir(&self.data_dir).map_err(|e| e.to_string())?;
+        fs::remove_file(path).map_err(|e| e.to_string())?;
+        sync_dir(&self.data_dir).map_err(|e| e.to_string())?;
+        let _ = fs::remove_dir_all(stage);
+        Ok(())
+    }
+
+    /// Journal originals durably before replacing any live file.
+    pub fn restore_backup(&self, backup: &Backup) -> Result<(), String> {
+        let _history = HISTORY_WRITE.lock().map_err(|e| e.to_string())?;
+        let _meetings = MEETING_WRITE.lock().map_err(|e| e.to_string())?;
+        self.recover_restore()?;
+        let content = [serde_json::to_vec_pretty(&backup.settings), serde_json::to_vec_pretty(&backup.history), serde_json::to_vec_pretty(&backup.meetings)];
+        let suffix = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+        let stage_name = format!(".restore-{}-{suffix}", std::process::id());
+        let stage = self.data_dir.join(&stage_name);
+        fs::create_dir(&stage).map_err(|e| e.to_string())?;
+        let journal_path = self.data_dir.join(".restore-journal.json");
+        let result = (|| -> Result<(), String> {
+            let mut existed = [false; 3];
+            for (index, name) in RESTORE_FILES.iter().enumerate() {
+                let live = self.data_dir.join(name);
+                match fs::symlink_metadata(&live) {
+                    Ok(metadata) => {
+                        if !metadata.is_file() { return Err(format!("Cannot restore over non-file {name}")); }
+                        let original = stage.join(format!("{name}.original"));
+                        fs::copy(&live, &original).map_err(|e| e.to_string())?;
+                        fs::File::open(original).and_then(|f| f.sync_all()).map_err(|e| e.to_string())?;
+                        existed[index] = true;
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(error) => return Err(error.to_string()),
+                }
+                durable_write(&stage.join(name), content[index].as_ref().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            }
+            sync_dir(&stage).map_err(|e| e.to_string())?;
+            let journal = RestoreJournal { stage: stage_name, existed };
+            let temporary = self.data_dir.join(".restore-journal.tmp");
+            durable_write(&temporary, &serde_json::to_vec(&journal).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            fs::rename(temporary, &journal_path).map_err(|e| e.to_string())?;
+            sync_dir(&self.data_dir).map_err(|e| e.to_string())?;
+            for name in RESTORE_FILES { fs::rename(stage.join(name), self.data_dir.join(name)).map_err(|e| e.to_string())?; }
+            sync_dir(&self.data_dir).map_err(|e| e.to_string())?;
+            fs::remove_file(&journal_path).map_err(|e| e.to_string())?;
+            sync_dir(&self.data_dir).map_err(|e| e.to_string())?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            self.recover_restore().map_err(|rollback| format!("Restore failed: {error}; recovery failed: {rollback}. Keep {}", stage.display()))?;
+            let _ = fs::remove_dir_all(stage);
+            return Err(error);
+        }
+        let _ = fs::remove_dir_all(stage);
+        Ok(())
+    }
+
+    pub fn require_restart_after_restore(&self) { RESTORE_COMPLETE.store(true, std::sync::atomic::Ordering::SeqCst); }
+
+    fn atomic_write(&self, name: &str, content: &[u8]) -> std::io::Result<()> {
+        writable()?;
+        let suffix = SystemTime::now().duration_since(UNIX_EPOCH).map_err(std::io::Error::other)?.as_nanos();
+        let temporary = self.data_dir.join(format!(".{name}-{}-{suffix}.tmp", std::process::id()));
+        let result = durable_write(&temporary, content).and_then(|_| fs::rename(&temporary, self.data_dir.join(name))).and_then(|_| sync_dir(&self.data_dir));
+        if result.is_err() { let _ = fs::remove_file(temporary); }
+        result
+    }
+
     pub fn get_settings(&self) -> Settings {
         let path = self.data_dir.join("settings.json");
         if let Ok(content) = fs::read_to_string(path) {
@@ -269,9 +398,9 @@ impl Db {
     }
 
     pub fn save_settings(&self, settings: &Settings) -> std::io::Result<()> {
-        let path = self.data_dir.join("settings.json");
-        let content = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
-        fs::write(path, content)
+        writable()?;
+        let content = serde_json::to_vec_pretty(settings).map_err(std::io::Error::other)?;
+        self.atomic_write("settings.json", &content)
     }
 
     pub fn get_stats(&self) -> AppStats {
@@ -284,9 +413,9 @@ impl Db {
     }
 
     pub fn save_stats(&self, stats: &AppStats) {
-        let path = self.data_dir.join("stats.json");
-        if let Ok(content) = serde_json::to_string_pretty(stats) {
-            let _ = fs::write(path, content);
+        if writable().is_err() { return; }
+        if let Ok(content) = serde_json::to_vec_pretty(stats) {
+            if self.atomic_write("stats.json", &content).is_err() { eprintln!("Could not save statistics"); }
         }
     }
 
@@ -301,14 +430,7 @@ impl Db {
 
     fn write_history(&self, history: &[TranscriptionRecord]) -> Result<(), String> {
         let content = serde_json::to_vec_pretty(history).map_err(|e| e.to_string())?;
-        let suffix = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
-        let temporary = self.data_dir.join(format!(".history-{}-{suffix}.tmp", std::process::id()));
-        fs::write(&temporary, content).map_err(|e| e.to_string())?;
-        if let Err(error) = fs::rename(&temporary, self.data_dir.join("history.json")) {
-            let _ = fs::remove_file(temporary);
-            return Err(error.to_string());
-        }
-        Ok(())
+        self.atomic_write("history.json", &content).map_err(|e| e.to_string())
     }
 
     pub fn save_history(&self, history: &[TranscriptionRecord]) {
@@ -385,13 +507,14 @@ impl Db {
     }
 
     pub fn save_meetings(&self, meetings: &[MeetingRecord]) {
-        let path = self.data_dir.join("meetings.json");
-        if let Ok(content) = serde_json::to_string_pretty(meetings) {
-            let _ = fs::write(path, content);
+        if writable().is_err() { return; }
+        if let Ok(content) = serde_json::to_vec_pretty(meetings) {
+            if self.atomic_write("meetings.json", &content).is_err() { eprintln!("Could not save meetings"); }
         }
     }
 
     pub fn add_meeting(&self, mut record: MeetingRecord) {
+        let _guard = MEETING_WRITE.lock().unwrap();
         if record.id.is_empty() {
             record.id = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -406,6 +529,7 @@ impl Db {
 
     /// Edit the user-correctable fields of a meeting (title, transcript).
     pub fn update_meeting(&self, id: &str, title: &str, transcript: &str) -> bool {
+        let _guard = MEETING_WRITE.lock().unwrap();
         let mut meetings = self.get_meetings();
         let Some(meeting) = meetings.iter_mut().find(|m| m.id == id) else {
             return false;
@@ -417,6 +541,7 @@ impl Db {
     }
 
     pub fn update_meeting_action_items(&self, id: &str, action_items: Vec<String>) -> bool {
+        let _guard = MEETING_WRITE.lock().unwrap();
         let mut meetings = self.get_meetings();
         let Some(meeting) = meetings.iter_mut().find(|m| m.id == id) else {
             return false;
@@ -427,6 +552,7 @@ impl Db {
     }
 
     pub fn update_meeting_analysis(&self, id: &str, analysis: crate::ollama::MeetingAnalysis) -> bool {
+        let _guard = MEETING_WRITE.lock().unwrap();
         let mut meetings = self.get_meetings();
         let Some(meeting) = meetings.iter_mut().find(|m| m.id == id) else {
             return false;
@@ -440,6 +566,7 @@ impl Db {
     }
 
     pub fn delete_meeting(&self, id: &str) -> bool {
+        let _guard = MEETING_WRITE.lock().unwrap();
         let mut meetings = self.get_meetings();
         let initial_len = meetings.len();
         meetings.retain(|m| m.id != id);
@@ -478,6 +605,57 @@ mod history_metadata_tests {
 
     fn legacy_record() -> TranscriptionRecord {
         serde_json::from_str(r#"{"id":"old","timestamp_ms":1,"text":"Keep my words","duration_seconds":1.0,"words":3}"#).unwrap()
+    }
+
+    #[test]
+    fn only_one_process_can_own_the_data_directory() {
+        let directory = std::env::temp_dir().join(format!("patter-lock-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir(&directory).unwrap();
+        let lock = acquire_data_lock(&directory).unwrap();
+        assert!(acquire_data_lock(&directory).is_err());
+        drop(lock);
+        let next = acquire_data_lock(&directory).unwrap(); drop(next);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn interrupted_restore_recovers_originals_on_restart() {
+        let dir = std::env::temp_dir().join(format!("patter-journal-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        let stage = dir.join(".restore-123-456"); fs::create_dir_all(&stage).unwrap();
+        fs::write(stage.join("settings.json.original"), b"original settings").unwrap();
+        fs::write(stage.join("history.json.original"), b"original history").unwrap();
+        fs::write(dir.join("settings.json"), b"partly restored").unwrap();
+        fs::write(dir.join("meetings.json"), b"new file").unwrap();
+        let journal = RestoreJournal { stage:".restore-123-456".into(), existed:[true,true,false] };
+        fs::write(dir.join(".restore-journal.json"), serde_json::to_vec(&journal).unwrap()).unwrap();
+        let db = Db { data_dir:dir.clone() }; db.recover_restore().unwrap();
+        assert_eq!(fs::read(dir.join("settings.json")).unwrap(), b"original settings");
+        assert_eq!(fs::read(dir.join("history.json")).unwrap(), b"original history");
+        assert!(!dir.join("meetings.json").exists()); assert!(!stage.exists());
+        db.recover_restore().unwrap();
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn restore_stages_all_files_before_replacing_live_data() {
+        let dir = std::env::temp_dir().join(format!("patter-restore-test-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(&dir).unwrap();
+        let db = Db { data_dir: dir.clone() };
+        db.save_settings(&Settings::default()).unwrap();
+        let original = fs::read(dir.join("settings.json")).unwrap();
+        fs::create_dir(dir.join("history.json")).unwrap();
+        let mut settings = Settings::default();
+        settings.hotkey = "Super+J".into();
+        let backup = Backup { version: "test".into(), exported_at_ms: 0, settings, history: vec![legacy_record()], meetings: vec![] };
+        assert!(db.restore_backup(&backup).is_err());
+        assert_eq!(fs::read(dir.join("settings.json")).unwrap(), original);
+        fs::remove_dir(dir.join("history.json")).unwrap();
+        db.restore_backup(&backup).unwrap();
+        assert_eq!(db.get_settings().hotkey, "Super+J");
+        assert_eq!(db.get_history()[0].text, "Keep my words");
+        assert!(db.get_meetings().is_empty());
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 3);
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

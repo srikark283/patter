@@ -62,3 +62,7 @@ scripts/capture-demo.sh
 /native/patter-intelligence/.build/
 /native/patter-intelligence/dist/
 /native/patter-intelligence/.swiftpm/
+
+# Python bytecode is generated locally, never source.
+__pycache__/
+*.pyc

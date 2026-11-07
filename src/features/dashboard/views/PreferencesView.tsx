@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, KeyboardEvent, createContext, useContext, 
 import { toast } from "sonner";
 import { Search, SunMoon, Zap, Mic, Command, Languages, Timer, Power, Monitor, Volume2, AudioWaveform, Ear, ShieldCheck, X, Accessibility, Keyboard, Bell, CheckCircle2, AlertCircle, Download, Upload, Loader2, Users, Hand, ClipboardPaste, Type, Wand2 } from "lucide-react";
 import { PackageIcon } from '@phosphor-icons/react'
-import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, requestAccessibilityPermission, openInputMonitoringSettings, requestInputMonitoringPermission, openMicrophoneSettings, requestMicrophonePermission, openNotificationSettings, exportData, importData } from "../../../lib/ipc";
+import { getSettings, updateSettings, getMicrophones, checkUpdate, Settings, getPermissionStatus, PermissionStatus, openAccessibilitySettings, requestAccessibilityPermission, openInputMonitoringSettings, requestInputMonitoringPermission, openMicrophoneSettings, requestMicrophonePermission, openNotificationSettings, exportData, importData, restartApp } from "../../../lib/ipc";
 import { promptUpdateInstall } from "../../../lib/update";
 import { getVersion } from "@tauri-apps/api/app";
 import { PageHeader } from "../components/PageHeader";
@@ -250,8 +250,8 @@ function Setting({ icon: Icon, title, description, keywords, primary, active, ch
   }
   return (
     <div className={cn("group/row transition-colors", primary ? "px-5 py-5 bg-foreground/[0.012]" : "px-5 py-4", "hover:bg-accent-subtle")}>
-      <div className="flex items-center justify-between gap-6">
-        <div className="flex min-w-0 items-center gap-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 basis-60 items-center gap-3.5">
           <SettingIcon icon={Icon} active={active} size={primary ? "lg" : "sm"} />
           <div className="min-w-0">
             <p className={cn(
@@ -261,7 +261,7 @@ function Setting({ icon: Icon, title, description, keywords, primary, active, ch
             <p className="mt-0.5 max-w-[62ch] text-[12px] leading-relaxed text-muted-foreground">{description}</p>
           </div>
         </div>
-        <div className="shrink-0">{children}</div>
+        <div className="shrink-0 max-w-full">{children}</div>
       </div>
       {/* Clears the icon and its gap, so this lines up with the title rather
           than the icon. */}
@@ -306,7 +306,7 @@ function PermissionRow({ icon: Icon, title, description, keywords, granted, onRe
     return null;
   }
   return (
-    <div className="flex items-center justify-between gap-6 px-5 py-4 transition-colors hover:bg-accent-subtle">
+    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-accent-subtle">
       <div className="flex min-w-0 items-center gap-3.5">
         {/* The chip states whether the permission is granted. Which permission
             it is was never worth a colour of its own. */}
@@ -327,7 +327,7 @@ function PermissionRow({ icon: Icon, title, description, keywords, granted, onRe
           <p className="mt-0.5 max-w-[62ch] text-[12px] leading-relaxed text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         {granted === undefined ? (
           <span className="text-[11px] text-muted-foreground">Check in System Settings</span>
         ) : granted ? (
@@ -372,6 +372,9 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   const englishOnlyModel = !!activeEngine && MODEL_MULTILINGUAL[activeEngine] === false;
 
   const [settings, setSettings] = useState<Settings | null>(null);
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [mics, setMics] = useState<string[]>([]);
   const [recordingField, setRecordingField] = useState<HotkeyField | null>(null);
   /// Which trigger command mode uses. Held locally as well as derived, because
@@ -388,9 +391,10 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [confirmImportOpen, setConfirmImportOpen] = useState(false);
+  const [restartRequired, setRestartRequired] = useState(false);
 
   useEffect(() => {
-    getSettings().then(setSettings).catch(console.error);
+    getSettings().then(setSettings).catch(error => setLoadError(String(error)));
     getMicrophones().then(setMics).catch(console.error);
     getVersion().then(setAppVersion).catch(console.error);
 
@@ -488,8 +492,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
       const imported = await importData();
       setConfirmImportOpen(false);
       if (imported) {
-        toast.success("Data imported — reloading");
-        window.location.reload();
+        setRestartRequired(true);
       }
     } catch (e) {
       toast.error("Import failed: " + e);
@@ -499,15 +502,16 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   };
 
   const update = async (patch: Partial<Settings>) => {
-    if (!settings) return;
+    if (!settings || savingRef.current) return;
+    savingRef.current = true; setSaving(true);
     const newSettings = { ...settings, ...patch };
-    setSettings(newSettings);
     try {
       await updateSettings(newSettings);
+      setSettings(newSettings);
     } catch (e) {
       toast.error("Failed to save settings: " + e);
-      setSettings(settings);
-    }
+      setCommandMode(settings.command_hotkey ? "hotkey" : settings.command_phrase ? "phrase" : "off");
+    } finally { savingRef.current = false; setSaving(false); }
   };
 
   // Re-derives whenever a trigger is actually set or cleared — including on
@@ -600,7 +604,21 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
     applyHotkey(field, parts.join("+"));
   };
 
-  if (!settings) return null;
+  if (restartRequired) return <div className="space-y-6">
+    <PageHeader title="Preferences" description="Your backup has been restored." />
+    <div role="status" className="space-y-3 rounded-xl border border-border p-5">
+      <p className="text-sm">Restart Patter to load your restored settings, shortcuts, and speech model.</p>
+      <Button onClick={() => void restartApp().catch(error => toast.error(String(error)))}>Restart Patter</Button>
+    </div>
+  </div>;
+
+  if (!settings) return <div className="space-y-6">
+    <PageHeader title="Preferences" description="Configure Patter's behavior." />
+    {loadError ? <div role="alert" className="space-y-3 rounded-xl border border-border p-5">
+      <p className="text-sm">Could not load preferences. {loadError}</p>
+      <Button variant="outline" onClick={() => { setLoadError(""); void getSettings().then(setSettings).catch(error => setLoadError(String(error))); }}>Try again</Button>
+    </div> : <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" />Loading preferences…</p>}
+  </div>;
 
   // Falls back to the first mode so the row still renders if a stored value
   // ever stops matching a known id.
@@ -630,7 +648,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+    <div className="space-y-6 pb-12">
       <PageHeader title="Preferences" description="Configure Patter's behavior." />
 
       <div className="space-y-3">
@@ -638,10 +656,10 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
           <input
             type="search"
-            aria-label="Filter settings"
+            aria-label="Search preferences"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter settings…"
+            placeholder="Find a setting…"
             className="w-full surface-raised rounded-xl pl-9 pr-9 py-2.5 text-[13px] text-foreground/90 placeholder:text-muted-foreground/60 focus:outline-none focus-visible:ring-focus transition-shadow"
           />
           {query && (
@@ -689,6 +707,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         </nav>
       </div>
 
+      <fieldset disabled={saving || importing} className="min-w-0">
       <FilterContext.Provider value={query}>
         <div className="space-y-10">
         {/* Shortcuts: every way of starting a recording, together. These used to
@@ -789,6 +808,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
 
           <Setting {...ROWS.pushToTalk} active={settings.push_to_talk}>
             <Switch
+              aria-label="Push to Talk"
               checked={settings.push_to_talk}
               onCheckedChange={(checked) => update({ push_to_talk: checked })}
             />
@@ -875,6 +895,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
 
           <Setting {...ROWS.trimSilence} active={settings.trim_silence}>
             <Switch
+              aria-label="Trim Silence"
               checked={settings.trim_silence}
               onCheckedChange={(checked) => update({ trim_silence: checked })}
             />
@@ -882,6 +903,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
 
           <Setting {...ROWS.whisperMode} active={settings.whisper_mode}>
             <Switch
+              aria-label="Whisper Mode"
               checked={settings.whisper_mode}
               onCheckedChange={(checked) => update({ whisper_mode: checked })}
             />
@@ -961,6 +983,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                 </Select>
               )}
               <Switch
+                aria-label="UI Sounds"
                 checked={settings.play_sounds !== false}
                 onCheckedChange={(checked) => update({ play_sounds: checked })}
               />
@@ -971,6 +994,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         <SettingsSection {...PREFERENCE_SECTIONS[4]}>
           <Setting {...ROWS.autostart} active={settings.autostart}>
             <Switch
+              aria-label="Launch at Login"
               checked={settings.autostart}
               onCheckedChange={(checked) => update({ autostart: checked })}
             />
@@ -989,6 +1013,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
                 {checkingUpdate ? "Checking…" : "Check for Updates"}
               </button>
               <Switch
+                aria-label="Notify about updates"
                 checked={settings.auto_update}
                 onCheckedChange={(checked) => update({ auto_update: checked })}
               />
@@ -999,19 +1024,19 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         <SettingsSection {...PREFERENCE_SECTIONS[5]}>
           <PermissionRow
             {...ROWS.permAccessibility}
-            granted={permissions?.accessibility ?? true}
+            granted={permissions?.accessibility}
             onRequestAccess={requestAccessibilityPermission}
             onOpenSettings={openAccessibilitySettings}
           />
           <PermissionRow
             {...ROWS.permInputMonitoring}
-            granted={permissions?.input_monitoring ?? true}
+            granted={permissions?.input_monitoring}
             onRequestAccess={requestInputMonitoringPermission}
             onOpenSettings={openInputMonitoringSettings}
           />
           <PermissionRow
             {...ROWS.permMicrophone}
-            granted={permissions?.microphone ?? true}
+            granted={permissions?.microphone}
             onRequestAccess={requestMicrophonePermission}
             onOpenSettings={openMicrophoneSettings}
           />
@@ -1077,6 +1102,7 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
         )}
         </div>
       </FilterContext.Provider>
+      </fieldset>
     </div>
   );
 }

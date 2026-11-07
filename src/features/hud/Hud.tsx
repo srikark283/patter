@@ -63,8 +63,7 @@ export default function Hud() {
     const unlistenSound = listen<string>("play_sound", async (event) => {
       // event.payload is "start" | "stop" | "cancel"
       const { invoke } = await import("@tauri-apps/api/core");
-      const settings: any = await invoke("get_settings");
-      const theme = settings.sound_theme || "pop";
+      const theme: string = await invoke("get_sound_theme");
       
       const audio = new Audio(`/sounds/${theme}.wav`);
       if (event.payload === "stop" || event.payload === "cancel") {

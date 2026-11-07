@@ -40,7 +40,9 @@ Local-first, context-aware dictation for macOS and Windows. Speak naturally — 
 
 ## Installation
 
-**macOS** (no Gatekeeper friction — curl'd files carry no quarantine flag):
+The script installers require [Minisign](https://jedisct1.github.io/minisign/) and verify the release artifact against Patter's pinned updater public key before installation. On macOS, install the verifier with `brew install minisign`.
+
+**macOS:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/srikark283/patter/main/install.sh | sh
@@ -54,8 +56,7 @@ irm https://raw.githubusercontent.com/srikark283/patter/main/install.ps1 | iex
 
 **Or grab a release directly:** download the `.dmg` (macOS) or `.msi`/`.exe` (Windows) from the [latest release](https://github.com/srikark283/patter/releases/latest).
 
-- macOS isn't notarized (no Apple Developer account), so an unquarantined download will show as "damaged" — clear it with `xattr -cr /Applications/patter.app`, or use the curl installer above, which skips this entirely.
-- Windows isn't EV-signed, so SmartScreen may warn — click "More info → Run anyway", or use the installer script above.
+Current macOS releases use self-signing and are not Developer ID notarized; Windows releases are not Authenticode-signed. OS trust prompts may therefore appear for direct downloads. Artifact signature verification and OS publisher identity are separate checks.
 
 Onboarding walks you through mic permission, Accessibility (needed for automatic pasting on macOS), a starting speech model, and your hotkey.
 

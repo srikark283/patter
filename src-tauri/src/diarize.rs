@@ -55,6 +55,10 @@ pub fn diarize_and_transcribe(
         )
     };
 
+    { let state = app.state::<AppState>();
+      state.model_manager.verify_variant(SEGMENTATION_ID).map_err(|e| e.to_string())?;
+      state.model_manager.verify_variant(EMBEDDING_ID).map_err(|e| e.to_string())?;
+    }
     let config = OfflineSpeakerDiarizationConfig {
         segmentation: OfflineSpeakerSegmentationModelConfig {
             pyannote: OfflineSpeakerSegmentationPyannoteModelConfig {
