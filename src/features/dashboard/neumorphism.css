@@ -1,0 +1,182 @@
+/* Quiet reading surfaces; paired shadows give interactive controls their relief.
+   The transparent recording HUD keeps its independent appearance. */
+.dashboard-window {
+  color-scheme: light;
+  --background: #edf0f4;
+  --card: #f5f7f9;
+  --popover: #fafbfd;
+  --secondary: #e7ebf0;
+  --muted: #e7ebf0;
+  --muted-foreground: #566171;
+  --border: rgb(48 62 82 / 11%);
+  --input: rgb(48 62 82 / 18%);
+  --radius: 0.75rem;
+  --neu-light: #ffffff;
+  --neu-shade: #d2d8e1;
+  --shadow-ink: 30 42 58;
+  --surface-highlight: inset 0 1px 0 rgb(255 255 255 / 60%);
+  --surface-shadow: 0 2px 4px rgb(var(--shadow-ink) / 3%), 0 8px 18px -12px rgb(var(--shadow-ink) / 18%);
+  --neu-small: 2px 2px 5px var(--neu-shade), -2px -2px 5px var(--neu-light);
+  --neu-inset: inset 2px 2px 4px var(--neu-shade), inset -2px -2px 4px var(--neu-light);
+  --floating-surface: var(--popover);
+  --floating-shadow: 0 6px 12px -4px rgb(var(--shadow-ink) / 12%), 0 20px 48px -16px rgb(var(--shadow-ink) / 20%);
+}
+
+.dashboard-window.dark {
+  color-scheme: dark;
+  --background: #1c2026;
+  --card: #252a32;
+  --popover: #2a3039;
+  --secondary: #22272e;
+  --muted: #22272e;
+  --muted-foreground: #a5afbe;
+  --border: rgb(222 232 245 / 9%);
+  --input: rgb(222 232 245 / 18%);
+  --neu-light: #343b46;
+  --neu-shade: #16191e;
+  --shadow-ink: 0 0 0;
+  --surface-highlight: inset 0 1px 0 rgb(255 255 255 / 3%);
+  --surface-shadow: 0 2px 4px rgb(0 0 0 / 12%), 0 8px 20px -12px rgb(0 0 0 / 45%);
+}
+
+.dashboard-window {
+  .workspace-atmosphere { display: none; }
+
+  [data-slot="sidebar"] {
+    background: var(--background);
+    border-color: var(--border);
+    box-shadow: none;
+  }
+
+  .surface-raised,
+  [data-slot="card"],
+  .readiness-panel,
+  .intelligence-example,
+  .setup-progress,
+  .speech-active,
+  .featured-model,
+  .patter-model-card,
+  .provider-management {
+    background: var(--card);
+    border-color: transparent;
+    box-shadow: var(--surface-highlight), var(--surface-shadow);
+  }
+
+  .surface-raised { border-radius: 16px; }
+
+  [data-slot="sidebar-menu-button"][data-active="true"] {
+    background: var(--accent);
+    box-shadow: none;
+  }
+
+  [data-slot="sidebar-menu-button"][data-active="true"] > span[aria-hidden="true"] {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  [data-slot="sidebar-footer"] button.group,
+  [data-slot="button"]:is([data-variant="outline"], [data-variant="secondary"]),
+  .shortcut-key {
+    background: var(--card);
+    border-color: transparent;
+    box-shadow: var(--neu-small);
+  }
+
+  [data-slot="button"][data-variant="default"] {
+    box-shadow: var(--neu-small);
+  }
+
+  [data-slot="sidebar-footer"] button.group:hover,
+  [data-slot="button"]:is([data-variant="outline"], [data-variant="secondary"]):hover {
+    background: color-mix(in srgb, var(--primary) 6%, var(--card));
+  }
+
+  [data-slot="sidebar-footer"] button.group:active,
+  [data-slot="button"]:is([data-variant="outline"], [data-variant="secondary"]):active,
+  .shortcut-key[data-pressed] {
+    box-shadow: var(--neu-inset);
+  }
+
+  .theme-switcher-track,
+  .neu-segments,
+  .choice-segments,
+  .activity-period {
+    background: var(--background);
+    border-color: transparent;
+    box-shadow: var(--neu-inset);
+  }
+
+  .theme-switcher-thumb,
+  .neu-segments button[aria-pressed="true"],
+  .choice-segments button[aria-pressed="true"],
+  .activity-period button[aria-pressed="true"] {
+    background: var(--card);
+    border-color: transparent;
+    box-shadow: var(--neu-small);
+  }
+
+  .edit-shell,
+  .model-search,
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  textarea,
+  [data-slot="select-trigger"] {
+    background: var(--background);
+    box-shadow: var(--neu-inset);
+  }
+
+  .model-search,
+  input:not([aria-invalid="true"]),
+  textarea:not([aria-invalid="true"]),
+  [data-slot="select-trigger"]:not([aria-invalid="true"]) {
+    border-color: var(--input);
+  }
+
+  .list-row {
+    background: transparent;
+    border-color: var(--border);
+    box-shadow: none;
+  }
+
+  .list-row:hover { background: var(--accent-subtle); }
+
+  .preferences-sections {
+    background: var(--muted);
+    box-shadow: none;
+  }
+
+  [data-slot="switch"] {
+    box-shadow: var(--neu-inset);
+  }
+
+  [data-slot="switch"][data-state="checked"] {
+    box-shadow: inset 2px 2px 4px rgb(0 0 0 / 28%), inset -1px -1px 3px rgb(255 255 255 / 14%);
+  }
+
+  [data-slot="switch-thumb"] {
+    background: #f1f4f8;
+    box-shadow: 1px 2px 4px rgb(0 0 0 / 25%);
+  }
+
+  .patter-model-card.is-selected,
+  .patter-model-card.is-active,
+  .featured-model:has(> .speech-choice.is-active),
+  .catalog-detail > .speech-choice.is-active {
+    background: var(--card);
+    border-color: var(--primary);
+    box-shadow: var(--surface-shadow);
+  }
+
+  [data-slot="dialog-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"] {
+    background: var(--popover);
+    box-shadow: var(--floating-shadow);
+  }
+
+  .usage-overview { margin-block: 12px; }
+  .usage-metric-featured { border-bottom-color: var(--border); }
+
+  input, textarea { caret-color: var(--primary); }
+  ::placeholder { color: var(--muted-foreground); opacity: 1; }
+  * { scrollbar-color: var(--input) transparent; }
+}

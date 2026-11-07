@@ -232,7 +232,7 @@ export function DashboardView({ stats, history, onViewAll, onPreferences, active
                 <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
                 <p className="text-[11px] text-muted-foreground">Words dictated per day</p>
               </div>
-              <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
+              <div className="activity-period flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
                 {[
                   { label: "7 days", value: 7 as const },
                   { label: "30 days", value: 30 as const },

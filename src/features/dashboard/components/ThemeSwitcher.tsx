@@ -17,8 +17,8 @@ export function ThemeSwitcher() {
       <span className="text-muted-foreground">Appearance</span>
       <span className="font-medium text-foreground">{choices[selected].label}</span>
     </div>
-    <div role="group" aria-label="Appearance" className="relative isolate grid grid-cols-3 rounded-full bg-foreground/[0.04] p-1 ring-1 ring-inset ring-border">
-      <span aria-hidden="true" className="pointer-events-none absolute inset-y-1 left-1 rounded-full bg-card shadow-sm transition-transform duration-200 ease-out" style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(${selected * 100}%)` }} />
+    <div role="group" aria-label="Appearance" className="theme-switcher-track relative isolate grid grid-cols-3 rounded-full bg-foreground/[0.04] p-1 ring-1 ring-inset ring-border">
+      <span aria-hidden="true" className="theme-switcher-thumb pointer-events-none absolute inset-y-1 left-1 rounded-full bg-card shadow-sm transition-transform duration-200 ease-out" style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(${selected * 100}%)` }} />
       {choices.map(({ value, label, icon: Icon }) => <button
         key={value}
         type="button"

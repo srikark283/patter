@@ -8,11 +8,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 import "../index.css";
+import "../features/dashboard/neumorphism.css";
 import { applyTheme, getTheme, watchSystemTheme } from "@/lib/theme";
 
 // Before first paint: dashboard.html ships class="dark" so the window never
 // flashes white on a dark-themed launch; this corrects it if the user chose
 // light, and keeps "system" live afterwards.
+document.documentElement.classList.add("dashboard-window");
 applyTheme(getTheme());
 watchSystemTheme();
 

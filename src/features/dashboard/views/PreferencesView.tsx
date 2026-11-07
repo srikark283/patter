@@ -829,10 +829,11 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
             primary
             active
           >
-            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
+            <div className="neu-segments flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
               {MODES.map(({ id, label }) => (
                 <button
                   key={id}
+                  aria-pressed={settings.output_mode === id}
                   onClick={() => update({ output_mode: id })}
                   className={cn(
                     "px-3 py-1 text-[11px] font-medium rounded-md transition-colors whitespace-nowrap",
@@ -931,10 +932,11 @@ export function PreferencesView({ activeEngine }: PreferencesProps) {
 
         <SettingsSection {...PREFERENCE_SECTIONS[3]}>
           <Setting {...ROWS.appearance}>
-            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
+            <div className="neu-segments flex items-center gap-1 bg-foreground/5 rounded-lg p-1">
               {(["system", "light", "dark"] as Theme[]).map((t) => (
                 <button
                   key={t}
+                  aria-pressed={theme === t}
                   onClick={() => setTheme(t)}
                   className={cn(
                     "px-3 py-1 text-[11px] font-medium rounded-md capitalize transition-colors",
