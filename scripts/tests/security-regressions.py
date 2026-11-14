@@ -73,6 +73,8 @@ elif name in ['ditto','mv']: raise SystemExit('Unexpected installation side effe
         self.assertEqual(hud['windows'], ['main'])
         dashboard=json.loads((ROOT/'src-tauri/capabilities/default.json').read_text())
         self.assertNotIn('main', dashboard['windows'])
+        self.assertIn('allow-set-hud-visible', hud['permissions'])
+        self.assertNotIn('allow-set-hud-visible', dashboard['permissions'])
         commands=set(re.findall(r'commands::(\w+)',(ROOT/'src-tauri/src/main.rs').read_text().split('.invoke_handler(')[1]))
         declared=set(re.findall(r'"(\w+)"',(ROOT/'src-tauri/build.rs').read_text()))
         self.assertEqual(commands,declared)

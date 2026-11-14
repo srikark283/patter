@@ -191,6 +191,10 @@ export function onHudState(callback: (state: string) => void) {
   return listen<string>("patter://state", (event) => callback(event.payload));
 }
 
+export function setHudVisible(visible: boolean) {
+  return invoke<void>("set_hud_visible", { visible });
+}
+
 export function onMeetingState(callback: (state: string) => void) {
   return listen<string>("patter://meeting_state", (event) => callback(event.payload));
 }

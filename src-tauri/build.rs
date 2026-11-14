@@ -9,7 +9,7 @@ fn main() {
             "get_app_icon",
             "get_active_engine",
             "get_settings",
-            "get_sound_theme",
+            "set_hud_visible",
             "update_settings",
             "get_microphones",
             "get_stats",

@@ -6,10 +6,9 @@
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "core:window:allow-hide",
     "core:window:allow-start-dragging",
     "core:window:allow-set-ignore-cursor-events",
-    "allow-get-sound-theme",
+    "allow-set-hud-visible",
     "allow-cancel-dictation",
     "allow-stop-meeting-recording",
     "allow-cancel-meeting-recording"

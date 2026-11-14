@@ -1,5 +1,6 @@
 use crate::audio::levels::{extract_levels, FFT_SIZE};
 use crate::audio::capture::resample_linear;
+use crate::audio::cues::{self, Cue};
 use crate::db;
 use crate::paste;
 use crate::tray;
@@ -62,10 +63,6 @@ pub fn boost_gain(rms: f32, peak: f32) -> f32 {
     } else {
         gain.max(1.0)
     }
-}
-
-fn play_system_sound(app: &tauri::AppHandle, event_type: &str) {
-    let _ = app.emit("play_sound", event_type);
 }
 
 /// Moves the HUD window to whichever monitor the cursor is on right now —
@@ -163,18 +160,18 @@ pub fn start_recording(app: &tauri::AppHandle) {
     *state.command_selection.lock().unwrap() = None;
 
     let settings = state.settings.lock().unwrap().clone();
-    state.dictation_session_id.fetch_add(1, Ordering::SeqCst);
-    if settings.play_sounds {
-        play_system_sound(app, "start");
-    }
+    let session_id = state.dictation_session_id.fetch_add(1, Ordering::SeqCst) + 1;
 
     // Reinitialize the buffer for a new recording
     *state.captured.lock().unwrap() = Vec::new();
     let target = state.captured.clone();
 
-    if state.audio_tx.send(AudioCommand::Start(target, settings.microphone)).is_ok() {
-        state.is_recording.store(true, Ordering::SeqCst);
+    if state.audio_tx.send(AudioCommand::Start(target, settings.microphone.clone())).is_err() {
+        let _ = app.emit("patter://state", "⚠ Mic unavailable — no audio being captured");
+        return;
     }
+    state.is_recording.store(true, Ordering::SeqCst);
+    cues::play(&settings, Cue::Start);
 
     // If the model got unloaded since the last dictation, start reloading it now
     // rather than at cleanup time — the load then runs under the recording and
@@ -219,6 +216,9 @@ pub fn start_recording(app: &tauri::AppHandle) {
 
         while is_rec.load(Ordering::SeqCst) {
             thread::sleep(Duration::from_millis(LEVEL_INTERVAL_MS));
+            if !is_rec.load(Ordering::SeqCst) || bail_if_cancelled(&app_handle, session_id) {
+                break;
+            }
 
             let samples: Vec<f32> = {
                 let lock = captured.lock().unwrap();
@@ -281,13 +281,9 @@ pub fn cancel(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     println!("Cancelling recording...");
     
-    if state.settings.lock().unwrap().play_sounds {
-        play_system_sound(app, "stop");
-    }
-
-    if state.is_recording.load(Ordering::SeqCst) {
-        state.is_recording.store(false, Ordering::SeqCst);
+    if state.is_recording.swap(false, Ordering::SeqCst) {
         let _ = state.audio_tx.send(AudioCommand::Stop);
+        cues::play(&state.settings.lock().unwrap(), Cue::Stop);
         state.captured.lock().unwrap().clear();
 
         let _ = app.emit("levels", [0.0; 5]);
@@ -301,14 +297,13 @@ pub fn cancel(app: &tauri::AppHandle) {
 pub fn stop_and_transcribe(app: &tauri::AppHandle) {
     let pipeline_started = std::time::Instant::now();
     let state = app.state::<AppState>();
-    println!("Stopping recording...");
-    
-    if state.settings.lock().unwrap().play_sounds {
-        play_system_sound(app, "stop");
+    if !state.is_recording.swap(false, Ordering::SeqCst) {
+        return;
     }
+    println!("Stopping recording...");
 
-    state.is_recording.store(false, Ordering::SeqCst);
     let _ = state.audio_tx.send(AudioCommand::Stop);
+    cues::play(&state.settings.lock().unwrap(), Cue::Stop);
 
     let _ = app.emit("levels", [0.0; 5]);
 
@@ -696,17 +691,11 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         if clean_text == "scratch that" || clean_text == "undo that" {
             println!("[undo] Intercepted undo voice command");
             crate::paste::undo(&app_handle);
-            let _ = app_handle.emit("patter://hud_state", "idle");
-            if settings.play_sounds {
-                play_system_sound(&app_handle, "stop");
-            }
+            let _ = app_handle.emit("patter://state", "Idle");
             return;
         } else if clean_text.ends_with("scratch that") || clean_text.ends_with("undo that") {
             println!("[undo] User aborted dictation mid-sentence");
-            let _ = app_handle.emit("patter://hud_state", "idle");
-            if settings.play_sounds {
-                play_system_sound(&app_handle, "stop");
-            }
+            let _ = app_handle.emit("patter://state", "Idle");
             return;
         }
 
@@ -781,7 +770,9 @@ pub fn stop_and_transcribe(app: &tauri::AppHandle) {
         tray::refresh(&app_handle);
 
         thread::sleep(Duration::from_millis(1500));
-        let _ = app_handle.emit("patter://state", "Idle");
+        if !bail_if_cancelled(&app_handle, dictation_session_id) {
+            let _ = app_handle.emit("patter://state", "Idle");
+        }
     });
 }
 

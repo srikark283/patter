@@ -1,6 +1,6 @@
 [package]
 name = "patter"
-version = "1.0.9"
+version = "1.0.10"
 description = "Patter - Open Source Voice-to-Text Transcriber"
 authors = ["Srikar"]
 edition = "2021"
@@ -9,6 +9,7 @@ edition = "2021"
 # Check crates.io for the latest versions before building; these were current
 # as of mid-2026. The `metal` feature is what makes whisper.cpp use the GPU.
 cpal = "0.15"
+rodio = { version = "0.20.1", default-features = false, features = ["wav"] }
 whisper-rs = "0.14"
 anyhow = "1"
 tauri = { version = "2.11.5", features = ["tray-icon", "image", "image-png"] }

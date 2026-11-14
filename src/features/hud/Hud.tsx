@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event";
 import { X, AudioLines, WandSparkles, Square, Check } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { onHudState, onMeetingState, onLevels, cancelDictation, stopMeetingRecording, cancelMeetingRecording } from "../../lib/ipc";
+import { onHudState, onMeetingState, onLevels, setHudVisible, cancelDictation, stopMeetingRecording, cancelMeetingRecording } from "../../lib/ipc";
 import RecordingVisualizer from "./RecordingVisualizer";
 
 type Phase = "idle" | "recording" | "processing" | "cleanup" | "notice" | "meeting" | "success";
@@ -46,7 +45,7 @@ export default function Hud() {
     clearTimeout(completionTimer.current);
     const win = getCurrentWindow();
     if (phaseRef.current === "idle" && next !== "idle") {
-      win.show();
+      setHudVisible(true).catch(console.error);
     }
     if (next === "recording") {
       targets.current.fill(0);
@@ -60,22 +59,6 @@ export default function Hud() {
   };
 
   useEffect(() => {
-    const unlistenSound = listen<string>("play_sound", async (event) => {
-      // event.payload is "start" | "stop" | "cancel"
-      const { invoke } = await import("@tauri-apps/api/core");
-      const theme: string = await invoke("get_sound_theme");
-      
-      const audio = new Audio(`/sounds/${theme}.wav`);
-      if (event.payload === "stop" || event.payload === "cancel") {
-        audio.playbackRate = 0.9;
-        audio.preservesPitch = false;
-      } else {
-        audio.playbackRate = 1.5;
-        audio.preservesPitch = false;
-      }
-      audio.play().catch(e => console.error("Audio playback failed:", e));
-    });
-
     const unlisten = onHudState((state) => {
       const next = phaseFor(state);
       if (meetingActive.current) {
@@ -100,7 +83,6 @@ export default function Hud() {
     });
     return () => {
       unlisten.then((f) => f());
-      unlistenSound.then((f) => f());
       clearTimeout(completionTimer.current);
     };
   }, []);
@@ -161,7 +143,7 @@ export default function Hud() {
 
   const handleExitComplete = () => {
     if (phaseRef.current === "idle") {
-      getCurrentWindow().hide();
+      setHudVisible(false).catch(console.error);
     }
   };
 

@@ -500,6 +500,7 @@ fn main() {
             let panel = PanelBuilder::<_, HUDPanel>::new(app.handle(), "main")
                 .url(WebviewUrl::App("hud.html".into()))
                 .level(PanelLevel::Floating)
+                .hides_on_deactivate(false)
                 .transparent(true)
                 .with_window(|window| {
                     window
@@ -642,7 +643,7 @@ fn main() {
             commands::get_app_icon,
             commands::get_active_engine,
             commands::get_settings,
-            commands::get_sound_theme,
+            commands::set_hud_visible,
             commands::update_settings,
             commands::get_microphones,
             commands::get_stats,

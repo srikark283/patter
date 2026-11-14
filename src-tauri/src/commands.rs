@@ -165,10 +165,25 @@ pub fn update_meeting_action_items(
 }
 
 #[tauri::command]
-pub fn get_sound_theme(app: tauri::AppHandle) -> String {
-    let state = app.state::<AppState>();
-    let settings = state.settings.lock().unwrap();
-    match settings.sound_theme.as_str() { "chime" | "wood" | "pluck" => settings.sound_theme.clone(), _ => "pop".into() }
+pub fn set_hud_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        use tauri_nspanel::ManagerExt;
+        let panel = app.get_webview_panel("main").map_err(|_| "HUD panel unavailable")?;
+        app.run_on_main_thread(move || {
+            if visible {
+                panel.show();
+            } else {
+                panel.hide();
+            }
+        })
+        .map_err(|err| err.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let window = app.get_webview_window("main").ok_or("HUD window unavailable")?;
+        (if visible { window.show() } else { window.hide() }).map_err(|err| err.to_string())
+    }
 }
 
 #[tauri::command]
