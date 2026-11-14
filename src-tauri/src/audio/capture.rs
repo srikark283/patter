@@ -79,16 +79,35 @@ pub fn resample_linear(input: &[f32], from: u32, to: u32) -> Vec<f32> {
     }
 }
 
-pub fn create_stream(
+struct InputStream {
+    id: u64,
+    stream: cpal::Stream,
+}
+
+impl Drop for InputStream {
+    fn drop(&mut self) {
+        // CPAL's macOS disconnect listener can retain the stream after our handle drops.
+        #[cfg(target_os = "macos")]
+        if let Err(error) = self.stream.pause() {
+            eprintln!("Failed to stop microphone: {error}");
+        }
+    }
+}
+
+fn create_stream(
     device: &cpal::Device,
     config: &cpal::SupportedStreamConfig,
     buf: Arc<Mutex<Vec<f32>>>,
     tx: Sender<AudioCommand>,
-) -> Result<cpal::Stream> {
+    stream_id: u64,
+) -> Result<InputStream> {
     let err_buf = buf.clone();
     let err_fn = move |e| {
         eprintln!("stream error: {e}");
-        let _ = tx.send(AudioCommand::Reconnect(err_buf.clone()));
+        let _ = tx.send(AudioCommand::Reconnect {
+            stream_id,
+            captured: err_buf.clone(),
+        });
     };
 
     let stream = match config.sample_format() {
@@ -118,7 +137,9 @@ pub fn create_stream(
         )?,
         fmt => bail!("unsupported sample format: {fmt:?}"),
     };
-    Ok(stream)
+    let input = InputStream { id: stream_id, stream };
+    input.stream.play()?;
+    Ok(input)
 }
 
 /// Sets up the default input device and spawns the background thread that owns
@@ -135,13 +156,12 @@ pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamCon
     let tx_for_audio = tx.clone();
 
     thread::spawn(move || {
-        let mut stream: Option<cpal::Stream> = None;
+        let mut stream: Option<InputStream> = None;
+        let mut next_stream_id = 0;
         for cmd in rx {
             match cmd {
                 AudioCommand::Start(captured, mic_name) => {
-                    if stream.is_some() {
-                        stream = None;
-                    }
+                    drop(stream.take());
                     let host = cpal::default_host();
                     let mut device = host.default_input_device().expect("no default input device");
                     if let Some(name) = mic_name {
@@ -156,8 +176,10 @@ pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamCon
                     }
                     if let Ok(cfg) = device.default_input_config() {
                         *thread_config.lock().unwrap() = cfg.clone();
-                        if let Ok(s) = create_stream(&device, &cfg, captured, tx_for_audio.clone()) {
-                            s.play().unwrap();
+                        next_stream_id += 1;
+                        if let Ok(s) =
+                            create_stream(&device, &cfg, captured, tx_for_audio.clone(), next_stream_id)
+                        {
                             stream = Some(s);
                         }
                     }
@@ -165,17 +187,22 @@ pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamCon
                 AudioCommand::Stop => {
                     stream = None;
                 }
-                AudioCommand::Reconnect(captured) => {
+                AudioCommand::Reconnect { stream_id, captured } => {
+                    if stream.as_ref().map(|s| s.id) != Some(stream_id) {
+                        continue;
+                    }
                     eprintln!("Audio stream failed. Reconnecting...");
                     emit_state("⚠ Mic disconnected — reconnecting…");
-                    stream = None;
+                    drop(stream.take());
 
                     let host = cpal::default_host();
                     if let Some(dev) = host.default_input_device() {
                         if let Ok(cfg) = dev.default_input_config() {
                             *thread_config.lock().unwrap() = cfg.clone();
-                            if let Ok(s) = create_stream(&dev, &cfg, captured, tx_for_audio.clone()) {
-                                s.play().unwrap();
+                            next_stream_id += 1;
+                            if let Ok(s) =
+                                create_stream(&dev, &cfg, captured, tx_for_audio.clone(), next_stream_id)
+                            {
                                 stream = Some(s);
                                 eprintln!("Reconnected successfully.");
                                 emit_state("✓ Mic reconnected");
@@ -191,4 +218,36 @@ pub fn init_audio() -> (Sender<AudioCommand>, Arc<Mutex<cpal::SupportedStreamCon
     });
 
     (tx, shared_config)
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    #[ignore = "requires a Mac microphone and microphone access"]
+    fn stopping_a_selected_microphone_ends_capture() {
+        // Enumeration exercises the CPAL disconnect listener used for a named input.
+        let device = cpal::default_host()
+            .input_devices()
+            .unwrap()
+            .find(|device| device.default_input_config().is_ok())
+            .expect("no microphone");
+        let config = device.default_input_config().unwrap();
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let (tx, _rx) = channel();
+        let stream = create_stream(&device, &config, captured.clone(), tx, 1).unwrap();
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while captured.lock().unwrap().is_empty() {
+            assert!(Instant::now() < deadline, "microphone produced no samples");
+            thread::sleep(Duration::from_millis(10));
+        }
+
+        drop(stream);
+        let stopped_len = captured.lock().unwrap().len();
+        thread::sleep(Duration::from_millis(200));
+        assert_eq!(captured.lock().unwrap().len(), stopped_len);
+    }
 }

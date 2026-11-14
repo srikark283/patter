@@ -1,6 +1,6 @@
 [package]
 name = "patter"
-version = "1.0.10"
+version = "1.0.11"
 description = "Patter - Open Source Voice-to-Text Transcriber"
 authors = ["Srikar"]
 edition = "2021"

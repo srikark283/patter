@@ -5,7 +5,10 @@ use std::sync::{atomic::AtomicBool, mpsc::Sender, Arc, Mutex};
 pub enum AudioCommand {
     Start(Arc<Mutex<Vec<f32>>>, Option<String>),
     Stop,
-    Reconnect(Arc<Mutex<Vec<f32>>>),
+    Reconnect {
+        stream_id: u64,
+        captured: Arc<Mutex<Vec<f32>>>,
+    },
 }
 
 pub struct AppState {
